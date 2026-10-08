@@ -96,7 +96,7 @@ run_once() {
 
 # ── 3. DB 구조 맞추기 + 기본 데이터 ──
 log "DB 마이그레이션"
-run_once run db:migrate
+run_once run db:migrate:prod
 log "아이템·동물 목록 (여러 번 해도 안전)"
 run_once run db:seed
 
