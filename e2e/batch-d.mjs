@@ -4,7 +4,7 @@
 import { chromium } from "@playwright/test";
 import { config } from "dotenv";
 import pg from "pg";
-import { BASE, coins, collectErrors, fakeMember, fakePost, loginDev } from "./helpers.mjs";
+import { BASE, coins, collectErrors, fakeMember, fakePost, loginDev, blogTitleFor } from "./helpers.mjs";
 
 config({ path: ".env.local", quiet: true });
 const outDir = process.argv[2] ?? "e2e-shots";
@@ -113,7 +113,7 @@ try {
   check("TOWN-04 즐겨찾기하지 않은 이웃(B, 11번째)의 집은 없음", !slugs.includes(B) && !slugs.includes(fakes[10].slug));
   check("TOWN-04 순서는 최근 공개 글 순 (글 없는 블로그는 뒤)", slugs[0] === fakes[7].slug && slugs[1] === fakes[3].slug, slugs.slice(0, 3).join(","));
   const panel = a.page.locator("[data-neighbor-panel]");
-  check("TOWN-04 🏘 이웃집 패널은 남아 있고 즐겨찾기하지 않은 이웃(B)도 들어갈 수 있음", (await panel.getByRole("link", { name: new RegExp(`${B}의 블로그`) }).count()) === 1);
+  check("TOWN-04 🏘 이웃집 패널은 남아 있고 즐겨찾기하지 않은 이웃(B)도 들어갈 수 있음", (await panel.getByRole("link", { name: new RegExp(blogTitleFor(B)) }).count()) === 1);
   check("TOWN-08 패널에서 즐겨찾기는 ⭐ 표시", (await panel.getByLabel("즐겨찾기").count()) === 10);
   check("TOWN-04 즐겨찾기가 있으면 안내 문구 없음", (await a.page.locator("[data-no-favorites]").count()) === 0);
   await a.page.locator("canvas").waitFor();
@@ -259,7 +259,7 @@ try {
   await f.page.locator('input[name="nickname"]').waitFor();
   check("GAME-09 초대 링크로 가입하면 온보딩 초대 코드 칸이 채워져 있음", (await f.page.locator('input[name="inviteCode"]').inputValue()) === code);
   // 없는 코드 → 문구, 입력값 유지
-  await f.page.locator('input[name="blogTitle"]').fill(`${F}의 블로그`);
+  await f.page.locator('input[name="blogTitle"]').fill(blogTitleFor(F));
   await f.page.locator('input[name="slug"]').fill(F);
   await f.page.locator('input[name="inviteCode"]').fill("ZZZZZ9");
   await f.page.getByRole("button", { name: /광장으로 출발/ }).click();
@@ -327,7 +327,7 @@ try {
   await g.page.getByRole("button", { name: "회원가입", exact: true }).click();
   await g.page.locator('input[name="nickname"]').waitFor();
   check("GAME-09 그냥 가입하면 초대 코드 칸이 비어 있음", (await g.page.locator('input[name="inviteCode"]').inputValue()) === "");
-  await g.page.locator('input[name="blogTitle"]').fill(`${G}의 블로그`);
+  await g.page.locator('input[name="blogTitle"]').fill(blogTitleFor(G));
   await g.page.locator('input[name="slug"]').fill(G);
   await g.page.locator('input[name="inviteCode"]').fill(` ${code.toLowerCase()} `.trim());
   await g.page.getByRole("button", { name: /광장으로 출발/ }).click();

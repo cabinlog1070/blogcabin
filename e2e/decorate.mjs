@@ -202,7 +202,7 @@ try {
   check("SHOP-06 헤더 캐릭터 얼굴도 밀짚모자", headerFace.includes("%23f6d98a"));
   await page.screenshot({ path: `${outDir}/a4-blog-miniroom.png` });
   await page.goto(`${BASE}/town`);
-  check("SHOP-06 광장 메뉴 캐릭터도 같은 모습", (await page.locator("[data-town-menu] img").first().getAttribute("src")).includes("%23f6d98a"));
+  // (2026-10-08 휴대폰 광장 아래 메뉴를 없애서 광장 메뉴 캐릭터 확인은 뺐다)
 
   // 다른 사람(로그인 안 한 방문자)이 들어와도 같은 배치
   const guest = await browser.newContext({ viewport: { width: 375, height: 812 } });

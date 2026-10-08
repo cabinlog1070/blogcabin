@@ -11,7 +11,8 @@ export function BlogInfoForm({ title, description }: { title: string; descriptio
     <form action={action} className="space-y-3">
       <label className="block">
         <span className="mb-1 block font-bold">블로그 이름</span>
-        <input name="title" defaultValue={title} maxLength={40} required className={input} />
+        <input name="title" defaultValue={title} maxLength={12} required className={input} />
+        <span className="mt-1 block text-sm text-ink-soft">12자까지 쓸 수 있어요</span>
       </label>
       <label className="block">
         <span className="mb-1 block font-bold">소개</span>

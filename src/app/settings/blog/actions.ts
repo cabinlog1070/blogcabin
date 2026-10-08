@@ -12,7 +12,7 @@ import { uniqueViolation } from "@/server/db-errors";
 export type FormState = { error?: string; ok?: number };
 
 const infoSchema = z.object({
-  title: z.string().trim().min(1, "블로그 이름을 적어 주세요").max(40, "블로그 이름은 40자까지예요"),
+  title: z.string().trim().min(1, "블로그 이름을 적어 주세요").max(12, "블로그 이름은 12자까지예요"),
   description: z.string().trim().max(160, "소개는 160자까지예요"),
 });
 

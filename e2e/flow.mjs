@@ -1,6 +1,7 @@
 // 개발 서버(localhost:3000)를 대상으로 주요 흐름을 따라가며 스크린샷을 남긴다
 // 사용: node e2e/flow.mjs <스크린샷 폴더> <개발용 아이디>
 import { chromium } from "@playwright/test";
+import { blogTitleFor } from "./helpers.mjs";
 
 const outDir = process.argv[2] ?? "e2e-shots";
 const devId = process.argv[3] ?? `tester${Date.now() % 100000}`;
@@ -27,8 +28,8 @@ console.log("after login:", page.url());
 if (page.url().includes("onboarding")) {
   await shot("02-onboarding");
   await page.locator('input[name="nickname"]').fill(devId.slice(0, 12));
-  await page.locator('input[name="blogTitle"]').fill(`${devId}의 블로그`);
-  await page.locator('input[name="slug"]').fill(devId.toLowerCase());
+  await page.locator('input[name="blogTitle"]').fill(blogTitleFor(devId));
+  await page.locator('input[name="slug"]').fill(devId.toLowerCase().slice(0, 12));
   await page.locator("label", { hasText: "남자 주민" }).click();
   await page.getByRole("button", { name: /광장으로 출발/ }).click();
   await page.waitForURL(/town/);

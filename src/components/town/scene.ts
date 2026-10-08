@@ -2,6 +2,7 @@
 // 그림은 src/lib/art/ 의 SVG를 이미지로 바꿔 쓴다 (townTextures → TownGame이 미리 불러온다).
 import type * as PhaserNS from "phaser";
 import { animalSvg, toAnimalDataUri } from "@/lib/art/animals";
+import { PHONE_MEDIA } from "@/lib/device";
 import { characterDataUri, VISITOR_CHARACTER } from "@/lib/art/characters";
 import {
   ATTENDANCE_SIZE,
@@ -45,6 +46,8 @@ const PET_SIZE = 58; // 따라다니는 펫 그림 크기 (TOWN-09)
 const PET_BEHIND = 48; // 캐릭터 뒤 얼마나 떨어져서 따라오는지
 // 가상 조이스틱 (터치 화면 전용, TOWN-02)
 const JOYSTICK = { radius: 56, thumb: 26, margin: 28, deadZone: 8 };
+// 휴대폰은 화면이 좁아서 멀리서 보듯 줄여 광장을 더 넓게 보여 준다
+const PHONE_ZOOM = 0.7;
 
 /** 광장에 놓는 그림 하나. (x, y) = 아랫변 가운데 (발 닿는 곳) */
 type Structure = {
@@ -235,8 +238,8 @@ export function createTownScene(
     private grid!: WalkGrid;
     private solids: Rect[] = []; // 부딪히는 영역 (길찾기 칸을 만들 때 쓴다)
     private stuck: { x: number; y: number; since: number; retried?: boolean } = { x: 0, y: 0, since: 0 }; // 길을 가다 막혔는지 보는 용도
+    private touch = false; // 손가락으로 쓰는 화면 (안내 문구를 "탭해서"로)
     private glows: { image: PhaserNS.GameObjects.Image; kind: "lamp" | "window" | "fire"; base: number }[] = [];
-    private skyChip!: PhaserNS.GameObjects.Text;
     private entrances: Entrance[] = [];
     private prompt!: PhaserNS.GameObjects.Text;
     private joystick: {
@@ -319,8 +322,12 @@ export function createTownScene(
       // 페이지 스크롤과 겹치지 않게 게임 안에서만 키를 쓴다
       keyboard.addCapture("UP,DOWN,LEFT,RIGHT,SPACE");
 
-      // 터치가 주 입력인 기기(휴대폰·태블릿)에서만 조이스틱을 보여준다
-      if (window.matchMedia?.("(pointer: coarse)").matches) this.createJoystick();
+      // 조이스틱은 태블릿처럼 화면이 넓은 터치 기기에서만. 휴대폰은 탭해서 움직이고, 시야를 넓게 본다
+      const phone = window.matchMedia?.(PHONE_MEDIA).matches;
+      if (!phone && window.matchMedia?.("(pointer: coarse)").matches) this.createJoystick();
+      this.touch = Boolean(phone || this.joystick);
+      if (phone) this.cameras.main.setZoom(PHONE_ZOOM);
+      this.game.canvas.dataset.joystick = this.joystick ? "on" : "off"; // e2e 확인용
 
       this.input.on("pointerdown", (pointer: PhaserNS.Input.Pointer) => {
         // 조이스틱을 누른 경우: 걷기 목표를 정하지 않고 조이스틱으로 움직인다
@@ -498,7 +505,7 @@ export function createTownScene(
       }
       if (closest) {
         const verb = closest.target.kind === "login" ? "로그인하고 이용하기" : "들어가기";
-        this.prompt.setText(`${closest.emoji} ${closest.label} · ${this.joystick ? "탭해서" : "Space"} ${verb}`);
+        this.prompt.setText(`${closest.emoji} ${closest.label} · ${this.touch ? "탭해서" : "Space"} ${verb}`);
         this.prompt.setPosition(closest.x, closest.promptY).setVisible(true);
         if (this.actionKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))) onEnter(closest.target);
       } else {
@@ -590,12 +597,6 @@ export function createTownScene(
         this.tweens.add({ targets: fire, scale: { from: fire.scale * 0.95, to: fire.scale * 1.05 }, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       }
 
-      this.skyChip = this.add
-        .text(0, 12, "", font({ fontSize: "13px", fontStyle: "bold", color: "#2b2118", backgroundColor: "#ffffffd9", padding: { x: 8, y: 4 } }))
-        .setOrigin(1, 0)
-        .setScrollFactor(0)
-        .setDepth(SKY_DEPTH + 10);
-
       const apply = () => {
         const sky = lightAt(localHour());
         // 땅·건물·나무·캐릭터 그림마다 흰색과 하늘색을 섞은 색을 곱해(tint) 어둡게 한다. 불꽃·불빛·글자는 그대로 둔다
@@ -609,15 +610,10 @@ export function createTownScene(
           const alpha = l.kind === "fire" ? 0.22 + 0.4 * sky.lamps : l.base * sky.lamps;
           l.image.setAlpha(alpha).setVisible(alpha > 0.01);
         }
-        const now = new Date();
-        this.skyChip.setText(`${sky.emoji} ${sky.label} ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`);
         this.game.canvas.dataset.sky = sky.phase;
         this.game.canvas.dataset.lamps = sky.lamps > 0.5 ? "on" : "off";
       };
-      const fit = () => this.skyChip.setX(this.scale.width - 12);
-      fit();
       apply();
-      this.scale.on("resize", fit);
       this.time.addEvent({ delay: 30_000, loop: true, callback: apply });
     }
 

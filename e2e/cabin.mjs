@@ -126,13 +126,13 @@ try {
   await cp.waitForTimeout(1500);
   check("TOWN-02 동작 줄이기면 불꽃이 멈춤", (await cp.locator("canvas").getAttribute("data-campfire")) === "1");
 
-  // 휴대폰(375px)에서는 광장 아래에 간단 메뉴
+  // 휴대폰(375px)에서도 광장 (가로 스크롤 없음)
   const phone = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, storageState: await x.ctx.storageState() });
   const pp = await phone.newPage();
   await pp.goto(`${BASE}/town`);
-  await pp.locator("[data-town-menu]").waitFor();
+  await pp.locator("canvas").waitFor({ timeout: 20000 });
   await pp.screenshot({ path: `${outDir}/c8-town-375.png`, fullPage: true });
-  check("375px 광장: 간단 메뉴 (가로 스크롤 없음)", (await pp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 0);
+  check("375px 광장 (가로 스크롤 없음)", (await pp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)) <= 0);
 
   // ── 색 테마 (after) ──
   await themeShots();

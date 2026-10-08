@@ -5,7 +5,7 @@
 import { chromium } from "@playwright/test";
 import { config } from "dotenv";
 import pg from "pg";
-import { BASE, collectErrors, loginDev } from "./helpers.mjs";
+import { BASE, collectErrors, loginDev, blogTitleFor } from "./helpers.mjs";
 
 config({ path: ".env.local", quiet: true });
 const outDir = process.argv[2] ?? "e2e-shots";
@@ -66,7 +66,7 @@ try {
   check("TOWN-10 왼쪽 로고", await banner.getByRole("link", { name: "BlogCabin" }).isVisible());
   const card = banner.locator("[data-status-card]");
   check("TOWN-10 상태창 닉네임", (await card.locator("[data-status-nickname]").innerText()) === A);
-  check("TOWN-10 상태창 블로그 제목", (await card.locator("[data-status-blog-title]").innerText()) === `${A}의 블로그`);
+  check("TOWN-10 상태창 블로그 제목", (await card.locator("[data-status-blog-title]").innerText()) === blogTitleFor(A));
   check("TOWN-10 상태창 얼굴 그림", (await card.locator("img").count()) === 1);
   check("TOWN-10 Lv·코인·나가기 유지", (await banner.getByTitle("레벨").isVisible()) && (await banner.getByTitle("코인").isVisible()) && (await banner.getByRole("link", { name: /나가기/ }).isVisible()));
   check("TOWN-10 로그아웃은 헤더가 아니라 내 정보 메뉴에", (await banner.getByRole("button", { name: "로그아웃" }).count()) === 0);
@@ -79,7 +79,7 @@ try {
   await card.click();
   const menu = a.page.locator("[data-profile-menu]");
   await menu.waitFor();
-  check("TOWN-10 상태창 누르면 내 정보 메뉴", (await menu.locator("[data-menu-nickname]").innerText()) === A && (await menu.locator("[data-menu-blog-title]").innerText()) === `${A}의 블로그`);
+  check("TOWN-10 상태창 누르면 내 정보 메뉴", (await menu.locator("[data-menu-nickname]").innerText()) === A && (await menu.locator("[data-menu-blog-title]").innerText()) === blogTitleFor(A));
   check("AUTH-05 내 정보 메뉴: 아이디 로그인 ✓", (await menu.locator('[data-login-method="credential"][data-linked="true"]').count()) === 1);
   check("TOWN-10 내 정보 메뉴: 로그아웃 버튼", await menu.getByRole("button", { name: "로그아웃" }).isVisible());
   await a.page.screenshot({ path: `${outDir}/b1-profile-menu.png`, clip: { x: 640, y: 0, width: 640, height: 480 } });

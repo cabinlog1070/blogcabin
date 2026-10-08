@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, inArray, lt, gt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { likePattern, SEARCH_BLOG_LIMIT } from "@/lib/search";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
@@ -51,6 +51,8 @@ export async function getBlogByOwner(ownerId: string) {
   return row ?? null;
 }
 
+// 조인 없는 select에서는 drizzle이 칸 이름 앞에 표 이름을 붙이지 않아서 ${categories.id}가 "id"(안쪽 posts.id)로 읽혔다.
+// 그래서 카테고리 글 수가 늘 0이었다. 바깥 표 칸은 표 이름을 직접 붙인다
 export async function getCategories(blogId: number, includePrivate: boolean) {
   return db
     .select({
@@ -59,7 +61,7 @@ export async function getCategories(blogId: number, includePrivate: boolean) {
       position: categories.position,
       postCount: sql<number>`(
         SELECT COUNT(*)::int FROM ${posts}
-        WHERE ${posts.categoryId} = ${categories.id}
+        WHERE ${posts.categoryId} = "categories"."id"
         ${includePrivate ? sql`` : sql`AND ${posts.visibility} = 'public'`}
       )`,
     })
@@ -238,8 +240,11 @@ export async function getComments(postId: number) {
 /** 같은 블로그 안에서 바로 이전 / 다음 글 */
 export async function getAdjacentPosts(blogId: number, post: { id: number; createdAt: Date }, isOwner: boolean) {
   const visible = isOwner ? undefined : eq(posts.visibility, "public");
-  const older = or(lt(posts.createdAt, post.createdAt), and(eq(posts.createdAt, post.createdAt), lt(posts.id, post.id)));
-  const newer = or(gt(posts.createdAt, post.createdAt), and(eq(posts.createdAt, post.createdAt), gt(posts.id, post.id)));
+  // 시각은 DB 값 그대로 비교한다. DB는 마이크로초까지, JS Date는 밀리초까지라 post.createdAt을 넘기면
+  // 지금 글이 자기보다 "나중 글"로 잡혀 [다음 글]이 지금 화면을 가리켰다
+  const current = sql`(SELECT ${posts.createdAt}, ${posts.id} FROM ${posts} WHERE ${posts.id} = ${post.id})`;
+  const older = sql`(${posts.createdAt}, ${posts.id}) < ${current}`;
+  const newer = sql`(${posts.createdAt}, ${posts.id}) > ${current}`;
   const [prev] = await db
     .select({ id: posts.id, title: posts.title })
     .from(posts)

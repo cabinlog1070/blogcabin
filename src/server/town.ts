@@ -14,10 +14,11 @@ const backgroundItem = alias(items, "background_item");
 const ownerExp = sql<number>`(
   SELECT COALESCE(SUM(${pointLedger.expDelta}), 0)::int FROM ${pointLedger} WHERE ${pointLedger.userId} = ${blogs.ownerId}
 )`;
-/** 그 블로그의 가장 최근 공개 글 시각 (없으면 NULL) */
+/** 그 블로그의 가장 최근 공개 글 시각 (없으면 NULL).
+ *  조인 없는 select(방문자 광장 후보)에서는 drizzle이 ${blogs.id}를 표 이름 없이 "id"로 써서 안쪽 posts.id로 읽히므로 표 이름을 직접 붙인다 */
 const lastPublicPostAt = sql<Date | null>`(
   SELECT MAX(${posts.createdAt}) FROM ${posts}
-  WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public'
+  WHERE ${posts.blogId} = "blogs"."id" AND ${posts.visibility} = 'public'
 )`;
 const houseColumns = {
   slug: blogs.slug,
@@ -69,7 +70,7 @@ export async function getPopularHouses(): Promise<TownHouse[]> {
   const recentLikes = sql<number>`(
     SELECT COUNT(*)::int FROM ${postLikes}
     INNER JOIN ${posts} ON ${posts.id} = ${postLikes.postId}
-    WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public'
+    WHERE ${posts.blogId} = "blogs"."id" AND ${posts.visibility} = 'public'
       AND ${postLikes.createdAt} >= now() - interval '30 days'
   )`;
   // 상위 100곳의 블로그 ID를 고른 뒤, 그 안에서 무작위로 10곳

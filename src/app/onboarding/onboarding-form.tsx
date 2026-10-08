@@ -46,14 +46,14 @@ export function OnboardingForm({
         />
       </Field>
 
-      <Field label="블로그 이름" error={state.errors?.blogTitle}>
-        <input name="blogTitle" defaultValue={v.blogTitle ?? ""} placeholder={`예: ${exampleName}의 블로그`} className={inputClass} maxLength={40} required />
+      <Field label="블로그 이름" error={state.errors?.blogTitle} hint="12자까지 쓸 수 있어요">
+        <input name="blogTitle" defaultValue={v.blogTitle ?? ""} placeholder={`예: ${exampleName}의 블로그`} className={inputClass} maxLength={12} required />
       </Field>
 
-      <Field label="블로그 주소" error={state.errors?.slug} hint="영문 소문자, 숫자, _ (3~20자)">
+      <Field label="블로그 주소" error={state.errors?.slug} hint="영문 소문자, 숫자, _ 로 3~12자까지 쓸 수 있어요">
         <div className="flex items-center rounded-xl border-2 border-line bg-paper focus-within:border-sun">
           <span className="pl-3 text-ink-soft">blogcabin/@</span>
-          <input name="slug" defaultValue={v.slug ?? ""} placeholder="myblog" className="w-full bg-transparent px-1 py-2.5 outline-none" maxLength={20} required />
+          <input name="slug" defaultValue={v.slug ?? ""} placeholder="myblog" className="w-full bg-transparent px-1 py-2.5 outline-none" maxLength={12} required />
         </div>
       </Field>
 

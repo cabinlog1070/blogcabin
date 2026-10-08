@@ -19,12 +19,12 @@ const schema = z.object({
     .min(2, "닉네임은 2자 이상이에요")
     .max(12, "닉네임은 12자까지예요")
     .refine((n) => n !== "관리자", "이 닉네임은 쓸 수 없어요"), // 관리자 계정의 닉네임 (AUTH-08)
-  blogTitle: z.string().trim().min(1, "블로그 이름을 적어 주세요").max(40, "블로그 이름은 40자까지예요"),
+  blogTitle: z.string().trim().min(1, "블로그 이름을 적어 주세요").max(12, "블로그 이름은 12자까지예요"),
   slug: z
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9_]{3,20}$/, "주소는 영문 소문자, 숫자, _ 로 3~20자예요"),
+    .regex(/^[a-z0-9_]{3,12}$/, "주소는 영문 소문자, 숫자, _ 로 3~12자예요"), // DB는 20자까지 받지만 화면에서는 12자로 줄였다 (2026-10-08)
   characterId: z.coerce.number().int().positive("캐릭터를 골라 주세요"),
 });
 type Field = keyof z.infer<typeof schema> | "inviteCode";

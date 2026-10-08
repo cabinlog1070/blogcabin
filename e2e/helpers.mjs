@@ -11,6 +11,9 @@ export function collectErrors(page) {
   return errors;
 }
 
+/** loginDev가 온보딩에서 적는 블로그 이름 (12자까지) */
+export const blogTitleFor = (devId) => `${devId}의 블로그`.slice(0, 12);
+
 /** 아이디로 로그인하고, 없는 계정이면 회원가입 + 온보딩까지 마친다 */
 export async function loginDev(page, devId, character = "남자 주민", password = "test-password-1234") {
   await page.goto(BASE);
@@ -35,8 +38,9 @@ export async function loginDev(page, devId, character = "남자 주민", passwor
 
   if (page.url().includes("onboarding")) {
     await page.locator('input[name="nickname"]').fill(devId.slice(0, 12));
-    await page.locator('input[name="blogTitle"]').fill(`${devId}의 블로그`);
-    await page.locator('input[name="slug"]').fill(devId.toLowerCase());
+    // 블로그 이름·주소는 12자까지 (2026-10-08)
+    await page.locator('input[name="blogTitle"]').fill(blogTitleFor(devId));
+    await page.locator('input[name="slug"]').fill(devId.toLowerCase().slice(0, 12));
     await page.locator("label", { hasText: character }).click();
     await page.getByRole("button", { name: /광장으로 출발/ }).click();
     await page.waitForURL(/town/);
