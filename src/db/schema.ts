@@ -65,6 +65,8 @@ export const LEDGER_REASONS = [
   // 친구 초대 (GAME-09): invite = 초대한 사람(ref_id = 친구 ID), invited = 초대받은 친구(ref_id = 초대한 사람 ID)
   "invite",
   "invited",
+  // 관리자가 관리자 화면에서 직접 준 코인·경험치 (ref_id = 준 관리자 ID)
+  "admin_grant",
 ] as const;
 export const ledgerReason = enumText(LEDGER_REASONS);
 // 동물 농장 (TOWN-09)

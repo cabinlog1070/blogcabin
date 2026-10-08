@@ -43,6 +43,9 @@ export const POST_REWARD_MIN_LENGTH = 100;
 /** 즐겨찾는 이웃은 회원당 최대 10명 (TOWN-08). 광장의 집도 이 블로그들만 최대 10채 (TOWN-04) */
 export const MAX_FAVORITES = 10;
 
+/** 관리자 지급의 "코인 최대": 잔액을 이만큼까지 채운다 (원장 합계라 진짜 한도는 없다) */
+export const ADMIN_MAX_COINS = 999_999;
+
 /** 연속 출석 보너스를 주는 주기 (7일마다) */
 export const ATTENDANCE_STREAK_BONUS_EVERY = 7;
 

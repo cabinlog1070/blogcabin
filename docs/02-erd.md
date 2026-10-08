@@ -1,7 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 0.8 (2026-10-08, PostgreSQL enum 타입 12개를 text + CHECK로 바꿈(마이그레이션 `0010_enums_to_text`). 같은 구조를 Crowfoot 문서 673 "BlogCabin ERD"(https://crowfoot.java21.net/workspaces/43/models/673)로 그려 운영 DB에 배포했다)
+- 버전: 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
+- 0.8 (2026-10-08, PostgreSQL enum 타입 12개를 text + CHECK로 바꿈(마이그레이션 `0010_enums_to_text`). 같은 구조를 Crowfoot 문서 673 "BlogCabin ERD"(https://crowfoot.java21.net/workspaces/43/models/673)로 그려 운영 DB에 배포했다)
 - 0.7 (2026-10-08, 배치 D: 방문자 수 `blog_visits`(BLOG-06), 글 조회 기록 `post_views`(POST-06), 로그인 시도 제한 `login_attempts`(NF-10), 즐겨찾는 이웃 `follows.is_favorite`(TOWN-08), 지붕 색 `blogs.roof_color`(TOWN-07), 친구 초대 `profiles.invite_code`·`invited_by`·`invite_rewarded_at`와 원장 사유 `invite`·`invited`(GAME-09), 회원 탈퇴를 위한 `comments.author_id` NULL 허용(AUTH-06). 마이그레이션 `0009_batch_d`)
 - 0.6 (2026-10-08): 동물 농장 펫(TOWN-09): `user_animals`에 이름·성별·꾸미기·데리고 다니기, `animal_species.max_level`, 농장 가방 `farm_items`, `profiles.displayed_animal_id`, `pet_level_up` 알림. 마이그레이션 `0008_pet_farm`)
 - 0.5 (2026-10-08): 알림함 `notifications`, GAME-06·GAME-08. 집 단계(TOWN-11)는 원장에서 계산하므로 테이블 변경 없음)
@@ -450,7 +451,7 @@ COMMIT
 | `avatar_slot` | `top`, `bottom`, `hat`, `shoes` (그리는 순서는 몸 → 하의 → 상의 → 신발 → 모자, `src/lib/art/avatar.ts`) |
 | `visibility` | `public`, `private` |
 | `notification_kind` | `level_up`, `like`, `comment`, `reply`, `pet_level_up` (마이그레이션 0007) |
-| `ledger_reason` | `signup`, `attendance`, `attendance_streak`, `post`, `comment`, `like_received`, `purchase`, `farm_care`, `farm_grown`, `egg_purchase`, `potion_purchase`(0008), `invite`·`invited`(친구 초대, 0009) |
+| `ledger_reason` | `signup`, `attendance`, `attendance_streak`, `post`, `comment`, `like_received`, `purchase`, `farm_care`, `farm_grown`, `egg_purchase`, `potion_purchase`(0008), `invite`·`invited`(친구 초대, 0009), `admin_grant`(관리자 지급, 0011) |
 | `animal_status` | `egg`, `growing`, `grown` |
 | `egg_source` | `starter`, `level`, `shop` |
 | `care_action` | `feed`, `pet`, `water`(옛 물 주기 기록, 새로 쓰지 않음) |

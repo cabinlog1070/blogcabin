@@ -1,19 +1,20 @@
 import { desc, eq, gte, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/db";
-import { attendances, blogs, comments, posts, profiles, users } from "@/db/schema";
+import { attendances, blogs, comments, pointLedger, posts, profiles, users } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
-import { todayKST } from "@/lib/game";
+import { levelFromExp, todayKST } from "@/lib/game";
 import { requireAdmin } from "@/server/dal";
 import { startOfTodayKST } from "@/server/points";
 import { AdminDeletePostButton } from "./delete-button";
+import { AdminGrantForm } from "./grant-form";
 
 export const metadata = { title: "관리자" };
 
 export default async function AdminPage() {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
-  const [[stats], recentUsers, recentPosts] = await Promise.all([
+  const [[stats], recentUsers, recentPosts, residents] = await Promise.all([
     db.select({
       users: sql<number>`(SELECT COUNT(*)::int FROM ${users})`,
       residents: sql<number>`(SELECT COUNT(*)::int FROM ${profiles})`,
@@ -45,7 +46,25 @@ export default async function AdminPage() {
       .where(gte(posts.createdAt, sql`now() - interval '30 days'`))
       .orderBy(desc(posts.createdAt))
       .limit(30),
+    // 관리자 지급 대상: 온보딩을 마친 주민 전부와 지금 코인·경험치
+    db
+      .select({
+        userId: profiles.userId,
+        nickname: profiles.nickname,
+        username: users.username,
+        coins: sql<number>`COALESCE(SUM(${pointLedger.coinDelta}), 0)::int`,
+        exp: sql<number>`COALESCE(SUM(${pointLedger.expDelta}), 0)::int`,
+      })
+      .from(profiles)
+      .innerJoin(users, eq(users.id, profiles.userId))
+      .leftJoin(pointLedger, eq(pointLedger.userId, profiles.userId))
+      .groupBy(profiles.userId, profiles.nickname, users.username)
+      .orderBy(profiles.nickname),
   ]);
+  const members = residents.map((r) => ({
+    userId: r.userId,
+    label: `${r.nickname} (${r.username ?? "소셜"}) · Lv.${levelFromExp(r.exp)} · 🪙 ${r.coins.toLocaleString()}`,
+  }));
 
   const cards = [
     { label: "가입 계정", value: stats.users },
@@ -67,6 +86,12 @@ export default async function AdminPage() {
             <p className="font-display text-3xl">{c.value.toLocaleString()}</p>
           </div>
         ))}
+      </section>
+
+      <section className="card mt-8 p-5">
+        <h2 className="mb-1 font-display text-xl">🎁 관리자 지급</h2>
+        <p className="mb-3 text-sm text-ink-soft">주민에게 코인·경험치를 줘요. 받은 사람의 내역에는 &quot;🎁 관리자 지급&quot;으로 보여요.</p>
+        <AdminGrantForm members={members} defaultUserId={admin.userId} />
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">

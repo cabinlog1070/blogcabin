@@ -21,6 +21,7 @@ const REASON_LABEL: Record<string, string> = {
   potion_purchase: "🧪 물약 구매",
   invite: "🤝 친구 초대", // 내가 초대한 친구가 첫 글을 씀 (GAME-09)
   invited: "🤝 친구 초대", // 초대받아 가입하고 첫 글을 씀
+  admin_grant: "🎁 관리자 지급",
 };
 
 const signed = (n: number) => (n > 0 ? `+${n.toLocaleString()}` : `−${Math.abs(n).toLocaleString()}`);
