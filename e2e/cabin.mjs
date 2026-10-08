@@ -95,7 +95,7 @@ try {
   check("TOWN-02 불꽃이 일렁인다 (화면이 바뀜)", !f1.equals(f2));
   await bp.screenshot({ path: `${outDir}/c1-plaza-full.png` });
   await bp.screenshot({ path: `${outDir}/c2-campfire.png`, clip: { x: box.x + 900 - 260, y: box.y + 700 - 220, width: 520, height: 400 } });
-  // 이웃 집 자리는 들어올 때마다 무작위라 캔버스의 data-neighbor-slots(slug:x,y)에서 읽는다. 파일 이름은 그 집의 단계
+  // 이웃 집 자리는 캔버스의 data-neighbor-slots(slug:x,y)에서 읽는다. 파일 이름은 그 집의 단계
   await bp.evaluate(() => document.querySelector("[data-neighbor-panel]")?.style.setProperty("visibility", "hidden")); // 왼쪽 위 자리 집을 가리지 않게
   const placed = (await canvas.getAttribute("data-neighbor-slots")).split(";").map((v) => {
     const [slug, xy] = v.split(":");

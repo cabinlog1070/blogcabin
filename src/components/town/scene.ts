@@ -181,8 +181,8 @@ function layout(data: TownData) {
     });
   };
   if (data.myHouse) addHouse(data.myHouse, MY_HOUSE_POS, true);
-  // 이웃 집 자리는 들어올 때마다 무작위로 정한다
-  const slots = shuffle(NEIGHBOR_SLOTS);
+  // 이웃 집 자리는 순서대로 고정 (즐겨찾기 먼저·최근 글 순으로 NEIGHBOR_SLOTS 앞자리부터)
+  const slots = NEIGHBOR_SLOTS;
   const neighborSlots = data.neighbors.slice(0, slots.length).map((h, i) => {
     addHouse(h, slots[i], false);
     return `${h.slug}:${slots[i].x},${slots[i].y}`;
@@ -206,14 +206,6 @@ const LAMP_POSITIONS = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([dx, dy]) => ({
 /** 가로등 등불 가운데 (lampSvg의 등불 자리: 그림 왼쪽 위에서 (30, 42)) */
 const lampLight = (p: { x: number; y: number }) => ({ x: p.x - LAMP_SIZE.width / 2 + 30, y: p.y - LAMP_SIZE.height + 42 });
 
-function shuffle<T>(list: readonly T[]): T[] {
-  const out = [...list];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
 
 export function createTownScene(
   Phaser: PhaserLib,
