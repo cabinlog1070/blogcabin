@@ -9,6 +9,7 @@
 #   TRUSTED_ORIGINS  : APP_URL 말고도 접속을 허용할 주소들 (쉼표로 구분)
 #   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET, KAKAO_CLIENT_ID / KAKAO_CLIENT_SECRET, NAVER_CLIENT_ID / NAVER_CLIENT_SECRET
 #   DB_SSLMODE       : 관리형 DB가 SSL을 요구하면 verify-full 등 (없으면 붙이지 않음)
+#   DB_SCHEMA        : 공용 DB에서 내 스키마에만 테이블을 만들 수 있을 때 그 스키마 이름 (예: cf_u26_d2)
 # 로그인 비밀키(BETTER_AUTH_SECRET)와 관리자 비밀번호(ADMIN_PASSWORD)는 서버가 첫 배포 때 만들어
 # ~/blogcabin/secrets.env 에 보관한다 (deploy/deploy.sh).
 name: deploy
@@ -87,6 +88,7 @@ jobs:
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_SSLMODE: ${{ secrets.DB_SSLMODE }}
+          DB_SCHEMA: ${{ secrets.DB_SCHEMA }}
           APP_URL: ${{ secrets.APP_URL }}
           TRUSTED_ORIGINS: ${{ secrets.TRUSTED_ORIGINS }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
@@ -103,12 +105,17 @@ jobs:
           const e = process.env;
           const enc = encodeURIComponent;
           let url = `postgres://${enc(e.DB_USERNAME)}:${enc(e.DB_PASSWORD)}@${e.DB_ADDRESS}:${e.DB_PORT || 5432}/${enc(e.DB_NAME)}`;
-          if (e.DB_SSLMODE) url += `?sslmode=${enc(e.DB_SSLMODE)}`;
+          // DB_SCHEMA가 있으면 모든 접속이 그 스키마를 먼저 보게 한다 (내 스키마에서만 쓸 수 있는 공용 DB)
+          const params = [];
+          if (e.DB_SCHEMA) params.push(`options=${enc(`-c search_path=${e.DB_SCHEMA}`)}`);
+          if (e.DB_SSLMODE) params.push(`sslmode=${enc(e.DB_SSLMODE)}`);
+          if (params.length) url += `?${params.join("&")}`;
           const appUrl = (e.APP_URL || `http://${e.SSH_HOST}:${e.APP_PORT}`).replace(/\/+$/, "");
           const lines = {
             DATABASE_URL: url,
             DB_HOST: e.DB_ADDRESS,
             DB_PORT: e.DB_PORT || "5432",
+            DB_SCHEMA: e.DB_SCHEMA || "",
             BETTER_AUTH_URL: appUrl,
             TRUSTED_ORIGINS: e.TRUSTED_ORIGINS || "",
             GOOGLE_CLIENT_ID: e.GOOGLE_CLIENT_ID || "",
