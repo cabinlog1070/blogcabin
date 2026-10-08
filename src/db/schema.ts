@@ -1,13 +1,13 @@
 // BlogCabin DB 스키마 — docs/02-erd.md 설계를 그대로 옮긴 것
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   date,
   foreignKey,
   index,
   integer,
-  pgEnum,
   pgTable,
   primaryKey,
   real,
@@ -17,20 +17,40 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
+const createdAt = () =>
+  timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () =>
   timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date());
 
-// ===== 열거형 =====
-export const itemType = pgEnum("item_type", ["character", "background", "furniture", "avatar"]);
+// ===== 값이 정해진 글자 컬럼 =====
+// PostgreSQL enum 타입 대신 text + CHECK로 둔다 (2026-10-08). Crowfoot ERD가 enum 타입을 다루지 못해서,
+// ERD로 그린 구조를 그대로 DB에 배포하고 앱도 같은 구조를 쓰게 맞췄다. 값 목록은 아래 상수가 기준이다.
+const enumText =
+  <const T extends readonly [string, ...string[]]>(values: T) =>
+  (name: string) =>
+    text(name, { enum: values });
+// CHECK 식: 컬럼 IN ('a', 'b'). 값은 이 파일의 상수뿐이라 그대로 넣는다 (사용자 입력이 아니다)
+const oneOf = (col: AnyPgColumn, values: readonly string[]) =>
+  sql`${col} IN (${sql.raw(values.map((v) => `'${v}'`).join(", "))})`;
+
+export const ITEM_TYPES = [
+  "character",
+  "background",
+  "furniture",
+  "avatar",
+] as const;
+export const itemType = enumText(ITEM_TYPES);
 // 아바타 꾸미기 부위 (SHOP-06): 상의·하의·모자·신발. 그리는 순서는 몸 → 하의 → 상의 → 신발 → 모자 (src/lib/art/avatar.ts)
-export const avatarSlot = pgEnum("avatar_slot", ["top", "bottom", "hat", "shoes"]);
-export const visibility = pgEnum("visibility", ["public", "private"]);
-export const userRole = pgEnum("user_role", ["user", "admin"]);
-export const ledgerReason = pgEnum("ledger_reason", [
+export const AVATAR_SLOTS = ["top", "bottom", "hat", "shoes"] as const;
+export const avatarSlot = enumText(AVATAR_SLOTS);
+export const VISIBILITIES = ["public", "private"] as const;
+export const visibility = enumText(VISIBILITIES);
+export const USER_ROLES = ["user", "admin"] as const;
+export const userRole = enumText(USER_ROLES);
+export const LEDGER_REASONS = [
   "signup",
   "attendance",
   "attendance_streak",
@@ -45,33 +65,51 @@ export const ledgerReason = pgEnum("ledger_reason", [
   // 친구 초대 (GAME-09): invite = 초대한 사람(ref_id = 친구 ID), invited = 초대받은 친구(ref_id = 초대한 사람 ID)
   "invite",
   "invited",
-]);
+] as const;
+export const ledgerReason = enumText(LEDGER_REASONS);
 // 동물 농장 (TOWN-09)
-export const animalStatus = pgEnum("animal_status", ["egg", "growing", "grown"]);
-export const eggSource = pgEnum("egg_source", ["starter", "level", "shop"]);
+export const ANIMAL_STATUSES = ["egg", "growing", "grown"] as const;
+export const animalStatus = enumText(ANIMAL_STATUSES);
+export const EGG_SOURCES = ["starter", "level", "shop"] as const;
+export const eggSource = enumText(EGG_SOURCES);
 // water(물 주기)는 2026-10-08에 물약으로 바뀌어 쓰지 않는다. 옛 기록 때문에 값은 남겨 둔다
-export const careAction = pgEnum("care_action", ["feed", "water", "pet"]);
-export const animalGender = pgEnum("animal_gender", ["male", "female"]);
+export const CARE_ACTIONS = ["feed", "water", "pet"] as const;
+export const careAction = enumText(CARE_ACTIONS);
+export const ANIMAL_GENDERS = ["male", "female"] as const;
+export const animalGender = enumText(ANIMAL_GENDERS);
 // 펫 꾸미기 (무료): 없음·리본·꽃·스카프. 그림은 src/lib/art/animals.ts
-export const petAccessory = pgEnum("pet_accessory", ["none", "ribbon", "flower", "scarf"]);
-export const farmItemKind = pgEnum("farm_item_kind", ["potion"]);
+export const PET_ACCESSORIES = ["none", "ribbon", "flower", "scarf"] as const;
+export const petAccessory = enumText(PET_ACCESSORIES);
+export const FARM_ITEM_KINDS = ["potion"] as const;
+export const farmItemKind = enumText(FARM_ITEM_KINDS);
 // 알림 종류 (GAME-08). pet_level_up = 내 동물 레벨업 (TOWN-09, ref_id = 동물 ID)
-export const notificationKind = pgEnum("notification_kind", ["level_up", "like", "comment", "reply", "pet_level_up"]);
+export const NOTIFICATION_KINDS = [
+  "level_up",
+  "like",
+  "comment",
+  "reply",
+  "pet_level_up",
+] as const;
+export const notificationKind = enumText(NOTIFICATION_KINDS);
 
 // ===== 인증 (Better Auth가 요구하는 구조) =====
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
-  image: text("image"),
-  // 사이트 자체 아이디 로그인 (소셜 로그인 회원은 NULL)
-  username: text("username").unique(),
-  displayUsername: text("display_username"),
-  role: userRole("role").notNull().default("user"),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text("image"),
+    // 사이트 자체 아이디 로그인 (소셜 로그인 회원은 NULL)
+    username: text("username").unique(),
+    displayUsername: text("display_username"),
+    role: userRole("role").notNull().default("user"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [check("users_role_check", oneOf(t.role, USER_ROLES))],
+);
 
 export const sessions = pgTable(
   "sessions",
@@ -102,8 +140,12 @@ export const accounts = pgTable(
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+    }),
     scope: text("scope"),
     password: text("password"),
     createdAt: createdAt(),
@@ -145,8 +187,12 @@ export const items = pgTable(
     check("items_price_check", sql`${t.price} >= 0`),
     check("items_required_level_check", sql`${t.requiredLevel} >= 1`),
     // 아바타 꾸미기는 부위가 꼭 있고, 다른 종류는 부위가 없다
-    // (type::text로 비교: 같은 마이그레이션에서 추가한 열거형 값은 바로 쓸 수 없다)
-    check("items_slot_check", sql`(${t.type}::text = 'avatar') = (${t.slot} IS NOT NULL)`),
+    check(
+      "items_slot_check",
+      sql`(${t.type} = 'avatar') = (${t.slot} IS NOT NULL)`,
+    ),
+    check("items_type_check", oneOf(t.type, ITEM_TYPES)),
+    check("items_slot_value_check", oneOf(t.slot, AVATAR_SLOTS)),
     // avatar_equips가 (아이템, 부위)를 함께 가리킬 수 있게 (부위가 맞는 아이템만 입기)
     unique("items_id_slot_uq").on(t.id, t.slot),
   ],
@@ -162,7 +208,9 @@ export const userItems = pgTable(
     itemId: integer("item_id")
       .notNull()
       .references(() => items.id),
-    acquiredAt: timestamp("acquired_at", { withTimezone: true }).notNull().defaultNow(),
+    acquiredAt: timestamp("acquired_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.itemId] })],
 );
@@ -180,6 +228,7 @@ export const avatarEquips = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.slot] }), // 부위마다 하나
+    check("avatar_equips_slot_check", oneOf(t.slot, AVATAR_SLOTS)),
     // 보유한 아이템만 입는다 (복합 외래 키, ERD 3.3과 같은 방식)
     foreignKey({
       name: "avatar_equips_owned_fk",
@@ -234,14 +283,22 @@ export const profiles = pgTable(
     // 친구 초대 (GAME-09): 온보딩을 마칠 때 만드는 무작위 6자리 (대문자·숫자, 0·O·1·I 없음). 바꾸지 않는다
     inviteCode: text("invite_code").notNull().unique(),
     // 나를 초대한 회원 (온보딩 때 한 번만). 초대한 사람이 탈퇴하면 비운다
-    invitedBy: text("invited_by").references(() => users.id, { onDelete: "set null" }),
+    invitedBy: text("invited_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
     // 초대 보상을 준 시각. NULL에서 한 번만 바뀌므로 친구 1명당 한 번만 지급된다 (GAME-09)
     inviteRewardedAt: timestamp("invite_rewarded_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
-    check("profiles_nickname_check", sql`char_length(${t.nickname}) BETWEEN 2 AND 12`),
-    check("profiles_invite_code_check", sql`${t.inviteCode} ~ '^[A-HJ-NP-Z2-9]{6}$'`),
+    check(
+      "profiles_nickname_check",
+      sql`char_length(${t.nickname}) BETWEEN 2 AND 12`,
+    ),
+    check(
+      "profiles_invite_code_check",
+      sql`${t.inviteCode} ~ '^[A-HJ-NP-Z2-9]{6}$'`,
+    ),
     check("profiles_invited_by_check", sql`${t.invitedBy} <> ${t.userId}`), // 자기 자신은 초대할 수 없다
     foreignKey({
       name: "profiles_displayed_animal_owned_fk",
@@ -301,7 +358,10 @@ export const categories = pgTable(
   },
   (t) => [
     unique("categories_blog_name_uq").on(t.blogId, t.name),
-    check("categories_name_check", sql`char_length(${t.name}) BETWEEN 1 AND 20`),
+    check(
+      "categories_name_check",
+      sql`char_length(${t.name}) BETWEEN 1 AND 20`,
+    ),
   ],
 );
 
@@ -313,7 +373,9 @@ export const posts = pgTable(
     blogId: integer("blog_id")
       .notNull()
       .references(() => blogs.id, { onDelete: "cascade" }),
-    categoryId: integer("category_id").references(() => categories.id, { onDelete: "set null" }),
+    categoryId: integer("category_id").references(() => categories.id, {
+      onDelete: "set null",
+    }),
     title: text("title").notNull(),
     contentHtml: text("content_html").notNull(),
     contentText: text("content_text").notNull(), // 태그를 뺀 본문: 요약, 검색, 글자 수 확인용
@@ -325,6 +387,7 @@ export const posts = pgTable(
   (t) => [
     check("posts_title_check", sql`char_length(${t.title}) BETWEEN 1 AND 100`),
     check("posts_view_count_check", sql`${t.viewCount} >= 0`),
+    check("posts_visibility_check", oneOf(t.visibility, VISIBILITIES)),
     index("posts_blog_created_idx").on(t.blogId, t.createdAt.desc()),
     index("posts_visibility_created_idx").on(t.visibility, t.createdAt.desc()),
   ],
@@ -346,7 +409,10 @@ export const postTags = pgTable(
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.postId, t.tagId] }), index("post_tags_tag_idx").on(t.tagId)],
+  (t) => [
+    primaryKey({ columns: [t.postId, t.tagId] }),
+    index("post_tags_tag_idx").on(t.tagId),
+  ],
 );
 
 export const comments = pgTable(
@@ -357,7 +423,9 @@ export const comments = pgTable(
       .notNull()
       .references(() => posts.id, { onDelete: "cascade" }),
     // 작성자가 탈퇴하면 답글이 남은 댓글만 "삭제된 댓글" 자리로 남기고 작성자를 비운다 (AUTH-06)
-    authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
+    authorId: text("author_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     parentId: integer("parent_id"),
     content: text("content").notNull(),
     createdAt: createdAt(),
@@ -369,8 +437,14 @@ export const comments = pgTable(
       columns: [t.parentId],
       foreignColumns: [t.id],
     }).onDelete("cascade"),
-    check("comments_content_check", sql`char_length(${t.content}) BETWEEN 1 AND 1000`),
-    check("comments_author_check", sql`${t.authorId} IS NOT NULL OR ${t.deletedAt} IS NOT NULL`), // 작성자 없는 댓글은 삭제된 자리뿐
+    check(
+      "comments_content_check",
+      sql`char_length(${t.content}) BETWEEN 1 AND 1000`,
+    ),
+    check(
+      "comments_author_check",
+      sql`${t.authorId} IS NOT NULL OR ${t.deletedAt} IS NOT NULL`,
+    ), // 작성자 없는 댓글은 삭제된 자리뿐
     index("comments_post_created_idx").on(t.postId, t.createdAt),
   ],
 );
@@ -444,8 +518,16 @@ export const pointLedger = pgTable(
   },
   (t) => [
     check("point_ledger_exp_check", sql`${t.expDelta} >= 0`),
-    check("point_ledger_nonzero_check", sql`${t.expDelta} <> 0 OR ${t.coinDelta} <> 0`),
-    index("point_ledger_user_reason_created_idx").on(t.userId, t.reason, t.createdAt),
+    check(
+      "point_ledger_nonzero_check",
+      sql`${t.expDelta} <> 0 OR ${t.coinDelta} <> 0`,
+    ),
+    check("point_ledger_reason_check", oneOf(t.reason, LEDGER_REASONS)),
+    index("point_ledger_user_reason_created_idx").on(
+      t.userId,
+      t.reason,
+      t.createdAt,
+    ),
     index("point_ledger_user_created_idx").on(t.userId, t.createdAt.desc()), // 내역 화면 최신순 (GAME-07)
   ],
 );
@@ -460,22 +542,41 @@ export const notifications = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     kind: notificationKind("kind").notNull(),
-    actorId: text("actor_id").references(() => users.id, { onDelete: "cascade" }), // 행동한 회원 (레벨업은 NULL)
-    postId: integer("post_id").references(() => posts.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").references(() => users.id, {
+      onDelete: "cascade",
+    }), // 행동한 회원 (레벨업은 NULL)
+    postId: integer("post_id").references(() => posts.id, {
+      onDelete: "cascade",
+    }),
     level: integer("level"), // level_up·pet_level_up: 오른 레벨
     refId: text("ref_id"), // 댓글 ID, 동물 ID 등 (종류마다 다름)
     createdAt: createdAt(),
     readAt: timestamp("read_at", { withTimezone: true }), // NULL = 안 읽음. 레벨업은 팝업을 봤을 때도 채운다
   },
   (t) => [
-    index("notifications_user_read_created_idx").on(t.userId, t.readAt, t.createdAt.desc()),
+    index("notifications_user_read_created_idx").on(
+      t.userId,
+      t.readAt,
+      t.createdAt.desc(),
+    ),
     index("notifications_user_created_idx").on(t.userId, t.createdAt.desc()),
-    check("notifications_level_check", sql`(${t.kind}::text IN ('level_up', 'pet_level_up')) = (${t.level} IS NOT NULL)`),
-    check("notifications_actor_check", sql`${t.actorId} IS NULL OR ${t.actorId} <> ${t.userId}`),
+    check("notifications_kind_check", oneOf(t.kind, NOTIFICATION_KINDS)),
+    check(
+      "notifications_level_check",
+      sql`(${t.kind} IN ('level_up', 'pet_level_up')) = (${t.level} IS NOT NULL)`,
+    ),
+    check(
+      "notifications_actor_check",
+      sql`${t.actorId} IS NULL OR ${t.actorId} <> ${t.userId}`,
+    ),
     // 같은 레벨의 레벨업 알림은 한 번만 (동시에 보상이 와도 두 번 생기지 않게)
-    uniqueIndex("notifications_level_up_uq").on(t.userId, t.level).where(sql`${t.kind} = 'level_up'`),
+    uniqueIndex("notifications_level_up_uq")
+      .on(t.userId, t.level)
+      .where(sql`${t.kind} = 'level_up'`),
     // 같은 동물의 같은 레벨 알림도 한 번만
-    uniqueIndex("notifications_pet_level_up_uq").on(t.userId, t.refId, t.level).where(sql`${t.kind} = 'pet_level_up'`),
+    uniqueIndex("notifications_pet_level_up_uq")
+      .on(t.userId, t.refId, t.level)
+      .where(sql`${t.kind} = 'pet_level_up'`),
   ],
 );
 
@@ -496,9 +597,15 @@ export const animalSpecies = pgTable(
   },
   (t) => [
     check("animal_species_grow_check", sql`${t.growExp} > 0`),
-    check("animal_species_reward_check", sql`${t.rewardExp} >= 0 AND ${t.rewardCoins} >= 0`),
+    check(
+      "animal_species_reward_check",
+      sql`${t.rewardExp} >= 0 AND ${t.rewardCoins} >= 0`,
+    ),
     check("animal_species_weight_check", sql`${t.hatchWeight} > 0`),
-    check("animal_species_max_level_check", sql`${t.maxLevel} >= 2 AND ${t.maxLevel} < ${t.growExp}`),
+    check(
+      "animal_species_max_level_check",
+      sql`${t.maxLevel} >= 2 AND ${t.maxLevel} < ${t.growExp}`,
+    ),
   ],
 );
 
@@ -525,19 +632,44 @@ export const userAnimals = pgTable(
     grownAt: timestamp("grown_at", { withTimezone: true }),
   },
   (t) => [
-    check("user_animals_species_check", sql`(${t.status} = 'egg') = (${t.speciesId} IS NULL)`),
-    check("user_animals_pet_check", sql`(${t.status} = 'egg') = (${t.name} IS NULL) AND (${t.name} IS NULL) = (${t.gender} IS NULL)`),
-    check("user_animals_name_check", sql`char_length(${t.name}) BETWEEN 1 AND 10`),
-    check("user_animals_carried_check", sql`NOT ${t.carried} OR ${t.status} <> 'egg'`),
+    check(
+      "user_animals_species_check",
+      sql`(${t.status} = 'egg') = (${t.speciesId} IS NULL)`,
+    ),
+    check(
+      "user_animals_pet_check",
+      sql`(${t.status} = 'egg') = (${t.name} IS NULL) AND (${t.name} IS NULL) = (${t.gender} IS NULL)`,
+    ),
+    check(
+      "user_animals_name_check",
+      sql`char_length(${t.name}) BETWEEN 1 AND 10`,
+    ),
+    check(
+      "user_animals_carried_check",
+      sql`NOT ${t.carried} OR ${t.status} <> 'egg'`,
+    ),
     // 프로필 전시 카드의 복합 외래 키 대상
     unique("user_animals_user_id_uq").on(t.userId, t.id),
     // 데리고 다니는 펫은 회원당 한 마리
-    uniqueIndex("user_animals_carried_uq").on(t.userId).where(sql`${t.carried}`),
+    uniqueIndex("user_animals_carried_uq")
+      .on(t.userId)
+      .where(sql`${t.carried}`),
     check("user_animals_growth_check", sql`${t.growth} >= 0`),
-    check("user_animals_level_check", sql`(${t.source} = 'level') = (${t.sourceLevel} IS NOT NULL)`),
+    check("user_animals_status_check", oneOf(t.status, ANIMAL_STATUSES)),
+    check("user_animals_source_check", oneOf(t.source, EGG_SOURCES)),
+    check("user_animals_gender_check", oneOf(t.gender, ANIMAL_GENDERS)),
+    check("user_animals_accessory_check", oneOf(t.accessory, PET_ACCESSORIES)),
+    check(
+      "user_animals_level_check",
+      sql`(${t.source} = 'level') = (${t.sourceLevel} IS NOT NULL)`,
+    ),
     // 첫 알은 한 번, 레벨 보상 알은 레벨마다 한 번만
-    uniqueIndex("user_animals_starter_uq").on(t.userId).where(sql`${t.source} = 'starter'`),
-    uniqueIndex("user_animals_level_uq").on(t.userId, t.sourceLevel).where(sql`${t.source} = 'level'`),
+    uniqueIndex("user_animals_starter_uq")
+      .on(t.userId)
+      .where(sql`${t.source} = 'starter'`),
+    uniqueIndex("user_animals_level_uq")
+      .on(t.userId, t.sourceLevel)
+      .where(sql`${t.source} = 'level'`),
     index("user_animals_user_status_idx").on(t.userId, t.status),
   ],
 );
@@ -553,7 +685,10 @@ export const animalCares = pgTable(
     date: date("date").notNull(),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.animalId, t.action, t.date] })],
+  (t) => [
+    primaryKey({ columns: [t.animalId, t.action, t.date] }),
+    check("animal_cares_action_check", oneOf(t.action, CARE_ACTIONS)),
+  ],
 );
 
 // 농장 가방: 회원이 가진 농장 아이템 개수 (지금은 물약만). 살 때 +1, 쓸 때 −1
@@ -567,7 +702,11 @@ export const farmItems = pgTable(
     quantity: integer("quantity").notNull().default(0),
     updatedAt: updatedAt(),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.kind] }), check("farm_items_quantity_check", sql`${t.quantity} >= 0`)],
+  (t) => [
+    primaryKey({ columns: [t.userId, t.kind] }),
+    check("farm_items_quantity_check", sql`${t.quantity} >= 0`),
+    check("farm_items_kind_check", oneOf(t.kind, FARM_ITEM_KINDS)),
+  ],
 );
 
 // 글 첨부(사진·파일) 정보. 파일 내용은 DB가 아니라 저장소(src/server/storage.ts)에 둔다 (POST-07, POST-09)
@@ -587,12 +726,14 @@ export const attachments = pgTable(
   (t) => [
     check("attachments_kind_check", sql`${t.kind} IN ('image', 'file')`),
     check("attachments_key_check", sql`${t.key} ~ '^[a-f0-9]{32}$'`),
-    check("attachments_name_check", sql`char_length(${t.name}) BETWEEN 1 AND 255`),
+    check(
+      "attachments_name_check",
+      sql`char_length(${t.name}) BETWEEN 1 AND 255`,
+    ),
     check("attachments_size_check", sql`${t.size} > 0`),
     index("attachments_user_created_idx").on(t.userId, t.createdAt),
   ],
 );
-
 
 // ===== 방문자 수 · 조회수 (BLOG-06, POST-06) =====
 // 같은 사람 = 온보딩을 마친 회원은 `u:회원ID`, 방문자(로그인 안 함·온보딩 전)는 브라우저 식별 쿠키 `b:UUID`.
@@ -610,7 +751,10 @@ export const blogVisits = pgTable(
     visitorKey: text("visitor_key").notNull(), // 탈퇴한 회원의 키는 w:무작위로 바꿔 숫자만 남긴다
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.blogId, t.date, t.visitorKey] }), check("blog_visits_visitor_key_check", viewerKeyCheck(t.visitorKey))],
+  (t) => [
+    primaryKey({ columns: [t.blogId, t.date, t.visitorKey] }),
+    check("blog_visits_visitor_key_check", viewerKeyCheck(t.visitorKey)),
+  ],
 );
 
 export const postViews = pgTable(
@@ -623,7 +767,10 @@ export const postViews = pgTable(
     viewerKey: text("viewer_key").notNull(),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.postId, t.date, t.viewerKey] }), check("post_views_viewer_key_check", viewerKeyCheck(t.viewerKey))],
+  (t) => [
+    primaryKey({ columns: [t.postId, t.date, t.viewerKey] }),
+    check("post_views_viewer_key_check", viewerKeyCheck(t.viewerKey)),
+  ],
 );
 
 // ===== 로그인 시도 제한 (NF-10) =====

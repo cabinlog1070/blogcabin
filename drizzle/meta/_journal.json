@@ -71,6 +71,13 @@
       "when": 1791423792305,
       "tag": "0009_batch_d",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791442164602,
+      "tag": "0010_enums_to_text",
+      "breakpoints": true
     }
   ]
 }

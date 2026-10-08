@@ -11,7 +11,10 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { config } from "dotenv";
+import { getTableColumns, getTableName, is } from "drizzle-orm";
+import { PgTable } from "drizzle-orm/pg-core";
 import { Pool, type PoolClient } from "pg";
+import * as schemaModule from "../src/db/schema";
 
 config({ path: ".env.local", quiet: true });
 
@@ -87,6 +90,13 @@ async function applyMigrations(client: PoolClient, schema: string | null) {
   const { rows } = await client.query<{ created_at: string }>(`SELECT created_at FROM ${table} ORDER BY created_at DESC LIMIT 1`);
   const last = rows[0] ? Number(rows[0].created_at) : 0;
 
+  // 기록이 하나도 없는데 앱 테이블이 이미 있으면: Crowfoot ERD로 DB를 먼저 배포한 경우다.
+  // 구조가 앱(src/db/schema.ts)과 맞는지 확인하고, 마이그레이션은 실행하지 않고 기록만 남긴다.
+  if (last === 0 && (await tableExists(client, schema ?? "public", "users"))) {
+    await baseline(client, schema ?? "public", table, journal.entries);
+    return;
+  }
+
   const pending = journal.entries.filter((e) => e.when > last).sort((a, b) => a.idx - b.idx);
   if (pending.length === 0) {
     console.log("적용할 마이그레이션이 없어요 (최신)");
@@ -108,6 +118,54 @@ async function applyMigrations(client: PoolClient, schema: string | null) {
       throw Object.assign(new Error(`${entry.tag} 적용 중 실패: ${describe(err)}`), { code: (err as PgError).code });
     }
   }
+}
+
+async function tableExists(client: PoolClient, schema: string, name: string) {
+  const { rows } = await client.query("SELECT 1 FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2", [schema, name]);
+  return rows.length > 0;
+}
+
+// 이미 만들어진 DB 구조를 앱의 스키마와 비교한다: 테이블·컬럼이 모두 있는지, 시각 컬럼이 시간대 있는 형식인지
+async function baseline(client: PoolClient, schema: string, table: string, entries: JournalEntry[]) {
+  console.log("이미 테이블이 있어요 (Crowfoot ERD로 배포한 DB). 앱 구조와 맞는지 확인할게요");
+  const { rows } = await client.query<{ table_name: string; column_name: string; data_type: string }>(
+    "SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = $1",
+    [schema],
+  );
+  const dbColumns = new Map<string, Map<string, string>>();
+  for (const r of rows) {
+    if (!dbColumns.has(r.table_name)) dbColumns.set(r.table_name, new Map());
+    dbColumns.get(r.table_name)!.set(r.column_name, r.data_type);
+  }
+  const problems: string[] = [];
+  let tableCount = 0;
+  for (const value of Object.values(schemaModule)) {
+    if (!is(value, PgTable)) continue;
+    tableCount++;
+    const name = getTableName(value);
+    const cols = dbColumns.get(name);
+    if (!cols) {
+      problems.push(`테이블 ${name}이 없어요`);
+      continue;
+    }
+    for (const col of Object.values(getTableColumns(value))) {
+      const type = cols.get(col.name);
+      if (!type) problems.push(`${name}.${col.name} 컬럼이 없어요`);
+      else if (col.getSQLType().startsWith("timestamp with time zone") && type !== "timestamp with time zone")
+        problems.push(`${name}.${col.name}가 시간대 있는 시각(timestamptz)이 아니에요 (${type})`);
+      else if (col.getSQLType() === "text" && type !== "text") problems.push(`${name}.${col.name}가 text가 아니에요 (${type})`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(`DB 구조가 앱과 달라요:\n  - ${problems.slice(0, 20).join("\n  - ")}${problems.length > 20 ? `\n  … 외 ${problems.length - 20}개` : ""}`);
+  }
+  const sorted = [...entries].sort((a, b) => a.idx - b.idx);
+  for (const entry of sorted) {
+    const file = readFileSync(path.join(MIGRATIONS, `${entry.tag}.sql`), "utf8");
+    const hash = createHash("sha256").update(file).digest("hex");
+    await client.query(`INSERT INTO ${table} (hash, created_at) VALUES ($1, $2)`, [hash, entry.when]);
+  }
+  console.log(`✔ 테이블 ${tableCount}개 구조가 앱과 같아요. 마이그레이션 ${sorted.length}개는 실행하지 않고 적용한 것으로 기록했어요`);
 }
 
 async function main() {

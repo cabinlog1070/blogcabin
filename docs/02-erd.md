@@ -1,7 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 0.7 (2026-10-08, 배치 D: 방문자 수 `blog_visits`(BLOG-06), 글 조회 기록 `post_views`(POST-06), 로그인 시도 제한 `login_attempts`(NF-10), 즐겨찾는 이웃 `follows.is_favorite`(TOWN-08), 지붕 색 `blogs.roof_color`(TOWN-07), 친구 초대 `profiles.invite_code`·`invited_by`·`invite_rewarded_at`와 원장 사유 `invite`·`invited`(GAME-09), 회원 탈퇴를 위한 `comments.author_id` NULL 허용(AUTH-06). 마이그레이션 `0009_batch_d`)
+- 버전: 0.8 (2026-10-08, PostgreSQL enum 타입 12개를 text + CHECK로 바꿈(마이그레이션 `0010_enums_to_text`). 같은 구조를 Crowfoot 문서 673 "BlogCabin ERD"(https://crowfoot.java21.net/workspaces/43/models/673)로 그려 운영 DB에 배포했다)
+- 0.7 (2026-10-08, 배치 D: 방문자 수 `blog_visits`(BLOG-06), 글 조회 기록 `post_views`(POST-06), 로그인 시도 제한 `login_attempts`(NF-10), 즐겨찾는 이웃 `follows.is_favorite`(TOWN-08), 지붕 색 `blogs.roof_color`(TOWN-07), 친구 초대 `profiles.invite_code`·`invited_by`·`invite_rewarded_at`와 원장 사유 `invite`·`invited`(GAME-09), 회원 탈퇴를 위한 `comments.author_id` NULL 허용(AUTH-06). 마이그레이션 `0009_batch_d`)
 - 0.6 (2026-10-08): 동물 농장 펫(TOWN-09): `user_animals`에 이름·성별·꾸미기·데리고 다니기, `animal_species.max_level`, 농장 가방 `farm_items`, `profiles.displayed_animal_id`, `pet_level_up` 알림. 마이그레이션 `0008_pet_farm`)
 - 0.5 (2026-10-08): 알림함 `notifications`, GAME-06·GAME-08. 집 단계(TOWN-11)는 원장에서 계산하므로 테이블 변경 없음)
 - 0.4 (2026-10-08): 아바타 꾸미기 `avatar_equips`·가구 배치 `room_furniture`, SHOP-05·06
