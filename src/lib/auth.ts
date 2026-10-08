@@ -104,11 +104,17 @@ const loginHooks = {
 };
 
 // 로그인·로그아웃 요청을 받아 주는 주소 (다른 사이트에서 온 요청은 403).
-// 운영: BETTER_AUTH_URL + TRUSTED_ORIGINS(쉼표로 여러 개, 선택).
+// 운영: BETTER_AUTH_URL(http·https 둘 다) + TRUSTED_ORIGINS(쉼표로 여러 개, 선택).
 // 개발 서버: localhost·127.0.0.1·같은 와이파이 주소(DEV_ALLOWED_ORIGINS) 어느 쪽으로 들어와도 로그아웃이 되게 한다.
 function trustedOrigins(): string[] {
   const split = (v?: string) => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const list = split(process.env.TRUSTED_ORIGINS);
+  // 운영 주소를 http·https 어느 쪽으로 열어도 403(INVALID_ORIGIN)으로 막히지 않게 같은 호스트의 다른 쪽도 허용
+  // (APP_URL은 http인데 nginx가 https로도 받아 주면 https에서 로그아웃이 막혔다)
+  if (process.env.BETTER_AUTH_URL) {
+    const base = new URL(process.env.BETTER_AUTH_URL);
+    if (!base.port) list.push(`${base.protocol === "https:" ? "http" : "https"}://${base.host}`);
+  }
   if (process.env.NODE_ENV !== "production") {
     const base = new URL(process.env.BETTER_AUTH_URL || "http://localhost:3000");
     const port = base.port || "3000";
