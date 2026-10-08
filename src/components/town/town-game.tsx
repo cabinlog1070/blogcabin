@@ -48,7 +48,7 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
       game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: containerRef.current,
-        backgroundColor: "#8fd18a",
+        backgroundColor: "#8aba5c",
         physics: { default: "arcade", arcade: { debug: false } },
         scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" },
         scene: createTownScene(Phaser, data, images, onEnter, getComputedStyle(document.body).fontFamily),
@@ -73,7 +73,7 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
   return (
     <div
       ref={containerRef}
-      className={`overflow-hidden bg-[#8fd18a] ${className}`}
+      className={`overflow-hidden bg-[#8aba5c] ${className}`}
       aria-label="중앙 광장. 방향키나 WASD로 움직이고 Space로 건물에 들어갑니다."
       // 집 단계 확인용 (TOWN-11, e2e): 캔버스 그림 대신 이 값으로 확인한다
       data-my-house-stage={data.myHouse?.stage ?? ""}

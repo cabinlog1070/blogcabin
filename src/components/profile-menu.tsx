@@ -87,7 +87,7 @@ export function ProfileMenu({
         title="내 정보"
         data-status-card
         // 휴대폰은 자리가 모자라 얼굴만 보인다. 닉네임·블로그 제목은 메뉴 안에 있다
-        className="flex items-center gap-2 rounded-2xl border-2 border-line bg-paper p-0.5 shadow-sm hover:border-sun sm:pr-3"
+        className="flex items-center gap-2 rounded-2xl border border-line bg-paper p-0.5 shadow-sm hover:border-sun sm:pr-3"
       >
         {face}
         <span className="flex min-w-0 flex-col text-left leading-tight max-sm:hidden">

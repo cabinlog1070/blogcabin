@@ -22,7 +22,7 @@ export function LevelBadge({ level, exp, current, needed, ratio, isMax }: LevelI
         title="레벨"
         data-level-button
         // 좁은 화면에서도 레벨이 보이게 글씨와 여백만 줄인다 (GAME-02, 이슈 #5)
-        className="whitespace-nowrap rounded-full bg-paper px-1.5 py-1 text-xs font-bold shadow-sm hover:text-leaf-dark sm:px-2.5 sm:text-sm"
+        className="whitespace-nowrap rounded-full border border-line bg-paper px-1.5 py-1 text-xs font-bold shadow-sm hover:text-leaf-dark sm:px-2.5 sm:text-sm"
       >
         Lv.{level}
       </button>

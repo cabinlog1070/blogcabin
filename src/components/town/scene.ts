@@ -312,7 +312,7 @@ export function createTownScene(
       // 카메라
       this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
       this.cameras.main.startFollow(this.feet, true, 0.12, 0.12, 0, 20);
-      this.cameras.main.setBackgroundColor("#8fd18a");
+      this.cameras.main.setBackgroundColor("#8aba5c");
 
       // 입력: 방향키, WASD, Space/Enter, 클릭·터치
       const keyboard = this.input.keyboard!;
@@ -652,10 +652,10 @@ export function createTownScene(
       const TILE = 80;
       for (let x = 0; x < WORLD.width; x += TILE)
         for (let y = 0; y < WORLD.height; y += TILE) {
-          g.fillStyle((x / TILE + y / TILE) % 2 ? 0x8ccf86 : 0x93d58c).fillRect(x, y, TILE, TILE);
+          g.fillStyle((x / TILE + y / TILE) % 2 ? 0x8aba5c : 0x8fbe61).fillRect(x, y, TILE, TILE); // 시안처럼 차분한 잔디
         }
       // 풀 포기
-      g.lineStyle(2, 0x6fb868, 0.9);
+      g.lineStyle(2, 0x6f9c46, 0.9);
       for (let i = 0; i < 420; i++) {
         const x = rng.between(0, WORLD.width);
         const y = rng.between(0, WORLD.height);
@@ -664,48 +664,40 @@ export function createTownScene(
         g.strokePath();
       }
 
-      // 길: 돌이 깔린 길
+      // 길: 흙길 (가장자리는 풀과 자연스럽게 섞이게 조금 진한 띠, 군데군데 작은 돌)
       const roads: [number, number, number, number][] = [
         [CENTER.x - 46, 0, 92, WORLD.height],
         [0, CENTER.y - 46, WORLD.width, 92],
         [0, 395, WORLD.width, 64],
         [0, WORLD.height - 470, WORLD.width, 64],
       ];
+      for (const [x, y, w, h] of roads) g.fillStyle(0xc9a874).fillRoundedRect(x - 4, y - 4, w + 8, h + 8, 18);
+      for (const [x, y, w, h] of roads) g.fillStyle(0xdcc191).fillRoundedRect(x, y, w, h, 14);
       for (const [x, y, w, h] of roads) {
-        g.fillStyle(0xe2cc9c).fillRect(x, y, w, h);
-        g.lineStyle(3, 0xcdb27f, 1).strokeRect(x, y, w, h);
-      }
-      for (const [x, y, w, h] of roads) {
-        for (let sx = x + 4; sx < x + w - 10; sx += 20)
-          for (let sy = y + 4; sy < y + h - 10; sy += 16) {
-            const ox = rng.between(-2, 2);
-            g.fillStyle(rng.pick([0xead8ad, 0xd9c08c, 0xf0e2c0]))
-              .fillRoundedRect(sx + ox + ((sy / 16) % 2 ? 6 : 0), sy, rng.between(13, 17), rng.between(10, 12), 4);
-          }
+        for (let i = 0; i < (w * h) / 900; i++) {
+          g.fillStyle(rng.pick([0xcfb07d, 0xe6d0a4, 0xbfa070]), 0.9)
+            .fillEllipse(rng.between(x + 6, x + w - 6), rng.between(y + 6, y + h - 6), rng.between(3, 7), rng.between(2, 5));
+        }
       }
 
-      // 돌광장 + 화단 테두리
-      g.fillStyle(0xe8ddd0).fillCircle(CENTER.x, CENTER.y, PLAZA_RADIUS + 16);
-      g.fillStyle(0xd8ccbe).fillCircle(CENTER.x, CENTER.y, PLAZA_RADIUS);
-      for (let r = 60; r < PLAZA_RADIUS; r += 42) {
-        g.lineStyle(3, 0xc6b8a8, 1).strokeCircle(CENTER.x, CENTER.y, r);
+      // 캠프파이어 광장: 다져진 흙바닥 (시안 ①: 돌 깔지 않은 자연스러운 흙)
+      g.fillStyle(0xc9a874).fillCircle(CENTER.x, CENTER.y, PLAZA_RADIUS + 18);
+      g.fillStyle(0xd8bb88).fillCircle(CENTER.x, CENTER.y, PLAZA_RADIUS + 6);
+      g.fillStyle(0xe2c99a).fillCircle(CENTER.x, CENTER.y, PLAZA_RADIUS - 40);
+      for (let i = 0; i < 140; i++) {
+        const a = rng.realInRange(0, Math.PI * 2);
+        const r = Math.sqrt(rng.frac()) * PLAZA_RADIUS;
+        g.fillStyle(rng.pick([0xcdb07e, 0xeedab0, 0xbd9e6c]), 0.85)
+          .fillEllipse(CENTER.x + Math.cos(a) * r, CENTER.y + Math.sin(a) * r, rng.between(3, 8), rng.between(2, 5));
       }
-      for (let a = 0; a < 360; a += 15) {
-        const rad = Phaser.Math.DegToRad(a);
-        g.lineStyle(2, 0xc6b8a8, 1).lineBetween(
-          CENTER.x + Math.cos(rad) * 60, CENTER.y + Math.sin(rad) * 60,
-          CENTER.x + Math.cos(rad) * PLAZA_RADIUS, CENTER.y + Math.sin(rad) * PLAZA_RADIUS,
-        );
-      }
-      g.lineStyle(6, 0xb5a493, 1).strokeCircle(CENTER.x, CENTER.y, PLAZA_RADIUS + 16);
-      // 광장 둘레 꽃 (길이 지나가는 곳은 비운다)
-      for (let a = 0; a < 360; a += 6) {
-        if (a % 90 < 14 || a % 90 > 76) continue;
-        const rad = Phaser.Math.DegToRad(a);
+      // 광장 둘레 풀포기·꽃 (길이 지나가는 곳은 비운다)
+      for (let a = 0; a < 360; a += 7) {
+        if (a % 90 < 16 || a % 90 > 74) continue;
+        const rad = Phaser.Math.DegToRad(a + rng.between(-2, 2));
         const x = CENTER.x + Math.cos(rad) * (PLAZA_RADIUS + 30);
         const y = CENTER.y + Math.sin(rad) * (PLAZA_RADIUS + 30);
-        g.fillStyle(0x5cae55).fillCircle(x, y, 9);
-        g.fillStyle(rng.pick([0xff7aa2, 0xffd36e, 0xffffff, 0xb79cff])).fillCircle(x + rng.between(-3, 3), y - 3, 4);
+        g.fillStyle(0x6f9c46).fillCircle(x, y, 8);
+        if (rng.frac() < 0.45) g.fillStyle(rng.pick([0xf3a6b8, 0xf6d77a, 0xfffaf0])).fillCircle(x + rng.between(-3, 3), y - 3, 3.5);
       }
 
       // 들꽃
@@ -713,7 +705,7 @@ export function createTownScene(
         const x = rng.between(0, WORLD.width);
         const y = rng.between(0, WORLD.height);
         if (Phaser.Math.Distance.Between(x, y, CENTER.x, CENTER.y) < PLAZA_RADIUS + 50) continue;
-        const c = rng.pick([0xffffff, 0xffeb3b, 0xf48fb1, 0xce93d8]);
+        const c = rng.pick([0xfffaf0, 0xf6d77a, 0xf3a6b8, 0xd9b8e8]);
         for (const [dx, dy] of [[-2.5, 0], [2.5, 0], [0, -2.5], [0, 2.5]]) g.fillStyle(c).fillCircle(x + dx, y + dy, 2.3);
         g.fillStyle(0xffb300).fillCircle(x, y, 1.6);
       }

@@ -103,7 +103,7 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
         aria-label={unread ? `알림함, 안 읽은 알림 ${unread}개` : "알림함"}
         title="알림함"
         data-notification-button
-        className="relative flex items-center rounded-full bg-paper px-1.5 py-1 shadow-sm hover:text-leaf-dark sm:px-2.5"
+        className="relative flex items-center rounded-full border border-line bg-paper px-1.5 py-1 shadow-sm hover:text-leaf-dark sm:px-2.5"
       >
         <EnvelopeIcon />
         {unread > 0 && (

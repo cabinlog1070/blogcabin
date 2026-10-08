@@ -63,7 +63,7 @@ export default async function TownPage(props: PageProps<"/town">) {
           회원은 내 이웃 전부(⭐ 즐겨찾기 먼저), 방문자는 광장의 집과 같은 블로그 */}
       {(panel.length > 0 || noFavorites) && (
         <section data-neighbor-panel className="absolute left-3 top-3 z-[5] max-w-[calc(100%-1.5rem)] sm:max-w-xs phone:hidden">
-          <details open className="group rounded-2xl bg-white/90 shadow-md backdrop-blur">
+          <details open className="group rounded-2xl border border-line bg-paper/95 shadow-md backdrop-blur">
             <summary className="cursor-pointer list-none px-3 py-2 font-display text-lg">
               🏘 이웃집 <span className="text-sm text-ink-soft">{panel.length}</span>
               <span className="float-right text-sm text-ink-soft group-open:rotate-180">▾</span>

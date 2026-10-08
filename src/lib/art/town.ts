@@ -369,14 +369,14 @@ export function treeSvg(kind: "round" | "pine" | "bush" | "blossom"): string {
   const body = {
     round:
       shadow + trunk +
-      `<circle cx="40" cy="40" r="28" fill="#4caf50" ${S}/><circle cx="30" cy="34" r="10" fill="#66c26a"/><circle cx="50" cy="48" r="7" fill="#43a047"/>`,
+      `<circle cx="40" cy="40" r="28" fill="#5f9e4b" ${S}/><circle cx="30" cy="34" r="10" fill="#79b45f"/><circle cx="50" cy="48" r="7" fill="#4c8a3d"/>`,
     pine:
       shadow + trunk +
-      `<path d="M40 2L60 30H52L68 52H58L74 76H6L22 52H12L28 30H20Z" fill="#2e7d4f" ${S}/>` +
-      `<path d="M40 12L50 27M32 40L22 50M48 58L60 70" stroke="#3f9e66" stroke-width="3.5" stroke-linecap="round"/>`,
+      `<path d="M40 2L60 30H52L68 52H58L74 76H6L22 52H12L28 30H20Z" fill="#3f7a4c" ${S}/>` +
+      `<path d="M40 12L50 27M32 40L22 50M48 58L60 70" stroke="#58935f" stroke-width="3.5" stroke-linecap="round"/>`,
     bush:
       `<ellipse cx="40" cy="92" rx="30" ry="5" fill="#000" opacity=".15"/>` +
-      `<path d="M10 90Q4 66 22 62Q26 46 42 50Q58 44 62 60Q78 64 70 90Z" fill="#5cb85c" ${S}/>` +
+      `<path d="M10 90Q4 66 22 62Q26 46 42 50Q58 44 62 60Q78 64 70 90Z" fill="#6aa857" ${S}/>` +
       `<circle cx="28" cy="70" r="3.5" fill="#e5484d"/><circle cx="48" cy="64" r="3.5" fill="#e5484d"/><circle cx="56" cy="78" r="3.5" fill="#e5484d"/>`,
     blossom:
       shadow + trunk +

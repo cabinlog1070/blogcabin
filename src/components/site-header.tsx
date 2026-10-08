@@ -43,7 +43,7 @@ export async function SiteHeader() {
               ratio={wallet.ratio}
               isMax={wallet.isMax}
             />
-            <Link href="/wallet" className="whitespace-nowrap rounded-full bg-paper px-1.5 py-1 text-xs font-bold shadow-sm hover:text-leaf-dark sm:px-2.5 sm:text-sm" title="코인">
+            <Link href="/wallet" className="whitespace-nowrap rounded-full border border-line bg-paper px-1.5 py-1 text-xs font-bold shadow-sm hover:text-leaf-dark sm:px-2.5 sm:text-sm" title="코인">
               🪙 {wallet.coins.toLocaleString()}
             </Link>
             {member.user.role === "admin" && (

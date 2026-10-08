@@ -23,8 +23,9 @@
   --font-sans: var(--font-noto), "Apple SD Gothic Neo", sans-serif;
   --font-display: var(--font-jua), var(--font-noto), sans-serif;
 
-  --shadow-pop: 0 4px 0 0 var(--color-line);
-  --shadow-pop-dark: 0 4px 0 0 #00000033;
+  /* 시안 ⑥ UI: 얇고 은은한 테두리, 살짝 뜬 종이 느낌 */
+  --shadow-pop: 0 2px 0 0 var(--color-line), 0 6px 14px -6px #7a4b2a26;
+  --shadow-pop-dark: 0 3px 0 0 #00000029;
 }
 
 /* 휴대폰 화면: 폭이 640px보다 좁거나, 손가락으로 쓰는 화면이면서 높이가 640px보다 낮을 때(휴대폰 가로).
@@ -54,14 +55,15 @@ body {
   padding: 0.6rem 1.1rem;
   border-radius: 0.9rem;
   font-weight: 700;
+  border: 1.5px solid #00000014;
   box-shadow: var(--shadow-pop-dark);
   transition: transform 0.06s, box-shadow 0.06s, filter 0.15s;
   &:hover {
     filter: brightness(1.05);
   }
   &:active {
-    transform: translateY(3px);
-    box-shadow: 0 1px 0 0 #00000033;
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 0 #00000029;
   }
   &:disabled {
     opacity: 0.5;
@@ -71,9 +73,24 @@ body {
 
 @utility card {
   background: var(--color-paper);
-  border: 2px solid var(--color-line);
-  border-radius: 1.25rem;
+  border: 1.5px solid var(--color-line);
+  border-radius: 1.1rem;
   box-shadow: var(--shadow-pop);
+}
+
+/* 시안 ⑥ 버튼 3종: 기본(나무 갈색) · 강조(꿀색) · 보조(종이) */
+@utility btn-basic {
+  background: #d9b48a;
+  color: var(--color-bark-dark);
+}
+@utility btn-accent {
+  background: #f6cf6a;
+  color: var(--color-bark-dark);
+}
+@utility btn-sub {
+  background: var(--color-paper);
+  color: var(--color-bark);
+  border-color: var(--color-line);
 }
 
 /* 에디터로 쓴 글 본문 */
