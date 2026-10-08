@@ -140,7 +140,7 @@ export function FarmField({
       {/* 알 둥지 */}
       <div className="absolute left-[6%] top-[12%] z-[4] w-[clamp(150px,26vw,240px)]" data-nest>
         <img src={svgUri(nestSvg())} alt="" aria-hidden className="pointer-events-none w-full" />
-        <div className="absolute inset-x-[10%] top-[-14%] flex items-end justify-center gap-0.5">
+        <div className="absolute inset-x-[10%] bottom-[41%] flex items-end justify-center gap-0.5">
           {eggs.map((e) => (
             <button
               key={e.id}

@@ -1,21 +1,32 @@
 import type { HTMLAttributes } from "react";
 import { PetArt } from "@/components/pet-art";
+import { faceFrame } from "@/lib/art/characters";
 import { backgroundDataUri, characterDataUri, furnitureDataUri, furnitureInfo } from "@/lib/assets";
 import type { AnimalStage, PetAccessory } from "@/lib/farm";
 
 /** 미니룸에서 캐릭터 옆에 서 있는 펫 (데리고 다니는 펫, TOWN-09) */
 export type RoomPet = { name: string; assetKey: string; stage: AnimalStage; accessory: PetAccessory };
 
-/** 동그란 캐릭터 얼굴 (헤더, 댓글, 글 목록) */
+/** 동그란 캐릭터 얼굴 (헤더, 댓글, 글 목록). 전신 그림에서 얼굴 부분만 확대해 담는다 (faceFrame) */
 export function CharacterBadge({ asset, size = 36 }: { asset: string; size?: number }) {
+  const inner = size - 4; // 테두리(2px) 안쪽
+  const frame = faceFrame(asset);
+  const w = inner / frame.span;
   return (
     <span
-      className="inline-grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-line bg-cream"
+      className="relative inline-block shrink-0 overflow-hidden rounded-full border-2 border-line bg-cream"
       style={{ width: size, height: size }}
       aria-hidden
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- 코드로 만든 SVG(data URI)라 최적화가 필요 없다 */}
-      <img src={characterDataUri(asset, 96)} alt="" width={size * 1.15} height={size * 1.15} style={{ marginTop: size * 0.2 }} />
+      <img
+        src={characterDataUri(asset, 96)}
+        alt=""
+        width={w}
+        height={w}
+        className="absolute max-w-none"
+        style={{ left: inner / 2 - w * frame.cx, top: inner / 2 - w * frame.cy }}
+      />
     </span>
   );
 }

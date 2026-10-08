@@ -254,7 +254,7 @@ check("새로고침해도 꾸미기가 남아 있다", (await page.locator(`[dat
 await page.keyboard.press("Escape");
 await go(`/@${slug}`);
 check("블로그 홈 프로필에 전시 카드", await page.locator(`[data-displayed-card="${hatched.id}"]`).getByText("콩이").isVisible());
-check("블로그 미니룸 펫은 꾸미기를 한 그림 (리본)", decodeURIComponent((await page.locator('[data-room-pet="콩이"] img').getAttribute("src")) ?? "").includes("#ff5c8a"));
+check("블로그 미니룸 펫은 꾸미기를 한 그림 (리본)", decodeURIComponent((await page.locator('[data-room-pet="콩이"] img').getAttribute("src")) ?? "").includes("#f37c9e"));
 await page.screenshot({ path: `${outDir}/c6-blog-profile-card.png` });
 
 // ── 농장 전체 화면 (데스크톱): 펫 여러 마리 + 둥지의 알 ──

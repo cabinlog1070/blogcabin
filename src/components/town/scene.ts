@@ -5,6 +5,16 @@ import { animalSvg, toAnimalDataUri } from "@/lib/art/animals";
 import { PHONE_MEDIA } from "@/lib/device";
 import { characterDataUri, VISITOR_CHARACTER } from "@/lib/art/characters";
 import {
+  CHAR_FRAMES,
+  CHAR_VIEWS,
+  characterViewDataUri,
+  characterViewKey,
+  lookHasViews,
+  WALK_FRAMES,
+  type CharView,
+  type WalkFrame,
+} from "@/lib/art/character-views";
+import {
   ATTENDANCE_SIZE,
   attendanceSvg,
   BENCH_SIZE,
@@ -12,12 +22,14 @@ import {
   BOARD_SIZE,
   boardSvg,
   CAMPFIRE_SIZE,
+  campfireFrontSvg,
   campfireSvg,
   FLAME_FRAMES,
   flameSvg,
   HOUSE_STAGES,
   houseSvg,
   roofHex,
+  LAMP_LIGHT,
   LAMP_SIZE,
   lampSvg,
   SHOP_SIZE,
@@ -29,6 +41,30 @@ import {
   treeSvg,
   type HouseStage,
 } from "@/lib/art/town";
+import {
+  BARREL_SIZE,
+  barrelSvg,
+  CRATE_SIZE,
+  crateSvg,
+  FENCE_SIZE,
+  fenceSvg,
+  FLOWERS_SIZE,
+  flowersSvg,
+  GRASS_SIZE,
+  grassSvg,
+  LAUNDRY_SIZE,
+  laundrySvg,
+  MAILBOX_SIZE,
+  mailboxSvg,
+  PLANTER_SIZE,
+  planterSvg,
+  ROCK_SIZE,
+  rockSvg,
+  SIGNPOST_SIZE,
+  signpostSvg,
+  STUMP_SIZE,
+  stumpSvg,
+} from "@/lib/art/props";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
@@ -44,6 +80,7 @@ const INTERACT_DISTANCE = 90;
 const PLAYER_SIZE = 72; // 캐릭터 그림 크기
 const PET_SIZE = 58; // 따라다니는 펫 그림 크기 (TOWN-09)
 const PET_BEHIND = 48; // 캐릭터 뒤 얼마나 떨어져서 따라오는지
+const WALK_STEP_MS = 140; // 걷는 그림을 넘기는 간격
 // 가상 조이스틱 (터치 화면 전용, TOWN-02)
 const JOYSTICK = { radius: 56, thumb: 26, margin: 28, deadZone: 8 };
 // 휴대폰은 화면이 좁아서 멀리서 보듯 줄여 광장을 더 넓게 보여 준다
@@ -89,14 +126,61 @@ const MY_HOUSE_POS = { x: CENTER.x, y: CENTER.y + PLAZA_RADIUS + 210 };
 // 캠프파이어 그림의 아랫변 가운데 (TOWN-02: 예전 분수와 같은 자리·크기)
 const CAMPFIRE_POS = { x: CENTER.x, y: CENTER.y + CAMPFIRE_SIZE.height / 2 };
 
+// ===== 꾸밈 소품 (2026-10-08 디자인 시안 지도 느낌). 건물 자리·길·광장 입구는 그대로 두고 빈 풀밭에만 놓는다 =====
+const PROP_ART = {
+  mailbox: { draw: mailboxSvg, size: MAILBOX_SIZE },
+  laundry: { draw: laundrySvg, size: LAUNDRY_SIZE },
+  crate: { draw: crateSvg, size: CRATE_SIZE },
+  barrel: { draw: barrelSvg, size: BARREL_SIZE },
+  planter: { draw: planterSvg, size: PLANTER_SIZE },
+  signpost: { draw: signpostSvg, size: SIGNPOST_SIZE },
+  stump: { draw: stumpSvg, size: STUMP_SIZE },
+  fence: { draw: fenceSvg, size: FENCE_SIZE },
+  rock: { draw: rockSvg, size: ROCK_SIZE },
+  flowers: { draw: flowersSvg, size: FLOWERS_SIZE },
+  grass: { draw: grassSvg, size: GRASS_SIZE },
+};
+type PropKind = keyof typeof PROP_ART;
+/** 자리를 정해 둔 소품: (x, y) = 아랫변 가운데, s = 크기 배율, solid = 부딪히는 영역(없으면 지나갈 수 있다) */
+type PropSpot = { kind: PropKind; x: number; y: number; s?: number; solid?: { w: number; h: number } };
+// 빨래대: 왼쪽 위 이웃 집 두 채 사이 뒤쪽
+const LAUNDRY_POS = { x: 290, y: 178 };
+const FIXED_PROPS: PropSpot[] = [
+  { kind: "laundry", ...LAUNDRY_POS, s: 0.9, solid: { w: 58, h: 8 } },
+  // 이정표: 위쪽 길에서 내려온 가운데 길이 광장으로 들어오는 갈림목 (오른쪽 가장자리, 출석 체크 이름표 아래)
+  { kind: "signpost", x: CENTER.x + 84, y: CENTER.y - 188, s: 0.8, solid: { w: 12, h: 8 } },
+  // 상점 옆: 오른쪽에 상자·통, 왼쪽 앞에 꽃 화분
+  { kind: "crate", x: SHOP_POS.x + 128, y: SHOP_POS.y - 8, s: 0.8, solid: { w: 28, h: 10 } },
+  { kind: "barrel", x: SHOP_POS.x + 156, y: SHOP_POS.y + 6, s: 0.8, solid: { w: 24, h: 10 } },
+  { kind: "planter", x: SHOP_POS.x - 130, y: SHOP_POS.y + 10, s: 0.85, solid: { w: 40, h: 8 } },
+  // 캠프파이어 광장 가장자리 (의자 바깥, 길이 들어오는 네 방향은 비운다)
+  { kind: "stump", x: CENTER.x + 208, y: CENTER.y - 72, s: 0.8, solid: { w: 22, h: 8 } },
+  { kind: "stump", x: CENTER.x + 238, y: CENTER.y - 98, s: 0.65, solid: { w: 18, h: 8 } },
+  { kind: "crate", x: CENTER.x + 172, y: CENTER.y + 106, s: 0.85, solid: { w: 30, h: 10 } },
+  { kind: "crate", x: CENTER.x + 200, y: CENTER.y + 120, s: 0.62, solid: { w: 22, h: 8 } },
+  { kind: "stump", x: CENTER.x - 172, y: CENTER.y + 106, s: 0.8, solid: { w: 22, h: 8 } },
+  { kind: "crate", x: CENTER.x - 210, y: CENTER.y - 88, s: 0.75, solid: { w: 26, h: 10 } },
+  // 동물 농장 앞 양옆으로 이어지는 울타리
+  { kind: "fence", x: FARM_POS.x - 176, y: FARM_POS.y - 20, s: 1, solid: { w: 80, h: 10 } },
+  { kind: "fence", x: FARM_POS.x + 176, y: FARM_POS.y - 20, s: 1, solid: { w: 80, h: 10 } },
+];
+
 const charKey = (asset: string) => `char:${asset}`;
+/** 내 캐릭터의 걷는 그림 (앞·뒤·옆 × 서 있기·걷기). 집 주인 그림(charKey)과 이름이 겹치지 않게 "walk" */
+const walkKey = (look: string, view: CharView, frame: WalkFrame) => characterViewKey(look, view, frame, "walk");
+const playerLook = (data: TownData) => data.player?.characterAsset ?? VISITOR_CHARACTER;
+const propKey = (kind: PropKind) => `prop:${kind}`;
 const houseKey = (stage: HouseStage, roof: string) => `house:${stage}:${roof}`;
 
 /** 이 광장이 쓸 그림 목록. TownGame이 미리 이미지로 불러 둔다 */
 export function townTextures(data: TownData) {
   const list = new Map<string, string>();
   const houses = [data.myHouse, ...data.neighbors].filter(Boolean) as TownHouse[];
-  list.set(charKey(data.player?.characterAsset ?? VISITOR_CHARACTER), characterDataUri(data.player?.characterAsset ?? VISITOR_CHARACTER, PLAYER_SIZE * 2));
+  // 내 캐릭터(방문자는 방문자 캐릭터): 앞·뒤·옆 모습마다 서 있기(0)·걷기(1·2) 그림. 옆모습은 오른쪽을 본다
+  const look = playerLook(data);
+  for (const view of CHAR_VIEWS) {
+    for (const frame of CHAR_FRAMES) list.set(walkKey(look, view, frame), characterViewDataUri(look, view, frame, PLAYER_SIZE * 2));
+  }
   for (const h of houses) {
     list.set(charKey(h.characterAsset), characterDataUri(h.characterAsset, PLAYER_SIZE * 2));
     const roof = roofHex(h.roofColor, h.backgroundAsset); // 고른 지붕 색, 없으면 배경 색 (TOWN-07)
@@ -108,11 +192,13 @@ export function townTextures(data: TownData) {
   list.set("attendance", toDataUri(attendanceSvg()));
   list.set("shop", toDataUri(shopSvg()));
   list.set("campfire", toDataUri(campfireSvg()));
+  list.set("campfire:front", toDataUri(campfireFrontSvg()));
   for (let i = 0; i < FLAME_FRAMES; i++) list.set(`flame:${i}`, toDataUri(flameSvg(i)));
   list.set("bench", toDataUri(benchSvg()));
   list.set("lamp", toDataUri(lampSvg()));
   list.set("farm", toDataUri(farmSvg()));
   for (const kind of ["round", "pine", "bush", "blossom"] as const) list.set(`tree:${kind}`, toDataUri(treeSvg(kind)));
+  for (const [kind, art] of Object.entries(PROP_ART)) list.set(propKey(kind as PropKind), toDataUri(art.draw()));
   return [...list].map(([key, uri]) => ({ key, uri }));
 }
 
@@ -174,6 +260,12 @@ function layout(data: TownData) {
     });
     // 집 주인 캐릭터가 문 옆(벽 오른쪽 끝)에 서 있다
     structures.push({ texture: charKey(h.characterAsset), x: pos.x + wallW / 2 + 4, y: pos.y + 2, w: 46, h: 46 });
+    // 빨간 우체통: 집 앞 왼쪽 모서리 (문·계단은 비운다). 집이 클수록 조금 크게
+    const mk = 0.58 + 0.07 * h.stage;
+    structures.push({
+      texture: propKey("mailbox"), x: pos.x - wallW / 2 + 2, y: pos.y + 3,
+      w: MAILBOX_SIZE.width * mk, h: MAILBOX_SIZE.height * mk, solid: { w: 12, h: 8 },
+    });
     windows.push({ x: pos.x, y: pos.y - hh * 0.35, r: w * 0.9 });
     entrances.push({
       label: mine ? "내 집" : `${h.nickname}의 집`, emoji: "🏠", x: pos.x, y: pos.y + 22, target: { kind: "link", href: `/@${h.slug}` },
@@ -198,13 +290,27 @@ function layout(data: TownData) {
   for (const p of LAMP_POSITIONS) {
     structures.push({ texture: "lamp", ...p, w: LAMP_SIZE.width, h: LAMP_SIZE.height, solid: { w: 14, h: 10 } });
   }
+  // 자리를 정해 둔 꾸밈 소품 (빨래대, 이정표, 상점 옆 상자·통·화분, 광장 가장자리 그루터기·상자, 농장 울타리)
+  for (const p of FIXED_PROPS) {
+    const { width, height } = PROP_ART[p.kind].size;
+    const s = p.s ?? 1;
+    structures.push({ texture: propKey(p.kind), x: p.x, y: p.y, w: width * s, h: height * s, solid: p.solid });
+  }
   return { structures, entrances, windows, neighborSlots };
 }
 
+/** 흙길 (x, y, 폭, 높이): 가운데 세로·가로 길, 위·아래 가로 길 */
+const ROADS: [number, number, number, number][] = [
+  [CENTER.x - 46, 0, 92, WORLD.height],
+  [0, CENTER.y - 46, WORLD.width, 92],
+  [0, 395, WORLD.width, 64],
+  [0, WORLD.height - 470, WORLD.width, 64],
+];
+
 /** 가로등 기둥 아랫변 가운데 */
 const LAMP_POSITIONS = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([dx, dy]) => ({ x: CENTER.x + dx * 175, y: CENTER.y + dy * 175 + 40 }));
-/** 가로등 등불 가운데 (lampSvg의 등불 자리: 그림 왼쪽 위에서 (30, 42)) */
-const lampLight = (p: { x: number; y: number }) => ({ x: p.x - LAMP_SIZE.width / 2 + 30, y: p.y - LAMP_SIZE.height + 42 });
+/** 가로등 등불 가운데 (lampSvg의 랜턴 자리: 그림 왼쪽 위에서 LAMP_LIGHT) */
+const lampLight = (p: { x: number; y: number }) => ({ x: p.x - LAMP_SIZE.width / 2 + LAMP_LIGHT.x, y: p.y - LAMP_SIZE.height + LAMP_LIGHT.y });
 
 
 export function createTownScene(
@@ -222,13 +328,20 @@ export function createTownScene(
     private player!: PhaserNS.GameObjects.Image; // 보이는 캐릭터 그림 (발 상자를 따라간다)
     private nameTag!: PhaserNS.GameObjects.Text;
     private pet: PhaserNS.GameObjects.Image | null = null; // 데리고 다니는 펫 (캐릭터 뒤를 따라온다)
-    private facing: 1 | -1 = 1; // 캐릭터가 보는 방향 (1 = 오른쪽)
+    private facing: 1 | -1 = 1; // 캐릭터가 보는 좌우 방향 (1 = 오른쪽). 펫이 반대쪽(뒤)을 따라온다
+    private look = playerLook(data); // 내 캐릭터 모습 키 (방문자는 방문자 캐릭터)
+    private views = lookHasViews(this.look); // 앞·뒤·옆 그림이 따로 있는가 (예전 캐릭터는 한 장뿐)
+    private view: CharView = "front"; // 지금 보여 주는 모습 (멈추면 마지막 모습으로 서 있는다)
+    private flip = false; // 옆모습을 왼쪽으로 뒤집었는가
+    private walk = { step: 0, clock: 0 }; // 걷는 그림 순서(WALK_FRAMES)와 넘길 때까지 지난 시간
+    private holdView = false; // 탭한 곳에 거의 다 와서 몇 px만 맞추는 중 (그 사이 뒤돌아보지 않게 모습을 그대로 둔다)
     private cursors!: PhaserNS.Types.Input.Keyboard.CursorKeys;
     private wasd!: Record<"W" | "A" | "S" | "D", PhaserNS.Input.Keyboard.Key>;
     private actionKeys: PhaserNS.Input.Keyboard.Key[] = [];
     private path: Point[] = []; // 탭·클릭한 곳까지 남은 길 (꺾이는 점들)
     private grid!: WalkGrid;
     private solids: Rect[] = []; // 부딪히는 영역 (길찾기 칸을 만들 때 쓴다)
+    private occupied: Rect[] = []; // 그림·이름표가 차지한 영역 (풀밭 소품을 흩어 놓을 때 피한다)
     private stuck: { x: number; y: number; since: number; retried?: boolean } = { x: 0, y: 0, since: 0 }; // 길을 가다 막혔는지 보는 용도
     private touch = false; // 손가락으로 쓰는 화면 (안내 문구를 "탭해서"로)
     private glows: { image: PhaserNS.GameObjects.Image; kind: "lamp" | "window" | "fire"; base: number }[] = [];
@@ -258,6 +371,7 @@ export function createTownScene(
       for (const s of structures) this.placeStructure(s, walls);
       this.createCampfireFlames();
       this.plantTrees(walls);
+      this.scatterProps(walls);
       // 길찾기 칸: 발 상자(28×16) 반만큼 + 여유 3px 넓혀서 막는다
       this.grid = new WalkGrid(WORLD.width, WORLD.height, this.solids, { x: 17, y: 11 });
       this.createSky(windows);
@@ -269,9 +383,10 @@ export function createTownScene(
       this.playerBody.setCollideWorldBounds(true);
       this.physics.add.collider(this.feet, walls);
       this.player = this.add
-        .image(0, 0, charKey(data.player?.characterAsset ?? VISITOR_CHARACTER))
+        .image(0, 0, walkKey(this.look, "front", 0))
         .setDisplaySize(PLAYER_SIZE, PLAYER_SIZE)
         .setOrigin(0.5, 0.94);
+      this.game.canvas.dataset.playerView = "front"; // 지금 보는 모습 (e2e 확인용)
 
       // 데리고 다니는 펫: 캐릭터 뒤쪽에서 시작해 부드럽게 따라온다
       if (data.player?.pet && this.textures.exists("pet")) {
@@ -392,6 +507,7 @@ export function createTownScene(
       const right = this.cursors.right.isDown || this.wasd.D.isDown;
       const up = this.cursors.up.isDown || this.wasd.W.isDown;
       const down = this.cursors.down.isDown || this.wasd.S.isDown;
+      this.holdView = false;
 
       if (left || right || up || down) {
         this.path = [];
@@ -399,22 +515,24 @@ export function createTownScene(
           .normalize()
           .scale(SPEED);
         this.playerBody.setVelocity(v.x, v.y);
-        if (v.x !== 0) this.face(v.x);
       } else if (this.joystick && this.joystick.vector.lengthSq() > 0) {
         // 조이스틱: 미는 방향으로 늘 같은 속도
         this.path = [];
         const v = this.joystick.vector.clone().normalize().scale(SPEED);
         this.playerBody.setVelocity(v.x, v.y);
-        if (Math.abs(v.x) > 1) this.face(v.x);
       } else if (this.path.length) {
         this.followPath();
       } else {
         this.playerBody.setVelocity(0, 0);
       }
 
-      // 그림은 발 상자를 따라간다. 걷는 동안 살짝 통통 튀기
-      const moving = this.playerBody.velocity.lengthSq() > 1;
-      const bob = moving ? Math.abs(Math.sin(this.time.now / 90)) * 4 : 0;
+      // 가는 방향에 맞는 모습(앞·뒤·옆)으로, 걷는 동안 그림을 넘긴다
+      const { x: vx, y: vy } = this.playerBody.velocity;
+      const moving = vx * vx + vy * vy > 1;
+      if (moving && !this.holdView) this.face(vx, vy);
+      this.animateWalk(moving);
+      // 그림은 발 상자를 따라간다. 걷는 그림이 따로 없는 예전 캐릭터만 통통 튀며 걷는다
+      const bob = moving && !this.views ? Math.abs(Math.sin(this.time.now / 90)) * 4 : 0;
       this.player.setPosition(this.feet.x, this.feet.y + 8 - bob);
       this.nameTag.setPosition(this.feet.x, this.feet.y - PLAYER_SIZE - 4 - bob);
       // 아래쪽에 있을수록 앞에 그린다 (y-sorting)
@@ -451,7 +569,8 @@ export function createTownScene(
         d = Phaser.Math.Distance.Between(this.feet.x, this.feet.y, next.x, next.y);
       }
       this.physics.moveTo(this.feet, next.x, next.y, SPEED);
-      if (Math.abs(next.x - this.feet.x) > 2) this.face(next.x - this.feet.x);
+      // 마지막 몇 px는 지나쳤다 되돌아오는 보정일 수 있어 모습을 바꾸지 않는다 (도착하자마자 뒤돌아 서지 않게)
+      this.holdView = this.path.length === 1 && d < 20;
       // 0.4초 동안 거의 못 움직였으면 지금 자리에서 길을 다시 찾는다 (한 번 더 막히면 멈춘다)
       if (Phaser.Math.Distance.Between(this.feet.x, this.feet.y, this.stuck.x, this.stuck.y) > 6) {
         this.stuck = { x: this.feet.x, y: this.feet.y, since: this.time.now };
@@ -463,9 +582,42 @@ export function createTownScene(
       }
     }
 
-    private face(dx: number) {
-      this.facing = dx > 0 ? 1 : -1;
-      this.player.setFlipX(this.facing === 1);
+    /** 가는 방향(dx, dy) → 모습. 위로는 뒷모습, 아래로는 앞모습, 옆으로는 옆모습(오른쪽을 보는 그림, 왼쪽이면 뒤집기).
+     *  대각선 근처에서 모습이 깜빡이지 않게, 지금 모습이 조금 더 오래 버틴다 */
+    private face(dx: number, dy: number) {
+      const ax = Math.abs(dx), ay = Math.abs(dy);
+      if (ax > 1) this.facing = dx > 0 ? 1 : -1;
+      const side = this.view === "side" ? ax > ay * 0.75 : ax > ay * 1.1;
+      if (side) {
+        this.view = "side";
+        this.flip = dx < 0;
+      } else {
+        this.view = dy < 0 ? "back" : "front";
+        this.flip = false;
+      }
+      // 예전 캐릭터는 그림 한 장(왼쪽을 본다)을 좌우로만 뒤집는다
+      if (!this.views) this.flip = this.facing === 1;
+    }
+
+    /** 걷는 동안 WALK_STEP_MS마다 걷는 그림(1 → 0 → 2 → 0)을 넘기고, 멈추면 그 모습의 서 있는 그림(0) */
+    private animateWalk(moving: boolean) {
+      if (moving) {
+        this.walk.clock += this.game.loop.delta;
+        while (this.walk.clock >= WALK_STEP_MS) {
+          this.walk.clock -= WALK_STEP_MS;
+          this.walk.step = (this.walk.step + 1) % WALK_FRAMES.length;
+        }
+      } else {
+        this.walk = { step: 0, clock: 0 }; // 다시 걸으면 첫걸음(1)부터
+      }
+      const frame: WalkFrame = moving ? WALK_FRAMES[this.walk.step] : 0;
+      const key = walkKey(this.look, this.views ? this.view : "front", this.views ? frame : 0);
+      if (this.player.texture.key !== key) this.player.setTexture(key);
+      if (this.player.flipX !== this.flip) this.player.setFlipX(this.flip);
+      const label = this.view === "side" ? (this.flip ? "side-left" : "side-right") : this.view;
+      if (this.game.canvas.dataset.playerView !== label) this.game.canvas.dataset.playerView = label;
+      const f = String(frame);
+      if (this.game.canvas.dataset.walkFrame !== f) this.game.canvas.dataset.walkFrame = f;
     }
 
     /** 펫은 캐릭터가 보는 반대쪽(뒤) 자리를 목표로 천천히 다가간다. 걸을 때 통통 튄다 */
@@ -521,6 +673,8 @@ export function createTownScene(
       const { width: w, height: h } = CAMPFIRE_SIZE;
       const glow = this.add.ellipse(x, y - 34, 300, 120, 0xffa53d, 0.22).setDepth(-5);
       const flame = this.add.image(x, y, "flame:0").setOrigin(0.5, 1).setDisplaySize(w, h).setDepth(y + 0.5).setData("light", true); // 밤에도 어둡게 하지 않는다
+      // 앞쪽 장작·돌을 불꽃 위에 한 번 더 겹쳐, 불꽃 밑동이 돌 고리 안으로 들어가 보이게 한다
+      this.add.image(x, y, "campfire:front").setOrigin(0.5, 1).setDisplaySize(w, h).setDepth(y + 0.6);
       this.game.canvas.dataset.campfire = "1";
       const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
       if (reduced) return;
@@ -612,6 +766,8 @@ export function createTownScene(
     private placeStructure(s: Structure, walls: PhaserNS.Physics.Arcade.StaticGroup) {
       // 깊이 = 아랫변의 y. 캐릭터가 뒤(위쪽)에 있으면 가려지고, 앞(아래쪽)에 있으면 앞에 보인다
       this.add.image(s.x, s.y, s.texture).setOrigin(0.5, 1).setDisplaySize(s.w, s.h).setDepth(s.y);
+      // 이름표가 있으면 그 아래(입구 앞)까지 차지한 것으로 친다
+      this.occupied.push({ x: s.x - s.w / 2, y: s.y - s.h, w: s.w, h: s.h + (s.label ? 48 : 4) });
       if (s.solid) {
         walls.add(this.add.zone(s.x, s.y - s.solid.h / 2, s.solid.w, s.solid.h));
         this.solids.push({ x: s.x - s.solid.w / 2, y: s.y - s.solid.h, w: s.solid.w, h: s.solid.h });
@@ -657,12 +813,7 @@ export function createTownScene(
       }
 
       // 길: 흙길 (가장자리는 풀과 자연스럽게 섞이게 조금 진한 띠, 군데군데 작은 돌)
-      const roads: [number, number, number, number][] = [
-        [CENTER.x - 46, 0, 92, WORLD.height],
-        [0, CENTER.y - 46, WORLD.width, 92],
-        [0, 395, WORLD.width, 64],
-        [0, WORLD.height - 470, WORLD.width, 64],
-      ];
+      const roads = ROADS;
       for (const [x, y, w, h] of roads) g.fillStyle(0xc9a874).fillRoundedRect(x - 4, y - 4, w + 8, h + 8, 18);
       for (const [x, y, w, h] of roads) g.fillStyle(0xdcc191).fillRoundedRect(x, y, w, h, 14);
       for (const [x, y, w, h] of roads) {
@@ -714,6 +865,8 @@ export function createTownScene(
       const blocked = [
         { ...BOARD_POS, r: 190 }, { ...SHOP_POS, r: 170 }, { ...FARM_POS, r: 190 }, { ...MY_HOUSE_POS, r: 150 },
         ...NEIGHBOR_SLOTS.map((p) => ({ ...p, r: 160 })),
+        // 자리를 정해 둔 소품(빨래대 등)과 겹치지 않게
+        ...FIXED_PROPS.map((p) => ({ x: p.x, y: p.y, r: (PROP_ART[p.kind].size.width * (p.s ?? 1)) / 2 + 40 })),
       ];
       let planted = 0;
       for (let i = 0; i < 400 && planted < 46; i++) {
@@ -732,6 +885,29 @@ export function createTownScene(
           walls,
         );
         planted++;
+      }
+    }
+
+    /** 풀밭 소품: 바위(작게 부딪힘)·꽃 포기·풀 포기(지나갈 수 있음)를 길·광장·건물·나무를 피해 흩어 놓는다 */
+    private scatterProps(walls: PhaserNS.Physics.Arcade.StaticGroup) {
+      const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-props"]);
+      const plan: [PropKind, number, number, number][] = [["rock", 10, 0.7, 0.95], ["flowers", 22, 0.8, 1.05], ["grass", 30, 0.75, 1]];
+      const hits = (x: number, y: number, w: number, h: number, r: Rect, pad: number) =>
+        x + w / 2 > r.x - pad && x - w / 2 < r.x + r.w + pad && y > r.y - pad && y - h < r.y + r.h + pad;
+      for (const [kind, count, s0, s1] of plan) {
+        const { width, height } = PROP_ART[kind].size;
+        for (let i = 0, placed = 0; i < count * 40 && placed < count; i++) {
+          const s = rng.realInRange(s0, s1);
+          const w = width * s, h = height * s;
+          const x = rng.between(30, WORLD.width - 30);
+          const y = rng.between(110, WORLD.height - 10);
+          if (Phaser.Math.Distance.Between(x, y, CENTER.x, CENTER.y) < PLAZA_RADIUS + 60) continue;
+          // 길(가장자리 여유 12px), 건물·나무·이름표·다른 소품 자리는 피한다
+          if (ROADS.some(([rx, ry, rw, rh]) => hits(x, y, w, h, { x: rx, y: ry, w: rw, h: rh }, 12))) continue;
+          if (this.occupied.some((o) => hits(x, y, w, h, o, 6))) continue;
+          this.placeStructure({ texture: propKey(kind), x, y, w, h, solid: kind === "rock" ? { w: w * 0.6, h: 8 } : undefined }, walls);
+          placed++;
+        }
       }
     }
   };
