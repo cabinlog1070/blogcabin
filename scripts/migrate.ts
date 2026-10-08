@@ -19,6 +19,7 @@ function describe(err: unknown): string {
 
 function hint(err: unknown): string {
   const text = describe(err);
+  if (text.includes("권한도 없어요")) return ""; // 이미 안내가 들어 있음
   if (/ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|ENOTFOUND|timeout/i.test(text))
     return "DB 서버에 접속하지 못했어요. DB_ADDRESS·DB_PORT가 맞는지, 컨테이너(서버)에서 그 주소로 갈 수 있는지(방화벽, PostgreSQL listen_addresses·pg_hba.conf) 확인해 주세요.";
   if (/28P01|password authentication/i.test(text)) return "DB 아이디나 비밀번호가 맞지 않아요 (DB_USERNAME, DB_PASSWORD).";
@@ -28,11 +29,44 @@ function hint(err: unknown): string {
   return "";
 }
 
+// DB_NAME의 데이터베이스가 아직 없으면 만든다 (첫 배포). 만들 권한이 없으면 안내와 함께 멈춘다
+async function ensureDatabase(url: URL) {
+  const name = decodeURIComponent(url.pathname.slice(1));
+  const probe = new Pool({ connectionString: url.toString(), connectionTimeoutMillis: 10_000 });
+  try {
+    await probe.query("select 1");
+    return;
+  } catch (err) {
+    if ((err as PgError).code !== "3D000") throw err;
+  } finally {
+    await probe.end();
+  }
+  console.log(`DB ${name}가 없어서 새로 만들어요`);
+  const admin = new URL(url.toString());
+  admin.pathname = "/postgres";
+  const pool = new Pool({ connectionString: admin.toString(), connectionTimeoutMillis: 10_000 });
+  try {
+    const quoted = `"${name.replace(/"/g, '""')}"`;
+    await pool.query(`CREATE DATABASE ${quoted}`);
+    console.log(`✔ DB ${name} 만들었어요`);
+  } catch (err) {
+    const code = (err as PgError).code;
+    if (code === "42P04") return; // 그새 다른 곳에서 만들어짐
+    if (code === "42501")
+      throw Object.assign(new Error(`DB ${name}가 없고, 이 사용자에게 DB를 만들 권한도 없어요. DB 관리자에게 ${name} DB를 만들어 달라고 하거나 DB_NAME을 있는 DB로 바꿔 주세요`), { code });
+    throw err;
+  } finally {
+    await pool.end();
+  }
+}
+
 async function main() {
   const raw = process.env.DATABASE_URL;
   if (!raw) throw new Error("DATABASE_URL이 없어요");
   const url = new URL(raw);
   console.log(`DB 접속: ${url.hostname}:${url.port || 5432}/${decodeURIComponent(url.pathname.slice(1))} (사용자 ${decodeURIComponent(url.username)})`);
+
+  await ensureDatabase(url);
 
   const pool = new Pool({ connectionString: raw, connectionTimeoutMillis: 10_000 });
   try {
