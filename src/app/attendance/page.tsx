@@ -1,7 +1,9 @@
 import { and, desc, eq, gte } from "drizzle-orm";
 import Link from "next/link";
+import { Icon } from "@/components/icon";
 import { db } from "@/db";
 import { attendances } from "@/db/schema";
+import type { IconName } from "@/lib/art/icons";
 import { formatDate } from "@/lib/format";
 import { ATTENDANCE_STREAK_BONUS_EVERY, currentStreak, REWARD_RULES, todayKST } from "@/lib/game";
 import { requireMember } from "@/server/dal";
@@ -9,6 +11,9 @@ import { getDailyQuests, questProgress } from "@/server/quests";
 import { AttendButton } from "./attend-button";
 
 export const metadata = { title: "출석 체크" };
+
+/** 퀘스트 아이콘 (src/server/quests.ts의 key → 그린 아이콘). 없는 key는 그 퀘스트의 이모지를 그대로 쓴다 */
+const QUEST_ICON: Record<string, IconName> = { attend: "calendar", post: "write", like: "heart", comment: "comment", pet: "pet" };
 
 export default async function AttendancePage() {
   const viewer = await requireMember();
@@ -49,10 +54,12 @@ export default async function AttendancePage() {
 
   return (
     <div className="mx-auto max-w-2xl break-keep px-4 py-8">
-      <h1 className="font-display text-3xl">📮 출석 체크</h1>
+      <h1 className="font-display text-3xl">
+        <Icon name="calendar" size={34} className="-mt-1" /> 출석 체크
+      </h1>
       <p className="mt-1 text-ink-soft">
-        하루 한 번 ✨ {REWARD_RULES.attendance.exp} · 🪙 {REWARD_RULES.attendance.coins}, {ATTENDANCE_STREAK_BONUS_EVERY}일 연속마다 🪙{" "}
-        {REWARD_RULES.attendance_streak.coins} 보너스
+        하루 한 번 <Icon name="exp" size={18} /> {REWARD_RULES.attendance.exp} · <Icon name="coin" size={18} /> {REWARD_RULES.attendance.coins},{" "}
+        {ATTENDANCE_STREAK_BONUS_EVERY}일 연속마다 <Icon name="coin" size={18} /> {REWARD_RULES.attendance_streak.coins} 보너스
       </p>
 
       <section id="attend" className="card mt-6 flex min-h-48 scroll-mt-20 flex-col items-center justify-center p-8">
@@ -63,7 +70,7 @@ export default async function AttendancePage() {
       <section className="card mt-6 p-6" aria-labelledby="quests-title">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <h2 id="quests-title" className="font-display text-xl">
-            📜 오늘의 퀘스트
+            <Icon name="guestbook" size={26} className="-mt-1" /> 오늘의 퀘스트
           </h2>
           <p className="text-sm font-bold text-leaf-dark">
             {progress.done} / {progress.total} 완료
@@ -89,9 +96,13 @@ export default async function AttendancePage() {
                   q.done ? "border-leaf bg-moss" : "border-line bg-cream hover:border-sun"
                 }`}
               >
-                <span aria-hidden className="text-2xl">
-                  {q.emoji}
-                </span>
+                {QUEST_ICON[q.key] ? (
+                  <Icon name={QUEST_ICON[q.key]} size={30} />
+                ) : (
+                  <span aria-hidden className="text-2xl">
+                    {q.emoji}
+                  </span>
+                )}
                 <span className="min-w-0 flex-1">
                   <span className="block font-bold">{q.label}</span>
                   <span className="block text-sm text-ink-soft">{q.hint}</span>
@@ -106,7 +117,13 @@ export default async function AttendancePage() {
           ))}
         </ul>
         <p className="mt-3 text-center text-sm text-ink-soft">
-          {progress.done === progress.total ? "🎉 오늘의 퀘스트를 모두 끝냈어요! 내일 또 만나요" : "퀘스트는 매일 밤 12시(한국 시간)에 새로 시작해요"}
+          {progress.done === progress.total ? (
+            <>
+              <Icon name="achievement" size={18} /> 오늘의 퀘스트를 모두 끝냈어요! 내일 또 만나요
+            </>
+          ) : (
+            "퀘스트는 매일 밤 12시(한국 시간)에 새로 시작해요"
+          )}
         </p>
       </section>
 
@@ -137,7 +154,7 @@ export default async function AttendancePage() {
                 }`}
                 title={done ? "출석" : undefined}
               >
-                {done ? "🌟" : d}
+                {done ? <Icon name="exp" size={32} title="출석" className="size-6 sm:size-8" /> : d}
               </span>
             );
           })}

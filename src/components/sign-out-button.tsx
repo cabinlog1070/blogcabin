@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Icon } from "@/components/icon";
 import { authClient } from "@/lib/auth-client";
 
 /** 로그아웃하고 첫 화면으로 (헤더 내 정보 메뉴와 온보딩 중 헤더가 같이 쓴다) */
@@ -30,7 +31,7 @@ export function SignOutButton() {
       onClick={signOut}
     >
       {/* 좁은 화면은 헤더 자리가 모자라 문 그림만 보인다 */}
-      <span aria-hidden className="sm:hidden">🚪</span>
+      <Icon name="logout" size={22} className="sm:hidden" />
       <span aria-hidden className="max-sm:hidden">로그아웃</span>
     </button>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-// 헤더 레벨 배지 옆 쪽지(✉) 알림함 (GAME-08)과 레벨업 팝업 (GAME-06)
+// 헤더 레벨 배지 옆 쪽지 알림함 (GAME-08)과 레벨업 팝업 (GAME-06)
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
@@ -13,23 +13,12 @@ import {
   refreshNotificationState,
   seeLevelUps,
 } from "@/app/notifications/actions";
+import { Icon } from "@/components/icon";
 import { ItemArt } from "@/components/item-art";
 import { timeAgo } from "@/lib/game";
 import type { LevelUpPopup, NotificationView } from "@/server/notifications";
 
 type PanelRow = Omit<NotificationView, "createdAt"> & { createdAt: string };
-
-/** 쪽지 모양 그림 (작은 편지 봉투) */
-function EnvelopeIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 28 20" width="20" height="15" className={className} aria-hidden>
-      <rect x="1.5" y="1.5" width="25" height="17" rx="3" fill="#fffdf5" stroke="#4a3426" strokeWidth="2" />
-      <path d="M2.5 3L14 11.5L25.5 3" fill="none" stroke="#4a3426" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      <path d="M2.5 17.5L10.5 9.5M25.5 17.5L17.5 9.5" stroke="#d9b98a" strokeWidth="1.5" strokeLinecap="round" />
-      <circle cx="14" cy="12" r="2.6" fill="#e5484d" stroke="#4a3426" strokeWidth="1" />
-    </svg>
-  );
-}
 
 export function NotificationBell({ unread: initialUnread, popup: initialPopup }: { unread: number; popup: LevelUpPopup | null }) {
   const [unread, setUnread] = useState(initialUnread);
@@ -105,7 +94,8 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
         data-notification-button
         className="relative flex items-center rounded-full border border-line bg-paper px-1.5 py-1 shadow-sm hover:text-leaf-dark sm:px-2.5"
       >
-        <EnvelopeIcon />
+        {/* 쪽지 모양 그림 (하트 편지 봉투) */}
+        <Icon name="mail" size={24} className="size-5 sm:size-6" />
         {unread > 0 && (
           <span
             className="absolute -right-1.5 -top-1.5 min-w-[18px] rounded-full bg-berry px-1 text-center text-[10px] font-bold leading-[18px] text-white"
@@ -118,7 +108,9 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
 
       <PopoverPanel open={open} box={box} panelRef={setPanel} label="알림함" className="flex max-h-[70dvh] flex-col overflow-hidden" data-notification-panel>
         <div className="flex items-center gap-2 border-b-2 border-line px-4 py-2.5">
-          <h2 className="font-display text-lg">✉️ 알림함</h2>
+          <h2 className="flex items-center gap-1.5 font-display text-lg">
+            <Icon name="mail" size={22} /> 알림함
+          </h2>
           {unread > 0 && <span className="text-xs text-ink-soft">안 읽은 알림 {unread}개</span>}
           <button
             type="button"
@@ -187,13 +179,13 @@ function LevelUpModal({ popup, onClose }: { popup: LevelUpPopup; onClose: () => 
   return createPortal(
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" data-levelup-modal>
       <div role="dialog" aria-modal="true" aria-labelledby="levelup-title" className="card w-full max-w-sm p-6 text-center">
-        <p className="text-5xl" aria-hidden>🎉</p>
+        <Icon name="level" size={64} className="mx-auto block" />
         <h2 id="levelup-title" className="mt-2 font-display text-3xl">
           {popup.level >= 99 ? "최고 레벨 Lv.99가 되었어요!" : `Lv.${popup.level}이 되었어요!`}
         </h2>
         {popup.houseStage && (
           <p className="mt-3 rounded-xl bg-moss px-3 py-2 font-bold text-leaf-dark" data-house-grown>
-            🏠 집이 커졌어요! ({popup.houseStage}단계)
+            <Icon name="home" size={22} /> 집이 커졌어요! ({popup.houseStage}단계)
           </p>
         )}
         {popup.items.length > 0 && (

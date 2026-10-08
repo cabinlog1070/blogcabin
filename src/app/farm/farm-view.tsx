@@ -1,11 +1,14 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
+import { Icon } from "@/components/icon";
 import { PetArt, PetCard } from "@/components/pet-art";
 import { eggSvg, silhouetteSvg, toAnimalDataUri } from "@/lib/art/animals";
+import type { IconName } from "@/lib/art/icons";
 import {
   animalStage,
   CARE_ACTIONS,
+  type CareAction,
   formatMetDate,
   GENDER_LABEL,
   MAX_ACTIVE_ANIMALS,
@@ -34,6 +37,9 @@ import { FarmField, type FieldPet } from "./farm-field";
 
 type FreeEgg = { kind: "starter"; label: string } | { kind: "level"; level: number; label: string };
 type Pet = FarmAnimal & { name: string; assetKey: string; growExp: number; maxLevel: number };
+
+/** 돌보기 버튼 아이콘 (CARE_ACTIONS의 이모지 대신) */
+const CARE_ICON: Record<CareAction, IconName> = { feed: "carrot", pet: "hand" };
 
 const isPet = (a: FarmAnimal): a is Pet => a.status !== "egg" && !!a.assetKey && !!a.growExp && !!a.maxLevel && !!a.name;
 const toField = (p: Pet): FieldPet => ({ id: p.id, name: p.name, assetKey: p.assetKey, stage: animalStage(p.growth, p.growExp), accessory: p.accessory });
@@ -104,7 +110,9 @@ export function FarmView({
       <div className="mx-auto grid max-w-5xl gap-4 px-4 py-6 md:grid-cols-2">
         {/* 알 받기 */}
         <section className="card p-4">
-          <h2 className="font-display text-xl">🥚 알 받기</h2>
+          <h2 className="font-display text-xl">
+            <Icon name="egg" size={26} className="-mt-1" /> 알 받기
+          </h2>
           <p className="mt-1 text-xs text-ink-soft">
             {slotsLeft <= 0 ? "자리가 꽉 찼어요. 다 키운 뒤에 받을 수 있어요" : `레벨 ${eggEvery}마다 무료 알을 하나씩 받아요 · 남은 자리 ${slotsLeft}`}
           </p>
@@ -117,7 +125,7 @@ export function FarmView({
                 onClick={() => run(() => claimEgg(egg.kind, egg.kind === "level" ? egg.level : undefined))}
                 className="btn bg-sun py-1.5 text-sm text-ink"
               >
-                🎁 {egg.label} (무료)
+                <Icon name="egg" size={18} /> {egg.label} (무료)
               </button>
             ))}
             <button
@@ -126,21 +134,23 @@ export function FarmView({
               onClick={() => run(buyEgg)}
               className="btn bg-paper py-1.5 text-sm text-ink"
             >
-              🪙 {eggPrice}으로 알 사기
+              <Icon name="coin" size={18} /> {eggPrice}으로 알 사기
             </button>
           </div>
         </section>
 
         {/* 농장 가게: 물약 */}
         <section className="card p-4">
-          <h2 className="font-display text-xl">🧪 농장 가게</h2>
+          <h2 className="font-display text-xl">
+            <Icon name="potion" size={26} className="-mt-1" /> 농장 가게
+          </h2>
           <p className="mt-1 text-xs text-ink-soft">물약 하나를 쓰면 경험치 +{POTION_GROWTH}. 하루 횟수 제한 없이, 가진 만큼 쓸 수 있어요.</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-cream px-3 py-1 text-sm" data-potions={potions}>
               가방 속 물약 <b>{potions}</b>개
             </span>
             <button type="button" disabled={pending || coins < potionPrice} onClick={() => run(buyPotion)} className="btn bg-paper py-1.5 text-sm text-ink">
-              🪙 {potionPrice}으로 물약 사기
+              <Icon name="coin" size={18} /> {potionPrice}으로 물약 사기
             </button>
           </div>
         </section>
@@ -148,7 +158,7 @@ export function FarmView({
         {/* 내 동물 목록 (풀밭에서 누르기 어려울 때도 여기서 상태창을 연다) */}
         <section className="card p-4 md:col-span-2">
           <h2 className="font-display text-xl">
-            🐾 내 동물{" "}
+            <Icon name="pet" size={26} className="-mt-1" /> 내 동물{" "}
             <span className="text-sm text-ink-soft">
               키우는 중 {growing.length + eggs.length} / {MAX_ACTIVE_ANIMALS}
             </span>
@@ -160,7 +170,7 @@ export function FarmView({
               {eggs.map((e) => (
                 <li key={e.id}>
                   <button type="button" onClick={() => setOpenId(e.id)} className="btn bg-paper py-1.5 text-sm text-ink">
-                    🥚 알 (부화 전)
+                    <Icon name="egg" size={18} /> 알 (부화 전)
                   </button>
                 </li>
               ))}
@@ -169,7 +179,11 @@ export function FarmView({
                   <button type="button" onClick={() => setOpenId(p.id)} className="btn bg-paper py-1 pl-1 text-sm text-ink" aria-label={`${p.name} 상태창 열기`}>
                     <PetArt assetKey={p.assetKey} stage={animalStage(p.growth, p.growExp)} accessory={p.accessory} size={32} />
                     {p.name} · Lv.{petLevel(p.growth, p.growExp, p.maxLevel)}
-                    {p.carried && <span className="text-xs text-sky">🐾 산책 중</span>}
+                    {p.carried && (
+                      <span className="text-xs text-sky">
+                        <Icon name="pet" size={14} /> 산책 중
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -180,7 +194,7 @@ export function FarmView({
         {/* 카드 도감 */}
         <section className="card p-4 md:col-span-2" data-card-book>
           <h2 className="font-display text-xl">
-            📖 카드 도감{" "}
+            <Icon name="guestbook" size={26} className="-mt-1" /> 카드 도감{" "}
             <span className="text-sm text-ink-soft">
               {new Set(grownPets.map((p) => p.assetKey)).size} / {species.length}종 · 카드 {grownPets.length}장
             </span>
@@ -214,10 +228,14 @@ export function FarmView({
                   <button type="button" onClick={() => setOpenId(p.id)} className="relative block" aria-label={`${p.name} 카드 보기`}>
                     <PetCard pet={{ name: p.name, assetKey: p.assetKey, accessory: p.accessory, level: p.maxLevel }} speciesName={p.speciesName ?? ""} grownAt={p.grownAt} />
                     {displayedId === p.id && (
-                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-leaf px-2 text-[11px] font-bold text-white">🏅 전시 중</span>
+                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-leaf px-2 text-[11px] font-bold text-white">
+                        <Icon name="achievement" size={14} /> 전시 중
+                      </span>
                     )}
                     {p.carried && (
-                      <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-sky px-2 text-[11px] font-bold text-white">🐾 산책 중</span>
+                      <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-sky px-2 text-[11px] font-bold text-white">
+                        <Icon name="pet" size={14} /> 산책 중
+                      </span>
                     )}
                   </button>
                 </li>
@@ -237,7 +255,7 @@ export function FarmView({
               <h2 className="mt-2 font-display text-2xl">알</h2>
               <p className="text-sm text-ink-soft">무엇이 나올지 몰라요. 성별도 태어날 때 정해져요.</p>
               <button type="button" disabled={pending} onClick={() => run(() => hatchEgg(opened.id))} className="btn mt-4 bg-leaf text-white">
-                🐣 부화시키기
+                <Icon name="egg" size={20} /> 부화시키기
               </button>
             </div>
           )}
@@ -247,7 +265,9 @@ export function FarmView({
       {decorating && (
         <Modal label="펫 꾸미기" onClose={() => setDecorating(false)}>
           <div className="p-5" data-decorate-panel>
-            <h2 className="font-display text-2xl">🎀 펫 꾸미기</h2>
+            <h2 className="font-display text-2xl">
+              <Icon name="hat" size={30} className="-mt-1" /> 펫 꾸미기
+            </h2>
             <p className="text-sm text-ink-soft">무료예요. 펫마다 하나씩 골라 주세요. 농장, 상태창, 광장, 카드에 모두 보여요.</p>
             {allPets.length === 0 ? (
               <p className="mt-4 rounded-xl bg-cream p-4 text-center text-sm text-ink-soft">아직 꾸밀 펫이 없어요. 알을 부화시켜 보세요!</p>
@@ -342,7 +362,7 @@ function PetStatus({
                 {pet.name}
               </span>
               <button type="button" onClick={() => setEditing(true)} className="rounded-lg px-1.5 text-base hover:bg-cream" aria-label="이름 바꾸기">
-                ✏️
+                <Icon name="write" size={20} />
               </button>
             </h2>
           )}
@@ -365,7 +385,13 @@ function PetStatus({
             Lv.{progress.level} <span className="text-sm text-ink-soft">/ 다 자라면 Lv.{pet.maxLevel}</span>
           </span>
           <span className="whitespace-nowrap text-sm" data-pet-exp={progress.current}>
-            {progress.isMax ? "다 자랐어요 ✨" : `경험치 ${progress.current} / ${progress.needed}`}
+            {progress.isMax ? (
+              <>
+                다 자랐어요 <Icon name="exp" size={16} />
+              </>
+            ) : (
+              `경험치 ${progress.current} / ${progress.needed}`
+            )}
           </span>
         </div>
         <div
@@ -379,7 +405,12 @@ function PetStatus({
         </div>
         <p className="mt-1 text-xs text-ink-soft" data-pet-growth={pet.growth}>
           총 성장 {pet.growth} / {pet.growExp}
-          {!isGrown && ` · 다 키우면 ✨ ${pet.rewardExp} · 🪙 ${pet.rewardCoins}`}
+          {!isGrown && (
+            <>
+              {" "}
+              · 다 키우면 <Icon name="exp" size={14} /> {pet.rewardExp} · <Icon name="coin" size={14} /> {pet.rewardCoins}
+            </>
+          )}
         </p>
       </div>
 
@@ -397,7 +428,7 @@ function PetStatus({
                 title={done ? "오늘은 했어요" : `경험치 +${c.growth} (하루 한 번)`}
               >
                 <span>
-                  {c.emoji} {done ? "완료" : c.label}
+                  <Icon name={CARE_ICON[c.action]} size={18} /> {done ? "완료" : c.label}
                 </span>
                 <span className="text-[10px] font-normal text-ink-soft">{done ? "내일 또 해요" : `+${c.growth} · 하루 한 번`}</span>
               </button>
@@ -409,7 +440,9 @@ function PetStatus({
             onClick={() => run(() => givePotion(pet.id))}
             className="btn flex-col gap-0 bg-paper px-1 py-1.5 text-sm text-ink"
           >
-            <span>🧪 물약 쓰기</span>
+            <span>
+              <Icon name="potion" size={18} /> 물약 쓰기
+            </span>
             <span className="text-[10px] font-normal text-ink-soft">
               +{POTION_GROWTH} · {potions}개
             </span>
@@ -419,14 +452,20 @@ function PetStatus({
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <button type="button" disabled={pending || pet.carried} onClick={() => run(() => setCarriedPet(pet.id))} className="btn bg-sky py-2 text-sm text-white">
-          🐾 데리고 다니기
+          <Icon name="pet" size={18} /> 데리고 다니기
         </button>
         <button type="button" disabled={pending || !pet.carried} onClick={() => run(() => setCarriedPet(null))} className="btn bg-paper py-2 text-sm text-ink">
-          🏡 두고 다니기
+          <Icon name="home" size={18} /> 두고 다니기
         </button>
       </div>
       <p className="mt-1 text-center text-xs text-ink-soft">
-        {pet.carried ? "🐾 지금 함께 다니는 중이에요. 광장과 내 미니룸에서 보여요" : "데리고 다닐 수 있는 펫은 한 마리예요"}
+        {pet.carried ? (
+          <>
+            <Icon name="pet" size={14} /> 지금 함께 다니는 중이에요. 광장과 내 미니룸에서 보여요
+          </>
+        ) : (
+          "데리고 다닐 수 있는 펫은 한 마리예요"
+        )}
       </p>
 
       {isGrown && (
@@ -436,7 +475,8 @@ function PetStatus({
           onClick={() => run(() => setDisplayedCard(displayed ? null : pet.id))}
           className={`btn mt-3 w-full py-2 text-sm ${displayed ? "bg-paper text-ink" : "bg-sun text-ink"}`}
         >
-          {displayed ? "🏅 프로필에 전시 중 · 내리기" : "🏅 프로필에 전시하기"}
+          <Icon name="achievement" size={18} />
+          {displayed ? "프로필에 전시 중 · 내리기" : "프로필에 전시하기"}
         </button>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { desc, eq, gte, sql } from "drizzle-orm";
 import Link from "next/link";
+import { Icon } from "@/components/icon";
 import { db } from "@/db";
 import { attendances, blogs, comments, pointLedger, posts, profiles, users } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
@@ -77,7 +78,9 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="font-display text-3xl">👑 관리자</h1>
+      <h1 className="font-display text-3xl">
+        <Icon name="level" size={34} className="-mt-1" /> 관리자
+      </h1>
 
       <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (
@@ -89,8 +92,13 @@ export default async function AdminPage() {
       </section>
 
       <section className="card mt-8 p-5">
-        <h2 className="mb-1 font-display text-xl">🎁 관리자 지급</h2>
-        <p className="mb-3 text-sm text-ink-soft">주민에게 코인·경험치를 줘요. 받은 사람의 내역에는 &quot;🎁 관리자 지급&quot;으로 보여요.</p>
+        <h2 className="mb-1 font-display text-xl">
+          <Icon name="achievement" size={26} className="-mt-1" /> 관리자 지급
+        </h2>
+        <p className="mb-3 text-sm text-ink-soft">
+          주민에게 코인·경험치를 줘요. 받은 사람의 내역에는 &quot;
+          <Icon name="achievement" size={16} /> 관리자 지급&quot;으로 보여요.
+        </p>
         <AdminGrantForm members={members} defaultUserId={admin.userId} />
       </section>
 
@@ -106,7 +114,15 @@ export default async function AdminPage() {
                 <td className="py-2">{u.username ?? "-"} <span className="text-ink-soft">({u.provider ?? "없음"})</span></td>
                 <td>{u.nickname ?? <span className="text-ink-soft">온보딩 전</span>}</td>
                 <td>{u.slug ? <Link href={`/@${u.slug}`} className="text-sky underline">@{u.slug}</Link> : "-"}</td>
-                <td>{u.role === "admin" ? "👑 관리자" : "회원"}</td>
+                <td>
+                  {u.role === "admin" ? (
+                    <>
+                      <Icon name="level" size={16} /> 관리자
+                    </>
+                  ) : (
+                    "회원"
+                  )}
+                </td>
                 <td className="whitespace-nowrap text-ink-soft">{formatDateTime(u.createdAt)}</td>
               </tr>
             ))}
@@ -126,7 +142,7 @@ export default async function AdminPage() {
                 <tr key={p.id}>
                   <td className="py-2"><Link href={`/@${p.slug}/${p.id}`} className="hover:underline">{p.title}</Link></td>
                   <td>{p.nickname}</td>
-                  <td>{p.visibility === "public" ? "공개" : "🔒"}</td>
+                  <td>{p.visibility === "public" ? "공개" : <Icon name="lock" size={18} title="비공개" />}</td>
                   <td className="whitespace-nowrap text-ink-soft">{formatDateTime(p.createdAt)}</td>
                   <td className="text-right"><AdminDeletePostButton postId={p.id} title={p.title} /></td>
                 </tr>

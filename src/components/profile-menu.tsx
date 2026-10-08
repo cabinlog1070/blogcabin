@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { PopoverPanel, useHeaderPopover } from "@/components/header-popover";
+import { Icon } from "@/components/icon";
 import { useSignOut } from "@/components/sign-out-button";
 import { authClient } from "@/lib/auth-client";
 
@@ -143,13 +144,13 @@ export function ProfileMenu({
 
         <nav className="py-1" aria-label="내 메뉴">
           <Link href={`/@${blogSlug}`} onClick={close} className={menuItem}>
-            <span aria-hidden>🏠</span> 내 블로그
+            <Icon name="home" /> 내 블로그
           </Link>
           <Link href="/settings/blog" onClick={close} className={menuItem}>
-            <span aria-hidden>⚙️</span> 환경 설정
+            <Icon name="settings" /> 환경 설정
           </Link>
           <Link href="/support" onClick={close} className={menuItem}>
-            <span aria-hidden>💌</span> 문의하기
+            <Icon name="inquiry" /> 문의하기
           </Link>
           <button
             type="button"
@@ -159,7 +160,7 @@ export function ProfileMenu({
             }}
             className={`${menuItem} border-t-2 border-line text-ink-soft hover:text-ink`}
           >
-            <span aria-hidden>🚪</span> 로그아웃
+            <Icon name="logout" /> 로그아웃
           </button>
         </nav>
       </PopoverPanel>

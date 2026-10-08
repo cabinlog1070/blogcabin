@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PostCard, type PostCardData } from "@/components/blog/post-card";
+import { Icon } from "@/components/icon";
 import { Pagination } from "@/components/pagination";
 
 type Tag = { name: string; count: number };
@@ -31,18 +32,18 @@ export function FeedView({
         {tab && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Link href="/feed" className={`btn py-1.5 text-sm phone:px-3 ${tab === "all" ? "bg-ink text-cream" : "bg-paper text-ink"}`}>
-              🏘 마을 전체
+              <Icon name="news" size={18} /> 마을 전체
             </Link>
             {showFollowingTab && (
               <Link href="/feed/following" className={`btn py-1.5 text-sm phone:px-3 ${tab === "following" ? "bg-ink text-cream" : "bg-paper text-ink"}`}>
-                💛 이웃 새 글
+                <Icon name="heart" size={18} /> 이웃 새 글
               </Link>
             )}
             {myBlogHref && (
               // 휴대폰에서는 탭 세 개가 한 줄에 들어가도록 "내 블로그"로 줄여 보여 준다
               <Link href={myBlogHref} aria-label="내 블로그로 가기" className="btn bg-leaf py-1.5 text-sm text-white phone:px-3">
                 <span>
-                  🏡 내 블로그<span className="phone:hidden">로 가기</span>
+                  <Icon name="home" size={18} /> 내 블로그<span className="phone:hidden">로 가기</span>
                 </span>
               </Link>
             )}
@@ -56,7 +57,9 @@ export function FeedView({
 
       <aside className="md:sticky md:top-20 md:self-start">
         <div className="card p-4">
-          <h2 className="mb-3 font-display text-lg">🏷 인기 태그</h2>
+          <h2 className="mb-3 font-display text-lg">
+            <Icon name="category" size={22} className="-mt-0.5" /> 인기 태그
+          </h2>
           {tags.length ? (
             <ul className="flex flex-wrap gap-1.5">
               {tags.map((t) => (

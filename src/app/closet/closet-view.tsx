@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { FurnitureArt, MiniRoom, type RoomFurniture } from "@/components/character";
+import { IconEmoji } from "@/components/icon-emoji";
 import { ItemArt } from "@/components/item-art";
 import { canWear, composeLook, furnitureInfo, MANNEQUIN, SLOT_LABEL, SLOT_ORDER, type AvatarSlot } from "@/lib/assets";
 import { HOUSE_STAGES, houseSvg, ROOF_COLORS, roofHex, type HouseStage, type RoofColor } from "@/lib/art/town";
@@ -255,7 +256,10 @@ export function ClosetView({
       )}
 
       <section className="mt-6">
-        <h2 className="mb-3 font-display text-2xl">👕 아바타 꾸미기</h2>
+        {/* 구역 제목: 화면에는 그린 아이콘, 글자로는 예전 이모지 그대로 (e2e가 "👕 아바타 꾸미기"로 찾는다) */}
+        <h2 className="mb-3 font-display text-2xl">
+          <IconEmoji name="clothes" emoji="👕" size={30} className="-mt-1" /> 아바타 꾸미기
+        </h2>
         {grid(
           avatars,
           (item) => card(item, worn[item.slot!] === item.id, () => wear(item), {}, SLOT_LABEL[item.slot!]),
@@ -264,7 +268,9 @@ export function ClosetView({
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-3 font-display text-2xl">🖼 내 배경</h2>
+        <h2 className="mb-3 font-display text-2xl">
+          <IconEmoji name="background" emoji="🖼" size={30} className="-mt-1" /> 내 배경
+        </h2>
         {grid(
           items.filter((i) => i.type === "background"),
           (item) => card(item, item.id === current.backgroundItemId, () => equip(item)),
@@ -273,7 +279,9 @@ export function ClosetView({
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-1 font-display text-2xl">🪑 가구</h2>
+        <h2 className="mb-1 font-display text-2xl">
+          <IconEmoji name="furniture" emoji="🪑" size={30} className="-mt-1" /> 가구
+        </h2>
         <p className="mb-3 text-sm text-ink-soft">
           가구를 위 미니룸으로 끌어다 놓으세요. 미니룸 밖으로 끌어내면 빠져요. (최대 {MAX_FURNITURE}개, 지금 {placed.length}개)
         </p>
@@ -291,7 +299,9 @@ export function ClosetView({
 
       {/* 광장 내 집 지붕 색 (TOWN-07): 무료, 배경과 상관없이. 미리 보기는 내 레벨의 집 단계로 (TOWN-11) */}
       <section className="mt-8" data-roof-section>
-        <h2 className="mb-1 font-display text-2xl">🏠 지붕 색</h2>
+        <h2 className="mb-1 font-display text-2xl">
+          <IconEmoji name="home" emoji="🏠" size={30} className="-mt-1" /> 지붕 색
+        </h2>
         <p className="mb-3 text-sm text-ink-soft">광장의 내 집 지붕 색을 골라요. 무료이고 언제든 바꿀 수 있어요.</p>
         <div className="card flex flex-wrap items-center gap-4 p-4">
           {/* eslint-disable-next-line @next/next/no-img-element -- 코드로 그린 SVG */}
@@ -334,7 +344,9 @@ export function ClosetView({
       {/* 예전에 상점에서 캐릭터를 산 회원만: 가진 캐릭터 중에서 바꿀 수 있다 (spec 006 FR-021) */}
       {characters.length > 1 && (
         <section className="mt-8">
-          <h2 className="mb-3 font-display text-2xl">🐾 내 캐릭터</h2>
+          <h2 className="mb-3 font-display text-2xl">
+            <IconEmoji name="pet" emoji="🐾" size={30} className="-mt-1" /> 내 캐릭터
+          </h2>
           {grid(characters, (item) => card(item, item.id === current.characterItemId, () => equip(item)), "")}
         </section>
       )}

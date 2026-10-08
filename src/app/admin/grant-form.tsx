@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Icon } from "@/components/icon";
 import { adminGrant, type GrantState } from "./actions";
 
 type Member = { userId: string; label: string };
@@ -23,7 +24,9 @@ export function AdminGrantForm({ members, defaultUserId }: { members: Member[]; 
       </label>
       <div>
         <label className="block">
-          <span className="mb-1 block text-sm font-bold">🪙 코인</span>
+          <span className="mb-1 block text-sm font-bold">
+            <Icon name="coin" size={18} /> 코인
+          </span>
           <input name="coins" type="number" min={0} step={1} placeholder="0" className={input} />
         </label>
         <label className="mt-1 flex items-center gap-1.5 text-sm">
@@ -32,7 +35,9 @@ export function AdminGrantForm({ members, defaultUserId }: { members: Member[]; 
       </div>
       <div>
         <label className="block">
-          <span className="mb-1 block text-sm font-bold">✨ 경험치</span>
+          <span className="mb-1 block text-sm font-bold">
+            <Icon name="exp" size={18} /> 경험치
+          </span>
           <input name="exp" type="number" min={0} step={1} placeholder="0" className={input} />
         </label>
         <label className="mt-1 flex items-center gap-1.5 text-sm">
@@ -40,7 +45,13 @@ export function AdminGrantForm({ members, defaultUserId }: { members: Member[]; 
         </label>
       </div>
       <button disabled={pending} className="btn btn-accent sm:mb-7">
-        {pending ? "주는 중..." : "🎁 지급"}
+        {pending ? (
+          "주는 중..."
+        ) : (
+          <>
+            <Icon name="achievement" size={18} /> 지급
+          </>
+        )}
       </button>
       {(state.error || state.ok) && (
         <p className={`text-sm sm:col-span-4 ${state.error ? "text-berry" : "text-leaf-dark"}`} data-grant-result>

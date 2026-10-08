@@ -3,6 +3,7 @@
 // 헤더 레벨 배지 (GAME-02). 누르면 이번 레벨 경험치와 다음 레벨까지 남은 경험치를 작은 창으로 보여준다
 import Link from "next/link";
 import { PopoverPanel, useHeaderPopover } from "@/components/header-popover";
+import { Icon } from "@/components/icon";
 
 /** getWallet()의 레벨 부분 (levelProgress) + 누적 경험치 */
 export type LevelInfo = { level: number; exp: number; current: number; needed: number; ratio: number; isMax: boolean };
@@ -31,7 +32,10 @@ export function LevelBadge({ level, exp, current, needed, ratio, isMax }: LevelI
         <div className="flex items-center justify-between gap-2">
           <p className="font-display text-2xl">Lv.{level}</p>
           {isMax ? (
-            <span className="rounded-full bg-sun px-2.5 py-0.5 text-xs font-bold text-ink">🏆 최고 레벨</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-sun px-2.5 py-0.5 text-xs font-bold text-ink">
+              <Icon name="level" size={16} />
+              최고 레벨
+            </span>
           ) : (
             <span className="text-xs text-ink-soft">다음은 Lv.{level + 1}</span>
           )}
@@ -57,7 +61,9 @@ export function LevelBadge({ level, exp, current, needed, ratio, isMax }: LevelI
           </>
         )}
         <div className="mt-3 flex items-center justify-between gap-2 border-t-2 border-line pt-2 text-xs">
-          <span className="text-ink-soft">누적 경험치 ✨ {exp.toLocaleString()}</span>
+          <span className="inline-flex items-center gap-1 text-ink-soft">
+            누적 경험치 <Icon name="exp" size={16} /> {exp.toLocaleString()}
+          </span>
           <Link href="/wallet" onClick={close} className="font-bold text-leaf-dark hover:underline">
             내역 보기 →
           </Link>

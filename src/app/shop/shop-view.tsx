@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { CharacterArt } from "@/components/character";
+import { Icon } from "@/components/icon";
+import { IconEmoji } from "@/components/icon-emoji";
 import { canWear, composeLook, MANNEQUIN, SLOT_LABEL, SLOT_ORDER, type AvatarSlot } from "@/lib/assets";
 import { SORTS, sortItems, type ItemType, type SortKey } from "@/lib/shop";
 import { ShopGrid, type ShopItem } from "./shop-grid";
@@ -38,21 +40,22 @@ export function ShopView({
         </label>
       </div>
 
+      {/* 구역 제목: 화면에는 그린 아이콘, 글자로는 예전 이모지 그대로 (e2e가 "👕 아바타 꾸미기"로 찾는다) */}
       <section aria-labelledby="shop-avatar">
         <h2 id="shop-avatar" className="mb-3 mt-4 font-display text-2xl">
-          👕 아바타 꾸미기
+          <IconEmoji name="clothes" emoji="👕" size={30} className="-mt-1" /> 아바타 꾸미기
         </h2>
         <AvatarSection items={of("avatar")} level={level} coins={coins} character={character} wornAssets={wornAssets} />
       </section>
       <section aria-labelledby="shop-furniture">
         <h2 id="shop-furniture" className="mb-3 mt-10 font-display text-2xl">
-          🪑 가구
+          <IconEmoji name="furniture" emoji="🪑" size={30} className="-mt-1" /> 가구
         </h2>
         <ShopGrid items={of("furniture")} level={level} coins={coins} />
       </section>
       <section aria-labelledby="shop-background">
         <h2 id="shop-background" className="mb-3 mt-10 font-display text-2xl">
-          🖼 배경
+          <IconEmoji name="background" emoji="🖼" size={30} className="-mt-1" /> 배경
         </h2>
         <ShopGrid items={of("background")} level={level} coins={coins} />
       </section>
@@ -106,7 +109,9 @@ function AvatarSection({
           ) : (
             <p className="text-sm text-ink-soft">아이템 그림을 누르면 사기 전에 내 캐릭터에 입혀 볼 수 있어요.</p>
           )}
-          <p className="mt-1 text-xs text-ink-soft">🔒 잠긴 옷은 그 레벨이 되어야 사고 입을 수 있어요.</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            <Icon name="lock" size={14} /> 잠긴 옷은 그 레벨이 되어야 사고 입을 수 있어요.
+          </p>
         </div>
         <button type="button" onClick={() => setTried({})} disabled={!triedList.length} className="btn bg-paper text-sm text-ink">
           원래대로

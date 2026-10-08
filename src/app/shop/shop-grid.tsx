@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Icon } from "@/components/icon";
+import { IconEmoji } from "@/components/icon-emoji";
 import { ItemArt } from "@/components/item-art";
 import { SLOT_LABEL, type AvatarSlot } from "@/lib/assets";
 import type { ItemType } from "@/lib/shop";
@@ -55,7 +57,7 @@ export function ShopGrid({
               {locked && (
                 // 잠금을 크게 보여준다: 레벨이 오르면 풀린다 (SHOP-02)
                 <span className="absolute inset-x-0 top-2 mx-auto w-fit rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-cream shadow">
-                  🔒 Lv.{item.requiredLevel}부터
+                  <IconEmoji name="lock" emoji="🔒" size={14} className="-mt-0.5" /> Lv.{item.requiredLevel}부터
                 </span>
               )}
               {item.slot && (
@@ -86,7 +88,7 @@ export function ShopGrid({
               <h3 className="mt-2 font-display text-lg">{item.name}</h3>
               <p className="line-clamp-2 min-h-10 text-xs text-ink-soft">{item.description}</p>
               <p className="mt-2 text-sm">
-                🪙 <b>{item.price.toLocaleString()}</b>
+                <Icon name="coin" size={18} /> <b>{item.price.toLocaleString()}</b>
                 {item.requiredLevel > 1 && <span className="ml-2 text-xs text-ink-soft">Lv.{item.requiredLevel}+</span>}
               </p>
               <button
@@ -100,7 +102,18 @@ export function ShopGrid({
                 }
                 className="btn mt-3 bg-sun py-1.5 text-sm text-ink"
               >
-                {item.owned ? "보유 중" : locked ? `🔒 Lv.${item.requiredLevel}` : short ? "코인 부족" : "사기"}
+                {item.owned ? (
+                  "보유 중"
+                ) : locked ? (
+                  // 버튼(.btn)은 flex라 아이콘과 글자를 한 줄로 묶는다. 글자로는 "🔒 Lv.2" 그대로
+                  <span>
+                    <IconEmoji name="lock" emoji="🔒" size={16} className="-mt-0.5" /> Lv.{item.requiredLevel}
+                  </span>
+                ) : short ? (
+                  "코인 부족"
+                ) : (
+                  "사기"
+                )}
               </button>
             </article>
           );
