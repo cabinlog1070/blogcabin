@@ -13,7 +13,12 @@ import { uniqueViolation } from "@/server/db-errors";
 import { grantReward, lockUser } from "@/server/points";
 
 const schema = z.object({
-  nickname: z.string().trim().min(2, "닉네임은 2자 이상이에요").max(12, "닉네임은 12자까지예요"),
+  nickname: z
+    .string()
+    .trim()
+    .min(2, "닉네임은 2자 이상이에요")
+    .max(12, "닉네임은 12자까지예요")
+    .refine((n) => n !== "관리자", "이 닉네임은 쓸 수 없어요"), // 관리자 계정의 닉네임 (AUTH-08)
   blogTitle: z.string().trim().min(1, "블로그 이름을 적어 주세요").max(40, "블로그 이름은 40자까지예요"),
   slug: z
     .string()
@@ -30,7 +35,8 @@ export type OnboardingState = {
   values?: Record<string, string>;
 };
 
-const RESERVED_SLUGS = new Set(["admin", "api", "town", "feed", "shop", "closet", "write", "settings", "blog", "onboarding", "farm"]);
+// 화면 주소와 겹치거나 관리자 공지 블로그(notice, npm run admin:create)로 남겨 둔 주소
+const RESERVED_SLUGS = new Set(["admin", "api", "town", "feed", "shop", "closet", "write", "settings", "blog", "onboarding", "farm", "notice", "blogcabin"]);
 
 export async function completeOnboarding(_prev: OnboardingState, formData: FormData): Promise<OnboardingState> {
   const viewer = await requireUser();

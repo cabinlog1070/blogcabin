@@ -1,5 +1,29 @@
 # BlogCabin 운영 배포 안내
 
+
+## 0. 지금 쓰는 배포 방식: GitHub Actions + Docker + SSH (2026-10-08)
+
+`main`에 올리면 `.github/workflows/deploy.yml`이 자동으로 배포한다 (Actions 화면의 **Run workflow**로 직접 실행해도 된다).
+
+1. 서버에 SSH로 접속해 CPU 종류(amd64/arm64)와 Docker 사용 가능 여부를 확인한다
+2. 그 CPU에 맞는 Docker 이미지(`Dockerfile`)를 빌드해 파일로 묶는다
+3. 이미지 파일·`deploy.env`(DB 주소 등)·`deploy/deploy.sh`를 서버의 `~/blogcabin/releases/`로 보낸다
+4. 서버에서 `deploy/deploy.sh`가 이미지를 불러오고 → `db:migrate` → `db:seed` → (첫 배포만) `admin:create` → 컨테이너를 **포트 8440**으로 교체 실행 → `/api/health`가 200인지 확인한다. 실패하면 직전 이미지로 되돌린다
+
+| 저장소 시크릿 | 쓰임 |
+|---|---|
+| `SSH_ADDRESS`, `SSH_PORT`, `SSH_ID`, `SSH_PASSWORD` | 배포 서버 SSH 접속 (비밀번호 방식) |
+| `DB_ADDRESS`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` | `DATABASE_URL`로 합쳐서 컨테이너에 넘김 (비밀번호의 특수문자는 자동 인코딩) |
+| `APP_URL` (선택) | 사용자가 여는 주소. 없으면 `http://SSH_ADDRESS:8440`. 도메인·https를 붙이면 꼭 넣는다 (로그인 쿠키·로그아웃이 이 주소 기준) |
+| `TRUSTED_ORIGINS`, `DB_SSLMODE`, `GOOGLE_*`, `KAKAO_*`, `NAVER_*` (선택) | 추가 허용 주소, DB SSL, 소셜 로그인 |
+
+서버 쪽 준비와 폴더:
+- Docker가 설치돼 있고, SSH 계정이 `docker`를 쓸 수 있어야 한다 (docker 그룹 또는 비밀번호 없는 sudo)
+- `DB_ADDRESS`가 `localhost`면 컨테이너가 서버 네트워크를 그대로 쓴다(`--network host`). 아니면 `-p 8440:8440`
+- `~/blogcabin/secrets.env`: 첫 배포 때 서버가 만든 로그인 비밀키(`BETTER_AUTH_SECRET`)와 관리자 비밀번호(`ADMIN_PASSWORD`). 지우면 모든 회원이 로그아웃되니 지우지 않는다. 관리자 비밀번호 보기: `grep ADMIN_PASSWORD ~/blogcabin/secrets.env`
+- `~/blogcabin/uploads/`: 글 첨부 사진·파일 (컨테이너의 `/data/uploads`). 백업 대상
+- 로그 보기: `docker logs --tail 100 blogcabin`
+
 ## 1. 구조: 서버와 프론트가 한 덩어리다
 
 BlogCabin은 **Next.js 16 풀스택 앱 하나**다. 프론트 서버와 API 서버를 따로 띄우지 않는다.

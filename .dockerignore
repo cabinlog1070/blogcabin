@@ -1,0 +1,15 @@
+.env*
+!.env.example
+node_modules
+.next
+.git
+storage
+e2e-shots
+test-results
+playwright-report
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+*.pem
+.vercel
+.claude

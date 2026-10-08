@@ -117,6 +117,29 @@ function trustedOrigins(): string[] {
   return list;
 }
 
+// ===== 남겨 둔 아이디 (AUTH-07, AUTH-08) =====
+// 관리자·공지 블로그와 헷갈릴 아이디는 회원가입·아이디 변경으로 쓸 수 없다 (`이미 있는 아이디예요`).
+// usernameValidator에 넣지 않는다: username 플러그인이 로그인(/sign-in/username)에도 같은 검사를 해서 관리자가 로그인하지 못하게 된다.
+// 관리자 계정은 npm run admin:create가 DB에 바로 만들므로 이 검사를 거치지 않는다.
+const SITE_EMAIL_DOMAIN = "@users.blogcabin.invalid";
+const RESERVED_USERNAMES = new Set(
+  ["admin", "administrator", "root", "notice", "blogcabin", process.env.ADMIN_USERNAME?.trim().toLowerCase()].filter((n): n is string => Boolean(n)),
+);
+const usernameTaken = () => new APIError("BAD_REQUEST", { code: "USERNAME_IS_ALREADY_TAKEN", message: "이미 있는 아이디예요" });
+
+function assertUsernameAllowed(data: Record<string, unknown>, creating: boolean) {
+  const name = typeof data.username === "string" ? data.username.trim().toLowerCase() : null;
+  if (name && RESERVED_USERNAMES.has(name)) throw usernameTaken();
+  // 아이디 회원의 대체 이메일(아이디@users.blogcabin.invalid)은 그 아이디로만 만들 수 있다
+  if (creating && typeof data.email === "string") {
+    const email = data.email.trim().toLowerCase();
+    if (email.endsWith(SITE_EMAIL_DOMAIN)) {
+      const local = email.slice(0, -SITE_EMAIL_DOMAIN.length);
+      if (RESERVED_USERNAMES.has(local) || local !== name) throw usernameTaken();
+    }
+  }
+}
+
 export const auth = betterAuth({
   appName: "BlogCabin",
   trustedOrigins: trustedOrigins(),
@@ -129,6 +152,20 @@ export const auth = betterAuth({
   // 사이트 자체 회원가입: 아이디 + 비밀번호 (username 플러그인이 이메일·비밀번호 로그인 위에 아이디를 얹는다)
   emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 64 },
   hooks: loginHooks,
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          assertUsernameAllowed(user, true);
+        },
+      },
+      update: {
+        before: async (user) => {
+          assertUsernameAllowed(user, false);
+        },
+      },
+    },
+  },
   user: {
     additionalFields: {
       // 관리자 여부. 가입 요청으로는 바꿀 수 없다 (input: false)
