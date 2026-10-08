@@ -108,6 +108,7 @@ jobs:
           const lines = {
             DATABASE_URL: url,
             DB_HOST: e.DB_ADDRESS,
+            DB_PORT: e.DB_PORT || "5432",
             BETTER_AUTH_URL: appUrl,
             TRUSTED_ORIGINS: e.TRUSTED_ORIGINS || "",
             GOOGLE_CLIENT_ID: e.GOOGLE_CLIENT_ID || "",

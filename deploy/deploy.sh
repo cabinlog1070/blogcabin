@@ -59,14 +59,16 @@ if [ ! -s "$BASE/secrets.env" ]; then
   )
 fi
 
-# DB가 이 서버 안에 있는지 (DB_HOST는 컨테이너에 넘기지 않는다)
+# DB 위치 (DB_HOST·DB_PORT는 네트워크 확인에만 쓰고 컨테이너에 넘기지 않는다)
 DB_HOST_VALUE="$(sed -n 's/^DB_HOST=//p' "$DEPLOY_ENV")"
+DB_PORT_VALUE="$(sed -n 's/^DB_PORT=//p' "$DEPLOY_ENV")"
+DB_PORT_VALUE="${DB_PORT_VALUE:-5432}"
 
 # ── 컨테이너에 넘길 환경 변수 ──
 (
   umask 077
   {
-    grep -v '^DB_HOST=' "$DEPLOY_ENV"
+    grep -v -e '^DB_HOST=' -e '^DB_PORT=' "$DEPLOY_ENV"
     cat "$BASE/secrets.env"
     echo "NODE_ENV=production"
     echo "PORT=$PORT"
@@ -75,11 +77,33 @@ DB_HOST_VALUE="$(sed -n 's/^DB_HOST=//p' "$DEPLOY_ENV")"
 )
 rm -f "$DEPLOY_ENV"
 
-# DB가 이 서버 안에 있으면(localhost) 컨테이너가 서버의 네트워크를 그대로 쓰게 한다.
-# 아니면 컨테이너 포트만 서버 포트에 연결한다.
+# ── 컨테이너가 DB에 닿는 네트워크 고르기 ──
+# 컨테이너 기본 네트워크(bridge)에서 서버 자신의 공인 IP나 localhost로는 못 가는 경우가 많다.
+# 그래서 실제로 접속해 보고, 안 되면 서버 네트워크를 그대로 쓰는 --network host로 바꾼다.
+probe_db() {
+  "${DOCKER[@]}" run --rm "$@" --entrypoint node "$IMAGE_REF" -e "
+    const s = require('net').connect({ host: process.argv[1], port: Number(process.argv[2]) });
+    s.setTimeout(5000);
+    s.on('connect', () => process.exit(0));
+    s.on('timeout', () => process.exit(1));
+    s.on('error', () => process.exit(1));
+  " "$DB_HOST_VALUE" "$DB_PORT_VALUE" >/dev/null 2>&1
+}
+log "DB 연결 경로 확인"
 case "$DB_HOST_VALUE" in
-  localhost|127.0.0.1|::1) NET=(--network host) ;;
-  *) NET=(-p "$PORT:$PORT") ;;
+  localhost|127.0.0.1|::1) NET=(--network host); echo "DB가 이 서버 안(localhost)에 있어서 서버 네트워크를 그대로 써요" ;;
+  *)
+    if probe_db; then
+      NET=(-p "$PORT:$PORT"); echo "컨테이너 기본 네트워크로 DB에 닿아요 (포트 $PORT 연결)"
+    elif probe_db --network host; then
+      NET=(--network host); echo "기본 네트워크로는 DB에 닿지 않아 서버 네트워크를 그대로 써요 (--network host)"
+    else
+      if timeout 5 bash -c "exec 3<>/dev/tcp/$DB_HOST_VALUE/$DB_PORT_VALUE" 2>/dev/null; then
+        fail "서버에서는 DB에 닿는데 컨테이너에서는 닿지 않아요. 방화벽이 docker 네트워크를 막는지 확인해 주세요."
+      fi
+      fail "이 서버에서 DB(DB_ADDRESS:DB_PORT)로 접속이 안 돼요. 주소·포트가 맞는지, DB 쪽 방화벽·PostgreSQL 설정(listen_addresses, pg_hba.conf)이 이 서버를 허용하는지 확인해 주세요."
+    fi
+    ;;
 esac
 ONE_OFF_NET=()
 if [ "${NET[0]}" = "--network" ]; then ONE_OFF_NET=(--network host); fi
@@ -101,9 +125,13 @@ log "아이템·동물 목록 (여러 번 해도 안전)"
 run_once run db:seed
 
 # ── 4. 첫 배포면 관리자 계정 ──
-if [ "$FIRST_DEPLOY" = "1" ] || [ "${RUN_ADMIN_CREATE:-0}" = "1" ]; then
+# (첫 배포가 중간에 실패했어도 다음 배포에서 만들도록 표시 파일로 확인한다)
+ADMIN_CREATED_NOW=0
+if [ ! -f "$BASE/.admin-created" ] || [ "${RUN_ADMIN_CREATE:-0}" = "1" ]; then
   log "관리자 계정 만들기 (아이디 admin, 비밀번호는 $BASE/secrets.env)"
   run_once run admin:create
+  touch "$BASE/.admin-created"
+  ADMIN_CREATED_NOW=1
 fi
 
 # ── 5. 컨테이너 교체 ──
@@ -152,8 +180,8 @@ rm -f "$IMAGE_TAR"
   | grep -v -x -e "$IMAGE_REF" -e "${PREV_IMAGE:-__none__}" \
   | xargs -r "${DOCKER[@]}" rmi >/dev/null 2>&1 || true
 
-if [ "$FIRST_DEPLOY" = "1" ]; then
+if [ "$ADMIN_CREATED_NOW" = "1" ]; then
   echo
-  echo "처음 배포라 관리자 계정을 만들었어요. 비밀번호는 서버에서 아래 명령으로 볼 수 있어요:"
+  echo "관리자 계정을 만들었어요. 비밀번호는 서버에서 아래 명령으로 볼 수 있어요:"
   echo "  grep ADMIN_PASSWORD $BASE/secrets.env"
 fi
