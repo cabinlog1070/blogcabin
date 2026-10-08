@@ -95,11 +95,15 @@ try {
   check("TOWN-02 불꽃이 일렁인다 (화면이 바뀜)", !f1.equals(f2));
   await bp.screenshot({ path: `${outDir}/c1-plaza-full.png` });
   await bp.screenshot({ path: `${outDir}/c2-campfire.png`, clip: { x: box.x + 900 - 260, y: box.y + 700 - 220, width: 520, height: 400 } });
-  // 이웃 자리 0·1·2 (아랫변 가운데 좌표, scene.ts NEIGHBOR_SLOTS). 파일 이름은 그 자리 집의 단계
+  // 이웃 집 자리는 들어올 때마다 무작위라 캔버스의 data-neighbor-slots(slug:x,y)에서 읽는다. 파일 이름은 그 집의 단계
   await bp.evaluate(() => document.querySelector("[data-neighbor-panel]")?.style.setProperty("visibility", "hidden")); // 왼쪽 위 자리 집을 가리지 않게
-  const slots = [{ x: 160, y: 300 }, { x: 420, y: 290 }, { x: 680, y: 300 }];
-  for (const [i, s] of slots.entries()) {
-    const stage = slotStages[i][1];
+  const placed = (await canvas.getAttribute("data-neighbor-slots")).split(";").map((v) => {
+    const [slug, xy] = v.split(":");
+    const [sx, sy] = xy.split(",").map(Number);
+    return { slug, x: sx, y: sy };
+  });
+  for (const s of placed) {
+    const stage = stages[s.slug];
     await bp.screenshot({ path: `${outDir}/c${2 + Number(stage)}-cabin-stage${stage}.png`, clip: { x: box.x + s.x - 130, y: box.y + s.y - 225, width: 260, height: 285 } });
   }
   await bp.screenshot({ path: `${outDir}/c6-my-cabin-stage3.png`, clip: { x: box.x + 900 - 150, y: box.y + 1140 - 230, width: 300, height: 290 } });
@@ -122,7 +126,7 @@ try {
   await cp.waitForTimeout(1500);
   check("TOWN-02 동작 줄이기면 불꽃이 멈춤", (await cp.locator("canvas").getAttribute("data-campfire")) === "1");
 
-  // 휴대폰(375px)에서는 광장 대신 간단 메뉴
+  // 휴대폰(375px)에서는 광장 아래에 간단 메뉴
   const phone = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, storageState: await x.ctx.storageState() });
   const pp = await phone.newPage();
   await pp.goto(`${BASE}/town`);

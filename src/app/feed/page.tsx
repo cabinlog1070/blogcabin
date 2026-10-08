@@ -15,6 +15,7 @@ export default async function FeedPage(props: PageProps<"/feed">) {
       list={list}
       tags={tags}
       showFollowingTab={Boolean(viewer?.profile)}
+      myBlogHref={viewer?.profile ? `/@${viewer.profile.blogSlug}` : undefined}
       hrefFor={(n) => `/feed?page=${n}`}
       empty={<>아직 마을에 글이 없어요. 첫 글의 주인공이 되어 보세요! ✏️</>}
     />

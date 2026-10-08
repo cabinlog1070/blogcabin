@@ -38,7 +38,9 @@ async function visitor() {
   return { ctx, page };
 }
 async function signOut(page) {
-  await page.getByRole("banner").getByRole("button", { name: "로그아웃" }).click();
+  // 로그아웃은 헤더 상태창(내 정보 메뉴) 안에 있다
+  await page.getByRole("banner").locator("[data-status-card]").click();
+  await page.locator("[data-profile-menu]").getByRole("button", { name: "로그아웃" }).click();
   await page.waitForURL((u) => new URL(u).pathname === "/");
 }
 /** 첫 화면 로그인 폼으로 한 번 시도하고, 보이는 문구(없으면 이동한 주소)를 돌려준다 */

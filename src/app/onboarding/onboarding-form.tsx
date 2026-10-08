@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { CharacterArt } from "@/components/character";
 import { completeOnboarding, type OnboardingState } from "./actions";
 
@@ -29,21 +29,31 @@ export function OnboardingForm({
 }) {
   const [state, action, pending] = useActionState<OnboardingState, FormData>(completeOnboarding, {});
   const v = state.values ?? {};
+  // 블로그 이름 예시는 닉네임 칸에 적는 이름을 따라간다 (비우면 "나")
+  const [nickname, setNickname] = useState(v.nickname ?? defaultNickname);
+  const exampleName = nickname.trim() || "나";
 
   return (
     <form action={action} className="card mt-6 space-y-6 p-6">
       <Field label="닉네임" error={state.errors?.nickname} hint="마을에서 불릴 이름 (2~12자)">
-        <input name="nickname" defaultValue={v.nickname ?? defaultNickname} className={inputClass} maxLength={12} required />
+        <input
+          name="nickname"
+          defaultValue={v.nickname ?? defaultNickname}
+          onChange={(e) => setNickname(e.target.value)}
+          className={inputClass}
+          maxLength={12}
+          required
+        />
       </Field>
 
       <Field label="블로그 이름" error={state.errors?.blogTitle}>
-        <input name="blogTitle" defaultValue={v.blogTitle ?? ""} placeholder="예: 진행의 개발 일지" className={inputClass} maxLength={40} required />
+        <input name="blogTitle" defaultValue={v.blogTitle ?? ""} placeholder={`예: ${exampleName}의 블로그`} className={inputClass} maxLength={40} required />
       </Field>
 
       <Field label="블로그 주소" error={state.errors?.slug} hint="영문 소문자, 숫자, _ (3~20자)">
         <div className="flex items-center rounded-xl border-2 border-line bg-paper focus-within:border-sun">
           <span className="pl-3 text-ink-soft">blogcabin/@</span>
-          <input name="slug" defaultValue={v.slug ?? ""} placeholder="jinhaeng" className="w-full bg-transparent px-1 py-2.5 outline-none" maxLength={20} required />
+          <input name="slug" defaultValue={v.slug ?? ""} placeholder="myblog" className="w-full bg-transparent px-1 py-2.5 outline-none" maxLength={20} required />
         </div>
       </Field>
 

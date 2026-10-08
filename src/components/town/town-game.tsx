@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { roofHex } from "@/lib/art/town";
-import { PHONE_MEDIA } from "@/lib/device";
 import type { TownData, TownTarget } from "./types";
 
 export function TownGame({ data, className = "" }: { data: TownData; className?: string }) {
@@ -14,8 +13,6 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
     let game: import("phaser").Game | null = null;
     let starting = false;
     let cancelled = false;
-    // 휴대폰에서는 광장을 띄우지 않고 간단 메뉴(TownMenu)를 쓴다
-    const phone = window.matchMedia(PHONE_MEDIA);
 
     const onEnter = (target: TownTarget) => {
       router.push(target.kind === "link" ? target.href : "/");
@@ -46,8 +43,8 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
         }),
       ]);
       starting = false;
-      // 불러오는 동안 화면을 떠났거나 휴대폰 화면으로 바뀌었으면 만들지 않는다
-      if (cancelled || phone.matches || !containerRef.current) return;
+      // 불러오는 동안 화면을 떠났으면 만들지 않는다
+      if (cancelled || !containerRef.current) return;
       game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: containerRef.current,
@@ -63,14 +60,11 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
       for (const url of blobUrls.splice(0)) URL.revokeObjectURL(url);
     };
 
-    // 화면을 돌리거나 창 크기가 바뀌어 휴대폰 화면이 되면 광장을 끄고, 벗어나면 다시 켠다
-    const sync = () => (phone.matches ? stop() : void start());
-    sync();
-    phone.addEventListener("change", sync);
+    // 휴대폰에서도 광장을 띄운다 (2026-10-08 결정, 그 전에는 휴대폰에서 간단 메뉴만 보였다)
+    void start();
 
     return () => {
       cancelled = true;
-      phone.removeEventListener("change", sync);
       stop();
     };
     // 광장 데이터가 바뀌면(새 이웃 등) 게임을 다시 만든다

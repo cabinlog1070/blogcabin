@@ -7,8 +7,8 @@ import { WelcomeOnce } from "./welcome-once";
 type Place = { emoji: string; label: string; sub?: string; href: string };
 
 /**
- * 휴대폰용 간단 메뉴 (10/6 회의 결정). 휴대폰에서는 광장(게임) 대신
- * 블로그·출석·상점·농장 같은 주요 화면으로 가는 큰 버튼을 보여준다.
+ * 휴대폰용 간단 메뉴. 휴대폰에서는 광장(게임) 아래에
+ * 블로그·출석·상점·농장 같은 주요 화면으로 가는 큰 버튼을 보여준다 (2026-10-08부터 광장도 함께 보인다).
  * 어느 화면에서 보일지는 쓰는 쪽이 className(`hidden phone:block`)으로 정한다.
  */
 export function TownMenu({ data, welcome, className = "" }: { data: TownData; welcome: boolean; className?: string }) {
@@ -17,7 +17,12 @@ export function TownMenu({ data, welcome, className = "" }: { data: TownData; we
     ? [
         ...(data.myHouse ? [{ emoji: "🏠", label: "내 블로그", sub: data.myHouse.title, href: `/@${data.myHouse.slug}` }] : []),
         { emoji: "✏️", label: "글쓰기", sub: "새 글 쓰기", href: "/write" },
-        { emoji: "📮", label: "출석 체크", sub: data.attendedToday ? "오늘 완료 ✅" : "보상 받기 🎁", href: "/attendance" },
+        {
+          emoji: "📮",
+          label: "출석 체크",
+          sub: `${data.attendedToday ? "오늘 완료 ✅" : "보상 받기 🎁"}${data.quests ? ` · 퀘스트 ${data.quests.done}/${data.quests.total}` : ""}`,
+          href: "/attendance",
+        },
         { emoji: "📋", label: "마을 소식", sub: "새 글 · 이웃 새 글", href: "/feed" },
         { emoji: "🏪", label: "상점", sub: "꾸미기·가구·배경", href: "/shop" },
         { emoji: "🐮", label: "동물 농장", sub: member.pet ? `🐾 ${josa(member.pet.name, "과", "와")} 산책 중` : "펫 키우기 · 카드 도감", href: "/farm" },

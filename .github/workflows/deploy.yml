@@ -10,6 +10,7 @@
 #   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET, KAKAO_CLIENT_ID / KAKAO_CLIENT_SECRET, NAVER_CLIENT_ID / NAVER_CLIENT_SECRET
 #   DB_SSLMODE       : 관리형 DB가 SSL을 요구하면 verify-full 등 (없으면 붙이지 않음)
 #   DB_SCHEMA        : 공용 DB에서 내 스키마에만 테이블을 만들 수 있을 때 그 스키마 이름 (예: cf_u26_d2)
+#   SUPPORT_EMAIL    : 문의하기(/support) 화면에 보일 문의 메일 주소 (없으면 "문의 메일은 곧 열어요")
 # 로그인 비밀키(BETTER_AUTH_SECRET)와 관리자 비밀번호(ADMIN_PASSWORD)는 서버가 첫 배포 때 만들어
 # ~/blogcabin/secrets.env 에 보관한다 (deploy/deploy.sh).
 name: deploy
@@ -97,6 +98,7 @@ jobs:
           KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
           NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
           NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL }}
         run: |
           set -euo pipefail
           umask 077
@@ -124,6 +126,7 @@ jobs:
             KAKAO_CLIENT_SECRET: e.KAKAO_CLIENT_SECRET || "",
             NAVER_CLIENT_ID: e.NAVER_CLIENT_ID || "",
             NAVER_CLIENT_SECRET: e.NAVER_CLIENT_SECRET || "",
+            SUPPORT_EMAIL: e.SUPPORT_EMAIL || "",
           };
           for (const [k, v] of Object.entries(lines)) {
             if (/[\r\n]/.test(v)) throw new Error(`${k}에 줄바꿈이 있어요`);

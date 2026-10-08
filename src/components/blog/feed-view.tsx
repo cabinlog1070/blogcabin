@@ -10,6 +10,7 @@ export function FeedView({
   list,
   tags,
   showFollowingTab,
+  myBlogHref,
   hrefFor,
   empty,
 }: {
@@ -18,6 +19,8 @@ export function FeedView({
   list: { items: PostCardData[]; page: number; pageCount: number; total: number };
   tags: Tag[];
   showFollowingTab: boolean;
+  /** 회원이면 내 블로그 주소 (/@slug). 탭 오른쪽에 "내 블로그로 가기"를 보여 준다 */
+  myBlogHref?: string;
   hrefFor: (n: number) => string;
   empty: React.ReactNode;
 }) {
@@ -26,13 +29,21 @@ export function FeedView({
       <section>
         <h1 className="font-display text-3xl">{title}</h1>
         {tab && (
-          <div className="mt-4 flex gap-2">
-            <Link href="/feed" className={`btn py-1.5 text-sm ${tab === "all" ? "bg-ink text-cream" : "bg-paper text-ink"}`}>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Link href="/feed" className={`btn py-1.5 text-sm phone:px-3 ${tab === "all" ? "bg-ink text-cream" : "bg-paper text-ink"}`}>
               🏘 마을 전체
             </Link>
             {showFollowingTab && (
-              <Link href="/feed/following" className={`btn py-1.5 text-sm ${tab === "following" ? "bg-ink text-cream" : "bg-paper text-ink"}`}>
+              <Link href="/feed/following" className={`btn py-1.5 text-sm phone:px-3 ${tab === "following" ? "bg-ink text-cream" : "bg-paper text-ink"}`}>
                 💛 이웃 새 글
+              </Link>
+            )}
+            {myBlogHref && (
+              // 휴대폰에서는 탭 세 개가 한 줄에 들어가도록 "내 블로그"로 줄여 보여 준다
+              <Link href={myBlogHref} aria-label="내 블로그로 가기" className="btn bg-leaf py-1.5 text-sm text-white phone:px-3">
+                <span>
+                  🏡 내 블로그<span className="phone:hidden">로 가기</span>
+                </span>
               </Link>
             )}
           </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { PopoverPanel, useHeaderPopover } from "@/components/header-popover";
 import {
   loadNotificationPanel,
   readAllNotifications,
@@ -33,15 +34,13 @@ function EnvelopeIcon({ className = "" }: { className?: string }) {
 export function NotificationBell({ unread: initialUnread, popup: initialPopup }: { unread: number; popup: LevelUpPopup | null }) {
   const [unread, setUnread] = useState(initialUnread);
   const [popup, setPopup] = useState(initialPopup);
-  const [open, setOpen] = useState(false);
+  // 쪽지 바로 아래, 화면 양옆 12px 안에 들어오게 (휴대폰에서 왼쪽으로 잘리던 문제)
+  const { open, box, setAnchor, setPanel, toggle: togglePanel, close } = useHeaderPopover(352); // 22rem
   const [rows, setRows] = useState<PanelRow[] | null>(null);
   const [total, setTotal] = useState(0);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const pathname = usePathname();
-  const boxRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [panelPos, setPanelPos] = useState({ top: 0, right: 12 });
   const firstPath = useRef(pathname);
 
   // 서버가 헤더를 다시 그리면(revalidatePath) 그 값으로 맞춘다 (렌더 중에 이전 값과 비교)
@@ -51,13 +50,6 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
     setUnread(initialUnread);
     setPopup(initialPopup);
   }
-  // 화면을 옮기면 열린 목록을 닫는다
-  const [prevPath, setPrevPath] = useState(pathname);
-  if (prevPath !== pathname) {
-    setPrevPath(pathname);
-    setOpen(false);
-  }
-
   // 화면을 옮길 때마다 개수·레벨업 팝업을 새로 읽는다 (남이 공감해서 오른 레벨도 다음 화면에서 뜨게)
   useEffect(() => {
     if (firstPath.current === pathname) return;
@@ -70,29 +62,9 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
       .catch(() => {});
   }, [pathname]);
 
-  // 바깥을 누르거나 Esc로 닫기
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (!boxRef.current?.contains(t) && !panelRef.current?.contains(t)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
+  // 바깥을 누르거나 Esc를 누르거나 화면을 옮기면 닫힌다 (useHeaderPopover)
   const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    if (next) {
-      // 쪽지 바로 아래, 화면 밖으로 나가지 않게 (헤더는 fixed 요소를 가두므로 body에 띄운다)
-      const box = boxRef.current?.getBoundingClientRect();
-      if (box) setPanelPos({ top: box.bottom + 6, right: Math.max(12, window.innerWidth - box.right - 8) });
+    if (togglePanel()) {
       startTransition(async () => {
         const data = await loadNotificationPanel();
         setRows(data.rows);
@@ -103,7 +75,7 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
   };
 
   const openRow = (r: PanelRow) => {
-    setOpen(false);
+    close();
     if (!r.read) setUnread((n) => Math.max(0, n - 1));
     startTransition(async () => {
       if (!r.read) await readNotification(r.id);
@@ -123,10 +95,11 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
   return (
     <>
       <button
-        ref={boxRef}
+        ref={setAnchor}
         type="button"
         onClick={toggle}
         aria-expanded={open}
+        aria-haspopup="dialog"
         aria-label={unread ? `알림함, 안 읽은 알림 ${unread}개` : "알림함"}
         title="알림함"
         data-notification-button
@@ -143,61 +116,51 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
         )}
       </button>
 
-      {open && createPortal(
-        <div
-          ref={panelRef}
-          style={{ top: panelPos.top, right: panelPos.right }}
-          className="card fixed z-40 flex max-h-[70dvh] w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden"
-          role="dialog"
-          aria-label="알림함"
-          data-notification-panel
-        >
-          <div className="flex items-center gap-2 border-b-2 border-line px-4 py-2.5">
-            <h2 className="font-display text-lg">✉️ 알림함</h2>
-            {unread > 0 && <span className="text-xs text-ink-soft">안 읽은 알림 {unread}개</span>}
-            <button
-              type="button"
-              onClick={readAll}
-              disabled={!unread}
-              className="ml-auto text-sm font-bold text-leaf-dark hover:underline disabled:text-ink-soft disabled:no-underline"
-            >
-              모두 읽음
-            </button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {rows === null ? (
-              <p className="px-4 py-8 text-center text-sm text-ink-soft">불러오는 중...</p>
-            ) : rows.length ? (
-              <ul className="divide-y divide-line/70">
-                {rows.map((r) => (
-                  <li key={r.id}>
-                    <button
-                      type="button"
-                      onClick={() => openRow(r)}
-                      data-read={r.read ? "true" : "false"}
-                      className={`flex w-full items-start gap-2 px-4 py-2.5 text-left text-sm hover:bg-cream ${r.read ? "" : "bg-honey"}`}
-                    >
-                      <span className="min-w-0 flex-1 break-words">{r.text}</span>
-                      <span className="shrink-0 text-xs text-ink-soft">{timeAgo(new Date(r.createdAt), now)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="px-4 py-8 text-center text-sm text-ink-soft">아직 알림이 없어요</p>
-            )}
-          </div>
-          <Link
-            href="/notifications"
-            onClick={() => setOpen(false)}
-            className="border-t-2 border-line px-4 py-2 text-center text-sm font-bold text-ink-soft hover:bg-cream hover:text-ink"
+      <PopoverPanel open={open} box={box} panelRef={setPanel} label="알림함" className="flex max-h-[70dvh] flex-col overflow-hidden" data-notification-panel>
+        <div className="flex items-center gap-2 border-b-2 border-line px-4 py-2.5">
+          <h2 className="font-display text-lg">✉️ 알림함</h2>
+          {unread > 0 && <span className="text-xs text-ink-soft">안 읽은 알림 {unread}개</span>}
+          <button
+            type="button"
+            onClick={readAll}
+            disabled={!unread}
+            className="ml-auto text-sm font-bold text-leaf-dark hover:underline disabled:text-ink-soft disabled:no-underline"
           >
-            알림 모두 보기{total > (rows?.length ?? 0) ? ` (${total})` : ""} →
-          </Link>
-          {pending && <span className="sr-only">처리 중</span>}
-        </div>,
-        document.body,
-      )}
+            모두 읽음
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {rows === null ? (
+            <p className="px-4 py-8 text-center text-sm text-ink-soft">불러오는 중...</p>
+          ) : rows.length ? (
+            <ul className="divide-y divide-line/70">
+              {rows.map((r) => (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => openRow(r)}
+                    data-read={r.read ? "true" : "false"}
+                    className={`flex w-full items-start gap-2 px-4 py-2.5 text-left text-sm hover:bg-cream ${r.read ? "" : "bg-honey"}`}
+                  >
+                    <span className="min-w-0 flex-1 break-words">{r.text}</span>
+                    <span className="shrink-0 text-xs text-ink-soft">{timeAgo(new Date(r.createdAt), now)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="px-4 py-8 text-center text-sm text-ink-soft">아직 알림이 없어요</p>
+          )}
+        </div>
+        <Link
+          href="/notifications"
+          onClick={close}
+          className="border-t-2 border-line px-4 py-2 text-center text-sm font-bold text-ink-soft hover:bg-cream hover:text-ink"
+        >
+          알림 모두 보기{total > (rows?.length ?? 0) ? ` (${total})` : ""} →
+        </Link>
+        {pending && <span className="sr-only">처리 중</span>}
+      </PopoverPanel>
 
       {popup && <LevelUpModal popup={popup} onClose={() => setPopup(null)} />}
     </>

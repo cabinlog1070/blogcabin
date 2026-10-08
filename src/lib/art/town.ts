@@ -176,48 +176,62 @@ export function houseSvg(stage: HouseStage, roof: string): string {
 }
 
 // ===== 마을 게시판 (마을 소식 + 출석 도장) =====
-export const BOARD_SIZE = { width: 250, height: 170 };
+export const BOARD_SIZE = { width: 170, height: 170 };
+/** 마을 게시판 (마을 소식). 출석 체크는 옆의 도장 판(attendanceSvg)으로 따로 둔다 */
 export function boardSvg(): string {
   const { width: w, height: h } = BOARD_SIZE;
   let notes = "";
   const papers = [
     { x: 30, y: 52, r: -6, c: "#fffdf5" },
-    { x: 64, y: 48, r: 4, c: "#fff3b0" },
+    { x: 68, y: 48, r: 4, c: "#fff3b0" },
+    { x: 106, y: 54, r: -3, c: "#e6f7d9" },
     { x: 38, y: 92, r: 3, c: "#d6f5ff" },
-    { x: 74, y: 90, r: -4, c: "#ffe1ec" },
+    { x: 78, y: 90, r: -4, c: "#ffe1ec" },
+    { x: 112, y: 94, r: 5, c: "#fffdf5" },
   ];
   for (const p of papers) {
     notes +=
-      `<g transform="rotate(${p.r} ${p.x + 15} ${p.y + 18})"><rect x="${p.x}" y="${p.y}" width="30" height="34" fill="${p.c}" stroke="#c9b79c" stroke-width="1.5"/>` +
-      `<path d="M${p.x + 5} ${p.y + 12}H${p.x + 25}M${p.x + 5} ${p.y + 18}H${p.x + 22}M${p.x + 5} ${p.y + 24}H${p.x + 24}" stroke="#a89880" stroke-width="2" stroke-linecap="round"/>` +
-      `<circle cx="${p.x + 15}" cy="${p.y + 3}" r="3" fill="#e5484d" stroke="${O}" stroke-width="1"/></g>`;
+      `<g transform="rotate(${p.r} ${p.x + 15} ${p.y + 18})"><rect x="${p.x}" y="${p.y}" width="28" height="32" fill="${p.c}" stroke="#c9b79c" stroke-width="1.5"/>` +
+      `<path d="M${p.x + 5} ${p.y + 12}H${p.x + 23}M${p.x + 5} ${p.y + 18}H${p.x + 20}M${p.x + 5} ${p.y + 24}H${p.x + 22}" stroke="#a89880" stroke-width="2" stroke-linecap="round"/>` +
+      `<circle cx="${p.x + 14}" cy="${p.y + 3}" r="3" fill="#e5484d" stroke="${O}" stroke-width="1"/></g>`;
   }
-  // 출석 도장 판: 7칸 중 몇 칸에 도장
+  const body =
+    `<ellipse cx="85" cy="163" rx="70" ry="6" fill="#000" opacity=".15"/>` +
+    // 기둥
+    `<rect x="20" y="40" width="12" height="124" rx="3" fill="#8d6040" ${S}/><rect x="138" y="40" width="12" height="124" rx="3" fill="#8d6040" ${S}/>` +
+    // 작은 지붕
+    `<path d="M6 34L85 8L164 34Q166 42 158 42H12Q4 42 6 34Z" fill="#a0522d" ${S}/><path d="M40 27H130" stroke="#7a3d20" stroke-width="3" stroke-linecap="round"/>` +
+    // 판
+    `<rect x="16" y="38" width="138" height="104" rx="6" fill="#b07a4f" ${S}/>` +
+    `<rect x="24" y="44" width="122" height="92" rx="3" fill="#d9b382"/>` +
+    notes +
+    // 아래 명패
+    `<rect x="35" y="146" width="100" height="18" rx="5" fill="#f5e6c8" ${S}/>` +
+    `<text x="85" y="159" text-anchor="middle" font-size="11" fill="${O}" ${FONT}>마을 게시판</text>`;
+  return wrap(w, h, body);
+}
+
+// ===== 출석 체크 도장 판: 게시판 옆에 살짝 떨어져 서 있다 =====
+export const ATTENDANCE_SIZE = { width: 110, height: 150 };
+export function attendanceSvg(): string {
+  const { width: w, height: h } = ATTENDANCE_SIZE;
+  // 7칸 중 4칸에 도장
   let stamps = "";
   for (let i = 0; i < 7; i++) {
-    const cx = 148 + (i % 4) * 19 + (i >= 4 ? 9 : 0);
-    const cy = 82 + Math.floor(i / 4) * 22;
-    stamps += `<circle cx="${cx}" cy="${cy}" r="8" fill="#fff" stroke="#c9b79c" stroke-width="1.5"/>`;
+    const cx = 27 + (i % 3) * 28 + (i === 6 ? 28 : 0);
+    const cy = 52 + Math.floor(i / 3) * 24;
+    stamps += `<circle cx="${cx}" cy="${cy}" r="9" fill="#fff" stroke="#c9b79c" stroke-width="1.5"/>`;
     if (i < 4) stamps += `<path d="M${cx} ${cy - 5}l1.5 3.4 3.7.3-2.8 2.4.9 3.6-3.3-2-3.3 2 .9-3.6-2.8-2.4 3.7-.3z" fill="#e5484d"/>`;
   }
   const body =
-    `<ellipse cx="125" cy="163" rx="100" ry="6" fill="#000" opacity=".15"/>` +
-    // 기둥
-    `<rect x="22" y="40" width="12" height="124" rx="3" fill="#8d6040" ${S}/><rect x="216" y="40" width="12" height="124" rx="3" fill="#8d6040" ${S}/>` +
-    // 작은 지붕
-    `<path d="M6 34L125 6L244 34Q246 42 238 42H12Q4 42 6 34Z" fill="#a0522d" ${S}/><path d="M50 26H200" stroke="#7a3d20" stroke-width="3" stroke-linecap="round"/>` +
+    `<ellipse cx="55" cy="144" rx="38" ry="5" fill="#000" opacity=".15"/>` +
+    // 기둥 하나
+    `<rect x="49" y="110" width="12" height="36" rx="3" fill="#8d6040" ${S}/>` +
     // 판
-    `<rect x="16" y="38" width="218" height="104" rx="6" fill="#b07a4f" ${S}/>` +
-    `<rect x="24" y="44" width="98" height="92" rx="3" fill="#d9b382"/>` +
-    `<rect x="128" y="44" width="98" height="92" rx="3" fill="#e9d5b0"/>` +
-    notes +
-    // 출석 도장 판 머리
-    `<rect x="140" y="52" width="74" height="16" rx="4" fill="#4caf50" stroke="${O}" stroke-width="1.5"/>` +
-    `<text x="177" y="64" text-anchor="middle" font-size="11" fill="#fff" ${FONT}>출석 도장</text>` +
-    stamps +
-    // 아래 명패
-    `<rect x="70" y="146" width="110" height="18" rx="5" fill="#f5e6c8" ${S}/>` +
-    `<text x="125" y="159" text-anchor="middle" font-size="11" fill="${O}" ${FONT}>마을 게시판</text>`;
+    `<rect x="6" y="16" width="98" height="98" rx="8" fill="#e9d5b0" ${S}/>` +
+    `<rect x="18" y="8" width="74" height="20" rx="5" fill="#4caf50" ${S}/>` +
+    `<text x="55" y="23" text-anchor="middle" font-size="11" fill="#fff" ${FONT}>출석 도장</text>` +
+    stamps;
   return wrap(w, h, body);
 }
 

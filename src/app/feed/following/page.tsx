@@ -17,6 +17,7 @@ export default async function FollowingFeedPage(props: PageProps<"/feed/followin
       list={list}
       tags={tags}
       showFollowingTab
+      myBlogHref={`/@${viewer.profile.blogSlug}`}
       hrefFor={(n) => `/feed/following?page=${n}`}
       empty={
         <>

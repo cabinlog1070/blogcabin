@@ -68,15 +68,24 @@ try {
   check("TOWN-10 상태창 닉네임", (await card.locator("[data-status-nickname]").innerText()) === A);
   check("TOWN-10 상태창 블로그 제목", (await card.locator("[data-status-blog-title]").innerText()) === `${A}의 블로그`);
   check("TOWN-10 상태창 얼굴 그림", (await card.locator("img").count()) === 1);
-  check("TOWN-10 Lv·코인·나가기·로그아웃 유지", (await banner.getByTitle("레벨").isVisible()) && (await banner.getByTitle("코인").isVisible()) && (await banner.getByRole("link", { name: /나가기/ }).isVisible()) && (await banner.getByRole("button", { name: "로그아웃" }).isVisible()));
+  check("TOWN-10 Lv·코인·나가기 유지", (await banner.getByTitle("레벨").isVisible()) && (await banner.getByTitle("코인").isVisible()) && (await banner.getByRole("link", { name: /나가기/ }).isVisible()));
+  check("TOWN-10 로그아웃은 헤더가 아니라 내 정보 메뉴에", (await banner.getByRole("button", { name: "로그아웃" }).count()) === 0);
   const lvBox = await banner.getByTitle("레벨").boundingBox();
   const envBox = await banner.locator("[data-notification-button]").boundingBox();
   const bannerBox = await banner.boundingBox();
   check("GAME-08 쪽지가 레벨 바로 왼쪽", envBox.x + envBox.width <= lvBox.x && lvBox.x - (envBox.x + envBox.width) < 16 && envBox.y + envBox.height <= bannerBox.y + bannerBox.height, `쪽지 오른쪽 ${Math.round(envBox.x + envBox.width)}, Lv 왼쪽 ${Math.round(lvBox.x)}`);
   await a.page.screenshot({ path: `${outDir}/b1-header-desktop.png`, clip: { x: 0, y: 0, width: 1280, height: 120 } });
+  // 상태창을 누르면 내 정보 메뉴 (큰 얼굴·닉네임·블로그 제목·로그인 수단·내 블로그·환경 설정·문의하기·로그아웃)
   await card.click();
+  const menu = a.page.locator("[data-profile-menu]");
+  await menu.waitFor();
+  check("TOWN-10 상태창 누르면 내 정보 메뉴", (await menu.locator("[data-menu-nickname]").innerText()) === A && (await menu.locator("[data-menu-blog-title]").innerText()) === `${A}의 블로그`);
+  check("AUTH-05 내 정보 메뉴: 아이디 로그인 ✓", (await menu.locator('[data-login-method="credential"][data-linked="true"]').count()) === 1);
+  check("TOWN-10 내 정보 메뉴: 로그아웃 버튼", await menu.getByRole("button", { name: "로그아웃" }).isVisible());
+  await a.page.screenshot({ path: `${outDir}/b1-profile-menu.png`, clip: { x: 640, y: 0, width: 640, height: 480 } });
+  await menu.getByRole("link", { name: "내 블로그" }).click();
   await a.page.waitForURL(new RegExp(`/@${A}$`));
-  check("TOWN-10 상태창 누르면 내 블로그 홈", a.page.url().endsWith(`/@${A}`));
+  check("TOWN-10 내 정보 메뉴 → 내 블로그 홈", a.page.url().endsWith(`/@${A}`));
 
   // 375px: 블로그 제목 숨김, 가로 넘침 없음
   const m = await browser.newContext({ viewport: { width: 375, height: 812 }, storageState: await a.ctx.storageState() });
@@ -84,12 +93,19 @@ try {
   errorsAll.push(collectErrors(mp));
   await mp.goto(`${BASE}/shop`);
   const mb = mp.getByRole("banner");
-  check("TOWN-10 휴대폰: 블로그 제목 숨김", !(await mb.locator("[data-status-blog-title]").isVisible()));
-  check("TOWN-10 휴대폰: 닉네임·레벨 보임", (await mb.locator("[data-status-nickname]").isVisible()) && (await mb.getByTitle("레벨").isVisible()));
+  check("TOWN-10 휴대폰: 상태창은 얼굴만 (닉네임·블로그 제목 숨김)", !(await mb.locator("[data-status-blog-title]").isVisible()) && !(await mb.locator("[data-status-nickname]").isVisible()) && (await mb.locator("[data-status-card] img").isVisible()));
+  check("TOWN-10 휴대폰: 레벨 보임", await mb.getByTitle("레벨").isVisible());
   const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   const right = Math.max(...(await mb.locator("a, button, span[title]").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().right))));
   check("TOWN-10 휴대폰: 가로 넘침 없음", overflow <= 0 && right <= 375, `scroll ${overflow}, 오른쪽 끝 ${Math.round(right)}`);
   await mp.screenshot({ path: `${outDir}/b2-header-375.png`, clip: { x: 0, y: 0, width: 375, height: 110 } });
+  // 휴대폰에서도 쪽지·레벨·내 정보 창이 화면 양옆 12px 안에 뜬다
+  for (const [button, popover] of [["[data-notification-button]", "[data-notification-panel]"], ["[data-level-button]", "[data-level-popover]"], ["[data-status-card]", "[data-profile-menu]"]]) {
+    await mb.locator(button).click();
+    const box = await mp.locator(popover).boundingBox();
+    check(`TOWN-10 휴대폰: ${popover} 화면 안`, box.x >= 12 && box.x + box.width <= 375 - 12, `${Math.round(box.x)} ~ ${Math.round(box.x + box.width)}`);
+    await mp.keyboard.press("Escape");
+  }
   await m.close();
 
   // ── GAME-08: 남이 공감·댓글 → 숫자 +1씩 ──

@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { db } from "@/db";
-import { blogs, items, profiles } from "@/db/schema";
+import { accounts, blogs, items, profiles } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { lookSql } from "@/server/look";
 
@@ -35,6 +35,20 @@ export const getViewer = cache(async () => {
     .where(eq(profiles.userId, session.user.id));
 
   return { userId: session.user.id, user: session.user, profile: row ?? null };
+});
+
+/**
+ * 지금 로그인한 회원에 연결된 로그인 수단 (AUTH-05): accounts.provider_id 목록.
+ * credential = 아이디 로그인, 그 밖에는 google·kakao·naver. 헤더 내 정보 메뉴에서 쓴다
+ */
+export const getViewerLoginMethods = cache(async (): Promise<string[]> => {
+  const session = await getSession();
+  if (!session) return [];
+  const rows = await db
+    .selectDistinct({ providerId: accounts.providerId })
+    .from(accounts)
+    .where(eq(accounts.userId, session.user.id));
+  return rows.map((r) => r.providerId);
 });
 
 /** 로그인만 확인 (온보딩 페이지용) */

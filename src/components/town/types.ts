@@ -19,6 +19,7 @@ export type TownData = {
   panel: TownHouse[]; // 🏘 이웃집 패널 목록 (회원: 내 이웃 전부 ⭐ 먼저, 방문자: 광장의 집과 같음)
   noFavorites: boolean; // 즐겨찾기한 이웃이 없는 회원 → 안내 문구 (TOWN-04)
   attendedToday: boolean;
+  quests: { done: number; total: number } | null; // 오늘의 퀘스트 진행 (출석 도장 판에 보인다). 방문자는 null
 };
 
 /** 광장 건물을 눌렀을 때 이동할 곳 */
