@@ -103,7 +103,7 @@ export function MiniRoom({
         <div className="flex items-end">
           {/* 펫이 있으면 캐릭터가 가운데에 그대로 서 있도록 반대쪽에 같은 폭의 빈 자리를 둔다 */}
           {pet && <span className="w-14" aria-hidden />}
-          <CharacterArt asset={characterAsset} size={112} className="animate-bounce drop-shadow-md [animation-duration:2s]" />
+          <CharacterArt asset={characterAsset} size={112} className="drop-shadow-md" />
           {pet && (
             <span className="-ml-2 mb-1 drop-shadow" data-room-pet={pet.name} title={`${pet.name} (함께 다니는 펫)`}>
               <PetArt assetKey={pet.assetKey} stage={pet.stage} accessory={pet.accessory} size={64} style={{ transform: "scaleX(-1)" }} />
