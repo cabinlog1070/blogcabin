@@ -1,14 +1,16 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { notifications, pointLedger, posts, profiles } from "@/db/schema";
+import { comments, notifications, pointLedger, posts, profiles, users } from "@/db/schema";
 import { ADMIN_MAX_COINS, expForLevel, levelFromExp, MAX_LEVEL } from "@/lib/game";
 import { parseId } from "@/lib/ids";
 import { requireAdmin } from "@/server/dal";
 import { getWallet, lockUser } from "@/server/points";
+import { deleteMember } from "@/server/withdraw";
 
 /** 관리자: 어느 블로그의 글이든 삭제 */
 export async function adminDeletePost(postId: number) {
@@ -16,6 +18,41 @@ export async function adminDeletePost(postId: number) {
   if (parseId(postId) === null) return;
   await db.delete(posts).where(eq(posts.id, postId));
   revalidatePath("/", "layout");
+}
+
+/** 관리자: 누구의 댓글이든 삭제 (회원이 지울 때와 같은 규칙, 답글이 남으면 "삭제된 댓글" 자리로 남는다) */
+export async function adminDeleteComment(commentId: number) {
+  await requireAdmin();
+  if (parseId(commentId) === null) return;
+  await db
+    .update(comments)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(comments.id, commentId), isNull(comments.deletedAt)));
+  revalidatePath("/", "layout");
+}
+
+export type WithdrawMemberState = { error?: string };
+
+/**
+ * 관리자 강제 탈퇴: 회원이 스스로 탈퇴할 때와 똑같이 지운다 (deleteMember, AUTH-06).
+ * 세션도 함께 지워져서 그 회원은 바로 로그아웃된다. 관리자 계정과 나 자신은 강제 탈퇴할 수 없다.
+ */
+export async function adminWithdrawMember(_: WithdrawMemberState, formData: FormData): Promise<WithdrawMemberState> {
+  const admin = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId) return { error: "회원을 찾지 못했어요" };
+  if (userId === admin.userId) return { error: "내 계정은 여기서 탈퇴할 수 없어요" };
+  const [target] = await db
+    .select({ role: users.role, username: users.username, nickname: profiles.nickname })
+    .from(users)
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(users.id, userId));
+  if (!target) return { error: "이미 탈퇴한 회원이에요" };
+  if (target.role === "admin") return { error: "관리자 계정은 강제 탈퇴할 수 없어요" };
+
+  await deleteMember(userId);
+  revalidatePath("/", "layout");
+  redirect(`/admin/members?withdrawn=${encodeURIComponent(target.nickname ?? target.username ?? "회원")}`);
 }
 
 export type GrantState = { error?: string; ok?: string };

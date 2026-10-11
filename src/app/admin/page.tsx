@@ -81,6 +81,11 @@ export default async function AdminPage() {
       <h1 className="font-display text-3xl">
         <Icon name="level" size={34} className="-mt-1" /> 관리자
       </h1>
+      <p className="mt-3">
+        <Link href="/admin/members" className="btn btn-basic" data-admin-members-link>
+          <Icon name="search" size={20} /> 회원 관리 (조회·글/댓글 삭제·강제 탈퇴)
+        </Link>
+      </p>
 
       <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (
@@ -112,7 +117,7 @@ export default async function AdminPage() {
             {recentUsers.map((u) => (
               <tr key={u.id}>
                 <td className="py-2">{u.username ?? "-"} <span className="text-ink-soft">({u.provider ?? "없음"})</span></td>
-                <td>{u.nickname ?? <span className="text-ink-soft">온보딩 전</span>}</td>
+                <td><Link href={`/admin/members/${u.id}`} className="text-sky underline">{u.nickname ?? "온보딩 전"}</Link></td>
                 <td>{u.slug ? <Link href={`/@${u.slug}`} className="text-sky underline">@{u.slug}</Link> : "-"}</td>
                 <td>
                   {u.role === "admin" ? (
