@@ -1,4 +1,4 @@
-// 크레용 그림체 (2026-10-11 정지원 님 시안). 굵고 거친 검은 크레용 외곽선 + 단색 면 + 옅은 종이 결.
+// 크레용 그림체 (2026-10-11 정지원 님 시안). 끊기지 않는 또렷한 바탕 선 + 그 위 거친 크레용 결 + 단색 면 + 옅은 종이 결.
 // 모든 그림은 "내보낼 크기"(화면 크기의 2배) 좌표로 그린다. 그림은 data URI <img>·Phaser 텍스처로 쓰여 각자 따로 그려진다.
 // 서버·브라우저가 같은 문자열을 만들어야 하므로(hydration) 그림 안 id는 그림마다 0부터 다시 센다 (make).
 
@@ -13,7 +13,8 @@ export const nid = (p: string) => `${p}${(seq++).toString(36)}`;
 
 /** 크레용 선(cr)·종이 결(fg)·불빛(glow) 필터. 필터 영역을 그림 크기로 잡아 가로·세로 직선도 지워지지 않게 한다 */
 const defs = (w: number, h: number) =>
-  `<defs><filter id="cr" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 3.2 -0.9" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in" result="g"/><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="8" result="w"/><feDisplacementMap in="g" in2="w" scale="2.5"/></filter>` +
+  `<defs><filter id="cr" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 2.2 -0.2" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in" result="g"/><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="8" result="w"/><feDisplacementMap in="g" in2="w" scale="2.5"/></filter>` +
+  `<filter id="cs" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="8" result="w"/><feDisplacementMap in="SourceGraphic" in2="w" scale="2.5"/></filter>` +
   `<filter id="fg" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="12" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.6 0.25" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter>` +
   `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter></defs>`;
 
@@ -35,8 +36,8 @@ export const F = (d: string, c: string, op = 1) =>
     : `<path d="${d}" fill="${c}"/><path d="${d}" fill="#3a2a1a" opacity=".07" filter="url(#fg)"/>`;
 /** 크레용 선 (두 번 그어 거칠게) */
 export const L = (d: string, w = 5, color = INK) =>
-  `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" filter="url(#cr)"/>` +
-  `<path d="${d}" fill="none" stroke="${color}" stroke-width="${(w * 0.5).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round" opacity=".8" transform="translate(.7 .5)" filter="url(#cr)"/>`;
+  `<path d="${d}" fill="none" stroke="${color}" stroke-width="${(w * 0.8).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round" filter="url(#cs)"/>` +
+  `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" filter="url(#cr)"/>`;
 /** 면 + (그늘) + 외곽선. 그늘은 면 모양 안에서만 칠한다 */
 export const S = (d: string, c: string, w = 5, shade?: string) => {
   let o = F(d, c);
