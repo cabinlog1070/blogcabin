@@ -1,13 +1,96 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { roofHex } from "@/lib/art/town";
 import type { TownData, TownTarget } from "./types";
+
+// 광장 그림(SVG)을 한 번 그려 둔 비트맵. 크레용 결 필터 때문에 SVG를 그리는 데 시간이 걸려서,
+// 그린 결과를 PNG로 브라우저 캐시(Cache Storage)에 남겨 두고 다음에 광장에 올 때(새로고침 포함) 바로 쓴다.
+// 그림 주소(SVG 내용)가 같으면 같은 그림이라, 그림이 바뀌면 키도 바뀐다.
+const rasterCache = new Map<string, HTMLCanvasElement>();
+const RASTER_CACHE_MAX = 150;
+const STORE = "town-raster-v1";
+const STORE_MAX = 400;
+
+/** 문자열 → 짧은 해시 (FNV-1a 두 벌) */
+function hashOf(text: string): string {
+  let a = 0x811c9dc5, b = 0x01000193 ^ text.length;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = Math.imul(b ^ c, 0x5bd1e995);
+  }
+  return (a >>> 0).toString(36) + (b >>> 0).toString(36);
+}
+
+async function openStore(): Promise<Cache | null> {
+  try {
+    if (typeof caches === "undefined") return null;
+    return await caches.open(STORE);
+  } catch {
+    return null;
+  }
+}
+
+/** 그림 → 원래 크기로 그린 캔버스 */
+async function drawToCanvas(blob: Blob): Promise<HTMLCanvasElement> {
+  // 같은 SVG 주소를 다른 화면(꾸미기의 지붕 미리 보기 등)에서 작게 그린 적이 있으면,
+  // 사파리는 그 작은 그림을 재사용해 광장의 집이 작게·한쪽에 붙어 보였다.
+  // 그래서 광장 그림은 새 주소(blob URL)로 불러 원래 크기로 그린다.
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** SVG data URI → 그린 캔버스 (이 탭에서 그린 적 있으면 그대로, 브라우저 캐시에 있으면 PNG로, 없으면 새로 그린다) */
+async function rasterize(uri: string, store: Cache | null): Promise<{ canvas: HTMLCanvasElement; fresh: boolean }> {
+  const hit = rasterCache.get(uri);
+  if (hit) return { canvas: hit, fresh: false };
+  const req = `/__town-raster/${hashOf(uri)}.png`;
+  let canvas: HTMLCanvasElement | null = null;
+  let fresh = false;
+  try {
+    const saved = await store?.match(req);
+    if (saved) canvas = await drawToCanvas(await saved.blob());
+  } catch {}
+  if (!canvas) {
+    canvas = await drawToCanvas(await (await fetch(uri)).blob());
+    fresh = true;
+    if (store) {
+      const c = canvas;
+      c.toBlob((png) => {
+        if (png) void store.put(req, new Response(png, { headers: { "content-type": "image/png" } })).catch(() => {});
+      }, "image/png");
+    }
+  }
+  if (rasterCache.size >= RASTER_CACHE_MAX) rasterCache.delete(rasterCache.keys().next().value!);
+  rasterCache.set(uri, canvas);
+  return { canvas, fresh };
+}
+
+/** 옛 그림이 쌓이지 않게: 너무 많아지면 비운다 */
+async function trimStore(store: Cache | null) {
+  try {
+    if (store && (await store.keys()).length > STORE_MAX) await caches.delete(STORE);
+  } catch {}
+}
 
 export function TownGame({ data, className = "" }: { data: TownData; className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  // 광장을 준비하는 동안 빈 초록 화면 대신 안내를 보여 준다 (그린 그림 수 / 전체)
+  const [loading, setLoading] = useState<{ done: number; total: number } | null>({ done: 0, total: 0 });
 
   useEffect(() => {
     let game: import("phaser").Game | null = null;
@@ -20,29 +103,28 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
     };
 
     // Phaser는 window가 필요해서 브라우저에서만 불러온다
-    const blobUrls: string[] = [];
     const start = async () => {
       if (game || starting) return;
       starting = true;
+      setLoading({ done: 0, total: 0 });
       const Phaser = (await import("phaser")).default;
       const { createTownScene, townTextures } = await import("./scene");
-      // 광장 그림(SVG)을 미리 이미지로 불러 둔다. 글꼴도 준비된 뒤에 글자를 그린다
-      const images = new Map<string, HTMLImageElement>();
-      await Promise.all([
-        document.fonts.ready,
-        ...townTextures(data).map(async ({ key, uri }) => {
-          // 같은 SVG 주소를 다른 화면(꾸미기의 지붕 미리 보기 등)에서 작게 그린 적이 있으면,
-          // 사파리는 그 작은 그림을 재사용해 광장의 집이 작게·한쪽에 붙어 보였다.
-          // 그래서 광장 그림은 매번 새 주소(blob URL)로 불러 원래 크기로 그리게 한다.
-          const blob = await (await fetch(uri)).blob();
-          const url = URL.createObjectURL(blob);
-          blobUrls.push(url);
-          const img = new Image();
-          img.src = url;
-          await img.decode();
-          images.set(key, img);
-        }),
-      ]);
+      // 광장 그림(SVG)을 미리 그려 둔다. 한 장씩 그리고 사이사이 화면에 진행 상황을 보여 준다. 글꼴도 준비된 뒤에 글자를 그린다
+      const textures = townTextures(data);
+      const images = new Map<string, HTMLCanvasElement>();
+      setLoading({ done: 0, total: textures.length });
+      const store = await openStore();
+      await trimStore(store);
+      for (const [i, { key, uri }] of textures.entries()) {
+        if (cancelled) return;
+        const { canvas, fresh } = await rasterize(uri, store);
+        images.set(key, canvas);
+        if (fresh) {
+          setLoading({ done: i + 1, total: textures.length });
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      }
+      await document.fonts.ready;
       starting = false;
       // 불러오는 동안 화면을 떠났으면 만들지 않는다
       if (cancelled || !containerRef.current) return;
@@ -65,13 +147,14 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
         if (game && (game.scale.width !== nw || game.scale.height !== nh)) game.scale.resize(nw, nh);
       });
       observer.observe(el);
+      // 첫 장면을 그리면 안내를 내린다
+      game.events.once("postrender", () => setLoading(null));
     };
     const stop = () => {
       observer?.disconnect();
       observer = null;
       game?.destroy(true);
       game = null;
-      for (const url of blobUrls.splice(0)) URL.revokeObjectURL(url);
     };
 
     // 휴대폰에서도 광장을 띄운다 (2026-10-08 결정, 그 전에는 휴대폰에서 간단 메뉴만 보였다)
@@ -85,18 +168,27 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
   }, [data, router]);
 
   return (
-    <div
-      ref={containerRef}
-      className={`overflow-hidden bg-[#8aba5c] ${className}`}
-      aria-label="중앙 광장. 방향키나 WASD로 움직이고 Space로 건물에 들어갑니다."
-      // 집 단계 확인용 (TOWN-11, e2e): 캔버스 그림 대신 이 값으로 확인한다
-      data-my-house-stage={data.myHouse?.stage ?? ""}
-      data-neighbor-stages={data.neighbors.map((h) => `${h.slug}:${h.stage}`).join(",")}
-      // 지붕 색 확인용 (TOWN-07, e2e): 실제로 칠하는 색
-      data-my-roof={data.myHouse ? roofHex(data.myHouse.roofColor, data.myHouse.backgroundAsset) : ""}
-      data-neighbor-roofs={data.neighbors.map((h) => `${h.slug}:${roofHex(h.roofColor, h.backgroundAsset)}`).join(",")}
-      // 데리고 다니는 펫 (TOWN-09). 광장 씬이 펫을 그리면 캔버스에도 data-follow-pet이 붙는다
-      data-carried-pet={data.player?.pet?.name ?? ""}
-    />
+    <div className={`relative ${className}`}>
+      <div
+        ref={containerRef}
+        className="h-full w-full overflow-hidden bg-[#8aba5c]"
+        aria-label="중앙 광장. 방향키나 WASD로 움직이고 Space로 건물에 들어갑니다."
+        // 집 단계 확인용 (TOWN-11, e2e): 캔버스 그림 대신 이 값으로 확인한다
+        data-my-house-stage={data.myHouse?.stage ?? ""}
+        data-neighbor-stages={data.neighbors.map((h) => `${h.slug}:${h.stage}`).join(",")}
+        // 지붕 색 확인용 (TOWN-07, e2e): 실제로 칠하는 색
+        data-my-roof={data.myHouse ? roofHex(data.myHouse.roofColor, data.myHouse.backgroundAsset) : ""}
+        data-neighbor-roofs={data.neighbors.map((h) => `${h.slug}:${roofHex(h.roofColor, h.backgroundAsset)}`).join(",")}
+        // 데리고 다니는 펫 (TOWN-09). 광장 씬이 펫을 그리면 캔버스에도 data-follow-pet이 붙는다
+        data-carried-pet={data.player?.pet?.name ?? ""}
+      />
+      {loading && (
+        <div role="status" className="pointer-events-none absolute inset-0 flex items-center justify-center" data-town-loading>
+          <p className="rounded-full bg-paper/95 px-5 py-2.5 font-display text-lg text-ink shadow-md">
+            🏕 광장 준비 중{loading.total ? ` ${Math.round((loading.done / loading.total) * 100)}%` : "…"}
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
