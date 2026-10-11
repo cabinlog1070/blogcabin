@@ -109,6 +109,11 @@ export default async function AttendancePage() {
                 </span>
                 {q.done ? (
                   <span className="shrink-0 rounded-full bg-leaf px-2.5 py-0.5 text-sm font-bold text-white">✓ 완료</span>
+                ) : q.goal > 1 ? (
+                  // 여러 번 해야 하는 퀘스트는 지금까지 센 횟수를 보여 준다
+                  <span className="shrink-0 text-sm font-bold text-ink-soft">
+                    {q.count} / {q.goal}
+                  </span>
                 ) : (
                   <span className="shrink-0 text-sm font-bold text-ink-soft">아직이에요</span>
                 )}
