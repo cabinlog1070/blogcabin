@@ -70,12 +70,13 @@ export async function getCategories(blogId: number, includePrivate: boolean) {
     .orderBy(asc(categories.position), asc(categories.id));
 }
 
-export async function isFollowing(followerId: string, followeeId: string) {
+/** 이웃 관계와 즐겨찾기 여부. 이웃이 아니면 null (남의 블로그 헤더의 ☆, TOWN-08) */
+export async function getFollow(followerId: string, followeeId: string) {
   const [row] = await db
-    .select({ x: follows.followerId })
+    .select({ favorite: follows.isFavorite })
     .from(follows)
     .where(and(eq(follows.followerId, followerId), eq(follows.followeeId, followeeId)));
-  return Boolean(row);
+  return row ?? null;
 }
 
 // ===== 글 목록 =====

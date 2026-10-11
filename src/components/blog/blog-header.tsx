@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MiniRoom, type RoomPet } from "@/components/character";
 import { PetCard } from "@/components/pet-art";
+import { FavoriteStar } from "@/components/blog/favorite-star";
 import { VisitCount } from "@/components/blog/visit-count";
 import type { PetShowcase } from "@/server/farm";
 import { toggleFollow } from "@/app/blog/actions";
@@ -25,6 +26,7 @@ export function BlogHeader({
   furniture = [],
   viewerId,
   following,
+  favorite = false,
   pet,
   card,
   visits,
@@ -35,6 +37,7 @@ export function BlogHeader({
   card?: (PetShowcase & { grownAt: Date | null }) | null; // 프로필에 전시한 다 키운 동물 카드
   viewerId: string | null;
   following: boolean;
+  favorite?: boolean; // 이웃으로 추가한 블로그를 즐겨찾기했는지 (TOWN-08)
   visits?: { today: number; total: number }; // 방문자 수 (BLOG-06). 블로그 홈에서만
 }) {
   const isOwner = viewerId === blog.ownerId;
@@ -80,11 +83,15 @@ export function BlogHeader({
               <Link href="/settings/blog" className="btn whitespace-nowrap bg-paper text-ink max-sm:gap-1 max-sm:px-2 max-sm:text-sm">⚙️ 관리</Link>
             </>
           ) : viewerId ? (
-            <form action={toggleFollow.bind(null, blog.ownerId)}>
-              <button className={`btn whitespace-nowrap ${following ? "bg-paper text-ink" : "bg-sky text-white"}`}>
-                {following ? "✓ 이웃" : "+ 이웃 추가"}
-              </button>
-            </form>
+            <>
+              {/* 이웃이면 이웃 버튼 왼쪽에 ☆ 즐겨찾기 (이웃 끊으면 즐겨찾기도 함께 사라진다) */}
+              {following && <FavoriteStar key={blog.ownerId} followeeId={blog.ownerId} nickname={blog.nickname} favorite={favorite} />}
+              <form action={toggleFollow.bind(null, blog.ownerId)}>
+                <button className={`btn whitespace-nowrap ${following ? "bg-paper text-ink" : "bg-sky text-white"}`}>
+                  {following ? "✓ 이웃" : "+ 이웃 추가"}
+                </button>
+              </form>
+            </>
           ) : null}
         </div>
       </div>

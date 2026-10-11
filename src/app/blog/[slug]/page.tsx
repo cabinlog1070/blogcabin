@@ -8,7 +8,7 @@ import { PostCard } from "@/components/blog/post-card";
 import { Pagination, parsePage } from "@/components/pagination";
 import { parseId } from "@/lib/ids";
 import { getRoomFurniture } from "@/server/look";
-import { getBlogBySlug, getCategories, getInviteCode, isFollowing, listBlogPosts, listMyNeighbors } from "@/server/blog";
+import { getBlogBySlug, getCategories, getFollow, getInviteCode, listBlogPosts, listMyNeighbors } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { getCarriedPet, getDisplayedCard } from "@/server/farm";
 import { getBlogVisitStats } from "@/server/visits";
@@ -31,10 +31,10 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
   const page = parsePage(sp.page);
   const categoryId = parseId(sp.category) ?? undefined; // 이상한 값이면 전체 글
 
-  const [cats, list, following, furniture, pet, card, visits, neighbors, inviteCode] = await Promise.all([
+  const [cats, list, follow, furniture, pet, card, visits, neighbors, inviteCode] = await Promise.all([
     getCategories(blog.id, isOwner),
     listBlogPosts({ blogId: blog.id, isOwner, categoryId, page }),
-    viewerId && !isOwner ? isFollowing(viewerId, blog.ownerId) : false,
+    viewerId && !isOwner ? getFollow(viewerId, blog.ownerId) : null,
     getRoomFurniture(blog.ownerId), // 미니룸 가구 (SHOP-05)
     getCarriedPet(blog.ownerId), // 미니룸 펫 (TOWN-09)
     getDisplayedCard(blog.ownerId), // 프로필 전시 카드 (TOWN-09)
@@ -47,7 +47,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <BlogHeader blog={blog} furniture={furniture} viewerId={viewerId} following={following} pet={pet} card={card} visits={visits} />
+      <BlogHeader blog={blog} furniture={furniture} viewerId={viewerId} following={follow !== null} favorite={follow?.favorite ?? false} pet={pet} card={card} visits={visits} />
 
       <div className="mt-6 grid gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
         {/* 768px 미만에서는 aside를 풀어(contents) 내 이웃·초대 카드를 글 목록 아래로 보낸다 */}
