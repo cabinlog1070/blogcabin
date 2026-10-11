@@ -34,9 +34,8 @@ const ARMR = mirror(ARML);
 const SIDE_LEG = (x: number) => `M${x} 204v60q0 6 6 6h20q4 0 2-6l-8-6v-54Z`;
 const SIDE_TORSO = "M132 148Q124 152 122 160L124 214Q126 222 144 222Q162 222 164 214L162 160Q160 150 150 147Z";
 const SIDE_ARM = "M137 156q2 8 4 20q2 16 3 26q2 8 9 6q6-2 4-8l-3-26q-1-14-4-20q-6-6-13 2Z";
-const SIDE_FACE = "M150 20C196 20 214 60 210 100C206 126 194 141 154 144C130 142 116 128 114 108C110 60 114 20 150 20Z";
 
-type Hair = { c: string; front: string; face: string; under?: boolean; back: string; side: string; sideFace: string; sideUnder?: boolean };
+type Hair = { c: string; front: string; face: string; under?: boolean; back: string; side: string };
 const HAIRS: Record<"girl" | "boy" | "visitor", Hair> = {
   girl: {
     c: "#7a4a2a",
@@ -44,25 +43,21 @@ const HAIRS: Record<"girl" | "boy" | "visitor", Hair> = {
     face: "M80 98Q96 92 104 74Q114 84 128 84Q166 86 188 70Q194 90 208 98C204 126 190 141 144 144C98 141 84 126 80 98Z",
     under: true,
     back: "M76 104C70 36 106 14 144 14C182 14 218 36 212 104V198Q212 208 202 208H86Q76 208 76 198Z",
-    side: "M150 14C196 14 216 46 210 94Q196 80 180 72Q156 92 126 90Q120 104 122 120L124 200Q124 208 116 208H94Q84 208 84 198L82 100C78 40 108 14 150 14Z",
-    sideFace: "M126 90Q156 92 180 72Q196 80 210 94C214 124 198 141 154 144C130 142 122 130 122 112Q122 98 126 90Z",
-    sideUnder: true,
+    side: "M144 16C188 16 212 44 208 98Q196 84 184 70Q162 90 140 86Q134 100 136 122L138 200Q138 208 130 208H92Q82 208 82 198L82 104C76 50 104 16 144 16Z",
   },
   boy: {
     c: "#3a2a22",
     front: "M80 102q-10-84 64-84q74 0 66 82q-10-10-14-26q-14 10-30 8q4-8 2-16q-14 14-44 12q-10 0-20-6q-6 18-24 30Z",
     face: HEAD,
     back: "M80 104C72 42 104 16 144 16C184 16 216 42 208 104Q200 124 186 126Q144 120 102 126Q88 124 80 104Z",
-    side: "M112 112C98 54 116 14 154 14C196 14 218 44 212 94Q204 78 190 68Q182 82 164 80Q170 72 168 62Q148 80 128 76Q132 94 126 116Q118 108 112 112Z",
-    sideFace: SIDE_FACE,
+    side: "M144 16C190 16 214 46 208 96Q200 82 190 72Q182 84 166 82Q170 74 168 66Q150 84 136 82Q132 100 136 122Q126 134 110 134Q88 126 82 104C74 50 104 16 144 16Z",
   },
   visitor: {
     c: "#d9a050",
     front: "M82 92q-4-74 62-74q66 0 62 74q-24-22-62-22q-38 0-62 22Z",
     face: HEAD,
     back: "M80 102C74 42 104 16 144 16C184 16 214 42 208 102Q196 120 144 120Q92 120 80 102Z",
-    side: "M114 110C102 52 118 16 154 16C194 16 216 44 210 90Q190 70 160 72Q136 74 128 88Q126 100 124 114Q118 106 114 110Z",
-    sideFace: SIDE_FACE,
+    side: "M144 16C188 16 212 44 208 92Q190 72 160 74Q140 76 136 92Q132 108 136 122Q124 132 110 132Q88 126 82 104C76 50 104 16 144 16Z",
   },
 };
 const LEAF = "M144 18q-2-14 10-18q4 10-10 18Z";
@@ -151,16 +146,15 @@ function side(c: Ctx): string {
   o += sideLeg(134, -sw) + sideLeg(136, sw);
   o += `<g transform="translate(0 -${c.frame ? 3 : 0})">`;
   const H = c.kind === "mannequin" ? null : HAIRS[c.kind];
-  if (H?.sideUnder) o += S(H.side, H.c, 5);
   o += torso(c, SIDE_TORSO);
   if (c.w.bottom?.skirt) o += S("M122 200h44l12 34q-34 10-68 0Z", c.w.bottom.color, 4.5) + L("M140 204l-4 28", 2.5);
   o += c.w.top?.deco?.("side") ?? "";
-  if (!H) o += S(SIDE_FACE, c.skin, 5.5);
-  else {
-    o += S(E(130, 116, 10, 15), c.skin, 4.5) + S(H.sideFace, c.skin, 5.5) + dot(184, 108, 6) + blush(192, 122) + L("M196 126q6 1 9-3", 3.5);
-    if (!H.sideUnder) o += S(H.side, H.c, 5);
-    o += S(E(130, 116, 9, 14), c.skin, 4.5);
-    if (c.kind === "visitor") o += S("M152 16q-2-14 10-18q4 10-10 18Z", "#6fb34f", 3.5);
+  // 머리는 앞모습과 같은 동그란 두상을 몸 한가운데 위에 얹고, 머리카락이 뒤통수·정수리를 덮는다
+  o += S(HEAD, c.skin, 5.5);
+  if (H) {
+    o += dot(184, 102, 6) + blush(190, 120) + L("M194 124q6 2 10-2", 3.5);
+    o += S(H.side, H.c, 5) + S(E(140, 112, 10, 15), c.skin, 4.5);
+    if (c.kind === "visitor") o += S(LEAF, "#6fb34f", 3.5);
   }
   o += c.w.hat?.draw("side") ?? "";
   o += `<g transform="rotate(${-sw * 2} 143 160)">${armS(SIDE_ARM, sleeveY(c, true), c.top, c.skin)}</g>`;
@@ -203,19 +197,18 @@ export const WEAR_PIECES = {
   "avatar.shoes.shiny": { slot: "shoes", shoes: { color: "#f28fa8", deco: (v: View) => (v === "side" ? star(146, 260) : star(126, 260) + star(160, 260)) } },
   "avatar.hat.straw": {
     slot: "hat",
-    hat: { draw: (v: View) => { const x = v === "side" ? 10 : 0; return S(E(144 + x, 46, 88, 16), "#f2d27a", 5) + S(`M${100 + x} 46q4-40 44-40q40 0 44 40Z`, "#f2d27a", 5) + S(`M${100 + x} 36h88v10h-88Z`, "#e8433a", 3.5); } },
+    hat: { draw: () => S(E(144, 46, 88, 16), "#f2d27a", 5) + S("M100 46q4-40 44-40q40 0 44 40Z", "#f2d27a", 5) + S("M100 36h88v10h-88Z", "#e8433a", 3.5) },
   },
   "avatar.hat.beanie": {
     slot: "hat",
-    hat: { draw: (v: View) => { const x = v === "side" ? 8 : 0; return S(`M${82 + x} 70q-2-58 62-60q64 2 62 60Z`, "#8f6ad6", 5) + S(Rc(78 + x, 58, 132, 18, 8), "#7a55c4", 4.5) + S(E(144 + x, 10, 12), "#f4efe6", 4); } },
+    hat: { draw: () => S("M82 70q-2-58 62-60q64 2 62 60Z", "#8f6ad6", 5) + S(Rc(78, 58, 132, 18, 8), "#7a55c4", 4.5) + S(E(144, 10, 12), "#f4efe6", 4) },
   },
   "avatar.hat.crown": {
     slot: "hat",
     hat: {
       draw: (v: View) => {
-        const x = v === "side" ? 8 : 0;
-        const gems = v === "back" ? "" : `<circle cx="${144 + x}" cy="30" r="6" fill="#e8433a"/><circle cx="${118 + x}" cy="34" r="4" fill="#4f8fe0"/><circle cx="${170 + x}" cy="34" r="4" fill="#4f8fe0"/>`;
-        return S(`M${104 + x} 44l-4-40l24 20l20-26l20 26l24-20l-4 40Z`, "#f2c230", 5) + gems;
+        const gems = v === "back" ? "" : `<circle cx="144" cy="30" r="6" fill="#e8433a"/><circle cx="118" cy="34" r="4" fill="#4f8fe0"/><circle cx="170" cy="34" r="4" fill="#4f8fe0"/>`;
+        return S("M104 44l-4-40l24 20l20-26l20 26l24-20l-4 40Z", "#f2c230", 5) + gems;
       },
     },
   },
