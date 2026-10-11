@@ -29,7 +29,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
   const viewer = await getViewer();
   const viewerId = viewer?.profile ? viewer.userId : null;
   const isOwner = viewerId === blog.ownerId;
-  const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인과 서로 이웃만
+  const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인, 서로 이웃, 관리자만
   const page = parsePage(sp.page);
   const categoryId = parseId(sp.category) ?? undefined; // 이상한 값이면 전체 글
   const sort: PostSort = typeof sp.sort === "string" && sp.sort in POST_SORTS ? (sp.sort as PostSort) : "latest";
