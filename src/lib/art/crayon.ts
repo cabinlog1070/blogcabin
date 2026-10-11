@@ -11,16 +11,17 @@ let seq = 0;
 /** 그림 하나 안에서만 쓰는 id */
 export const nid = (p: string) => `${p}${(seq++).toString(36)}`;
 
-/** 크레용 선(cr)·종이 결(fg)·불빛(glow) 필터. 필터 영역을 그림 크기로 잡아 가로·세로 직선도 지워지지 않게 한다 */
+/** 크레용 선(cr)·반투명 종이 결(fg)·그림 전체 종이 결(grain)·불빛(glow) 필터. 필터 영역을 그림 크기로 잡아 가로·세로 직선도 지워지지 않게 한다.
+ *  필터는 그리는 데 시간이 걸려서(광장 그림 35장) 면마다 따로 걸지 않고 종이 결은 그림 전체에 한 번만 입힌다 */
 const defs = (w: number, h: number) =>
   `<defs><filter id="cr" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 3.2 -0.9" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in" result="g"/><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="8" result="w"/><feDisplacementMap in="g" in2="w" scale="2.5"/></filter>` +
-  `<filter id="cs" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="8" result="w"/><feDisplacementMap in="SourceGraphic" in2="w" scale="2.5"/></filter>` +
   `<filter id="fg" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="12" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.6 0.25" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter>` +
+  `<filter id="grain" filterUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="12" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0.227  0 0 0 0 0.165  0 0 0 0 0.102  0 0 0 0.112 0.0175" result="m"/><feComposite in="m" in2="SourceAlpha" operator="in" result="g"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="g"/></feMerge></filter>` +
   `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter></defs>`;
 
 /** 완성 SVG (viewBox = 그린 좌표). dw·dh = 그림의 width/height 속성 (기본은 그린 크기 그대로) */
 export function svg(w: number, h: number, body: string, opts: { bg?: string; dw?: number; dh?: number; attrs?: string } = {}): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${opts.dw ?? w}" height="${opts.dh ?? h}"${opts.attrs ?? ""}>${defs(w, h)}${opts.bg ? `<rect width="${w}" height="${h}" fill="${opts.bg}"/>` : ""}${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${opts.dw ?? w}" height="${opts.dh ?? h}"${opts.attrs ?? ""}>${defs(w, h)}<g filter="url(#grain)">${opts.bg ? `<rect width="${w}" height="${h}" fill="${opts.bg}"/>` : ""}${body}</g></svg>`;
 }
 /** id를 0부터 세며 그린다 (같은 그림은 늘 같은 문자열) */
 export function make(w: number, h: number, draw: () => string, opts: Parameters<typeof svg>[3] = {}): string {
@@ -29,17 +30,15 @@ export function make(w: number, h: number, draw: () => string, opts: Parameters<
 }
 
 // ───────── 붓 ─────────
-/** 면: 단색 + 옅은 종이 결. op < 1 이면 반투명 덧칠 */
+/** 면: 단색 (종이 결은 그림 전체에 한 번에 입힌다 — svg의 grain). op < 1 이면 반투명 덧칠 */
 export const F = (d: string, c: string, op = 1) =>
-  op < 1
-    ? `<path d="${d}" fill="${c}" opacity="${op}" filter="url(#fg)"/>`
-    : `<path d="${d}" fill="${c}"/><path d="${d}" fill="#3a2a1a" opacity=".07" filter="url(#fg)"/>`;
-/** 크레용 선 (두 번 그어 거칠게) */
-export const L = (d: string, w = 5, color = INK) =>
-  // 가는 심(끊기지 않는 선) + 거친 크레용 결 두 번 (처음 시안 그대로)
-  `<path d="${d}" fill="none" stroke="${color}" stroke-width="${(w * 0.45).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round" filter="url(#cs)"/>` +
-  `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" filter="url(#cr)"/>` +
-  `<path d="${d}" fill="none" stroke="${color}" stroke-width="${(w * 0.5).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round" opacity=".8" transform="translate(.7 .5)" filter="url(#cr)"/>`;
+  op < 1 ? `<path d="${d}" fill="${c}" opacity="${op}" filter="url(#fg)"/>` : `<path d="${d}" fill="${c}"/>`;
+/** 크레용 선: 가는 심(끊기지 않는 선) + 거친 크레용 결 두 번(한 묶음으로 한 번에 거칠게 해 필터 수를 줄인다) */
+export const L = (d: string, w = 5, color = INK) => {
+  const st = (sw: number) => `fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"`;
+  return `<path d="${d}" ${st(+(w * 0.45).toFixed(1))}/>` +
+    `<g filter="url(#cr)"><path d="${d}" ${st(w)}/><path d="${d}" ${st(+(w * 0.5).toFixed(1))} opacity=".8" transform="translate(.7 .5)"/></g>`;
+};
 /** 면 + (그늘) + 외곽선. 그늘은 면 모양 안에서만 칠한다 */
 export const S = (d: string, c: string, w = 5, shade?: string) => {
   let o = F(d, c);

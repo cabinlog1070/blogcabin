@@ -317,7 +317,7 @@ const lampLight = (p: { x: number; y: number }) => ({ x: p.x - LAMP_SIZE.width /
 export function createTownScene(
   Phaser: PhaserLib,
   data: TownData,
-  images: Map<string, HTMLImageElement>,
+  images: Map<string, HTMLCanvasElement>,
   onEnter: (target: TownTarget) => void,
   fontFamily = "sans-serif",
   dpr = 1, // 캔버스가 CSS 1px당 몇 픽셀인가. 카메라를 이만큼 확대해 화면에 보이는 크기는 그대로 둔다
@@ -364,7 +364,7 @@ export function createTownScene(
     }
 
     create() {
-      for (const [key, img] of images) if (!this.textures.exists(key)) this.textures.addImage(key, img);
+      for (const [key, canvas] of images) if (!this.textures.exists(key)) this.textures.addCanvas(key, canvas);
 
       this.physics.world.setBounds(0, 0, WORLD.width, WORLD.height);
       this.drawGround();
