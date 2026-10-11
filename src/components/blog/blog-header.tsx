@@ -92,7 +92,8 @@ export function BlogHeader({
           ) : null}
         </div>
       </div>
-      <div className="relative shrink-0 md:w-[46%] md:p-3">
+      {/* isolate: 미니룸 안의 z-index(가구·버튼)가 위에 고정된 헤더를 넘어 올라오지 않게 */}
+      <div className="relative isolate shrink-0 md:w-[46%] md:p-3">
         <MiniRoom
           characterAsset={blog.characterAsset}
           backgroundAsset={blog.backgroundAsset}
