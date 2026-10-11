@@ -120,7 +120,10 @@ export default async function AdminMemberPage(props: { params: Promise<{ id: str
             <tbody className="divide-y-2 divide-line/60">
               {memberComments.map((c) => (
                 <tr key={c.id}>
-                  <td className="max-w-md py-2 break-words">{c.content}</td>
+                  <td className="max-w-md py-2 break-words">
+                    {/* 누르면 그 글의 이 댓글 자리로 가서 댓글이 노랗게 표시된다 (:target은 새로 불러올 때만 잡혀서 Link 대신 a) */}
+                    <a href={`/@${c.slug}/${c.postId}#comment-${c.id}`} className="hover:underline">{c.content}</a>
+                  </td>
                   <td><Link href={`/@${c.slug}/${c.postId}`} className="hover:underline">{c.postTitle}</Link></td>
                   <td className="whitespace-nowrap text-ink-soft">{formatDateTime(c.createdAt)}</td>
                   <td className="text-right"><AdminDeleteCommentButton commentId={c.id} /></td>

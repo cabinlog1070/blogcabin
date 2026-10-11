@@ -74,7 +74,7 @@ function CommentItem({
     );
   }
   return (
-    <div className={isReply ? "ml-10 border-l-2 border-line pl-4" : ""}>
+    <div id={`comment-${c.id}`} className={`scroll-mt-20 rounded-xl target:bg-honey/40 target:ring-2 target:ring-honey ${isReply ? "ml-10 border-l-2 border-line pl-4" : ""}`}>
       <div className="flex gap-3 py-3">
         <CharacterBadge asset={c.characterAsset} size={34} />
         <div className="min-w-0 flex-1">
