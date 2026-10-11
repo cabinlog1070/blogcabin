@@ -49,6 +49,7 @@ function SignUpForm() {
 export function LoginButtons({ providers }: { providers: Providers }) {
   const [tab, setTab] = useState<"signin" | "signup">("signin");
   const anySocial = providers.google || providers.kakao || providers.naver;
+  const shown = anySocial ? SOCIAL.filter((p) => providers[p.id]) : SOCIAL;
 
   return (
     <div className="w-full max-w-sm">
@@ -74,8 +75,9 @@ export function LoginButtons({ providers }: { providers: Providers }) {
         간편 로그인
         <span className="h-px flex-1 bg-line" />
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {SOCIAL.map((p) => (
+      {/* 켜진 소셜만 보인다 (아무것도 안 켜졌으면 세 개를 흐리게 두고 준비 중이라고 알린다) */}
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))` }}>
+        {shown.map((p) => (
           <button
             key={p.id}
             type="button"
