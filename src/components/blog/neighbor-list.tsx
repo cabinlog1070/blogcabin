@@ -88,7 +88,7 @@ export function NeighborList({ neighbors }: { neighbors: Neighbor[] }) {
           type="button"
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
-          className="mt-1 w-full rounded-lg px-1 py-1 text-right text-sm font-bold text-ink-soft hover:bg-cream hover:text-ink"
+          className="mt-2 w-full rounded-xl bg-honey/60 px-3 py-1.5 text-center text-sm font-bold text-ink-soft hover:bg-honey hover:text-ink"
         >
           {expanded ? "접기 ⌃" : `이웃 더보기 (${list.length - collapsedCount}) >`}
         </button>

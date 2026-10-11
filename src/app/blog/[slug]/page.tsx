@@ -94,7 +94,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
             <PostListToolbar sort={sort} view={view} sorts={Object.entries(POST_SORTS).map(([value, label]) => ({ value, label }))} />
           </div>
           {list.items.length ? (
-            <div className={`grid gap-4 ${view === "grid" ? "sm:grid-cols-2" : ""}`} data-post-view={view}>
+            <div className={`grid gap-4 ${view === "grid" ? "md:grid-cols-2" : ""}`} data-post-view={view}>
               {list.items.map((p) => (
                 <PostCard key={p.id} post={p} compact={view === "grid"} />
               ))}

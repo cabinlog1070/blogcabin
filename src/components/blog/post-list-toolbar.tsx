@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 type Option = { value: string; label: string };
 
-/** 블로그 홈 글 목록 오른쪽 위: 정렬(최신순 등)과 목록형/바둑판형 보기. 둘 다 주소(?sort, ?view)에 남는다 */
+/** 블로그 홈 글 목록 오른쪽 위: 정렬(최신순 등)과 목록형/바둑판형 보기. 둘 다 주소(?sort, ?view)에 남는다. 컴퓨터 화면에서만 */
 export function PostListToolbar({ sort, sorts, view }: { sort: string; sorts: Option[]; view: "list" | "grid" }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -35,7 +35,7 @@ export function PostListToolbar({ sort, sorts, view }: { sort: string; sorts: Op
   );
 
   return (
-    <div className="flex items-center gap-2" data-post-toolbar>
+    <div className="flex items-center gap-2 max-md:hidden" data-post-toolbar>
       <label className="sr-only" htmlFor="post-sort">
         정렬
       </label>

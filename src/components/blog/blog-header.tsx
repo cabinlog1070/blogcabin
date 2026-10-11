@@ -53,13 +53,14 @@ export function BlogHeader({
             </figure>
           )}
           <div className="min-w-0 flex-1">
-            <span className="inline-block rounded-full bg-honey px-2.5 py-0.5 text-xs font-bold text-sun-dark">블로그</span>
+            {/* 블로그 태그와 큰 이름은 컴퓨터 화면에서만, 휴대폰은 예전 크기 그대로 */}
+            <span className="hidden rounded-full bg-honey px-3 py-1 text-sm font-bold text-sun-dark md:inline-block">🏠 블로그</span>
             <Link href={`/@${blog.slug}`}>
-              <h1 className="mt-1.5 break-words font-display text-3xl leading-tight sm:text-4xl">{blog.title}</h1>
+              <h1 className="break-words font-display text-2xl leading-tight sm:text-3xl md:mt-2 md:text-5xl">{blog.title}</h1>
             </Link>
             {blog.description && <p className="mt-1 text-ink-soft">{blog.description}</p>}
             {/* 375px에서 줄이 넘치면 다음 줄로 내려간다 (NF-06) */}
-            <p className="mt-2 text-sm text-ink-soft">
+            <p className="mt-2 text-sm text-ink-soft md:text-base">
               @{blog.slug} · 글 {blog.postCount} · 이웃 {blog.followerCount}
               {visits && (
                 <>
@@ -91,20 +92,20 @@ export function BlogHeader({
           ) : null}
         </div>
       </div>
-      <div className="relative shrink-0 md:w-[46%]">
+      <div className="relative shrink-0 md:w-[46%] md:p-3">
         <MiniRoom
           characterAsset={blog.characterAsset}
           backgroundAsset={blog.backgroundAsset}
           nickname={blog.nickname}
           furniture={furniture.map((f) => ({ id: f.itemId, assetKey: f.assetKey, x: f.x, y: f.y }))}
           pet={pet}
-          className="h-56 border-b-2 border-line sm:h-64 md:h-full md:min-h-64 md:border-b-0 md:border-l-2"
+          className="h-56 border-b-2 border-line sm:h-64 md:h-full md:min-h-64 md:rounded-2xl md:border-2"
         />
         {/* 미니룸 가구 배치는 꾸미기 화면 위쪽 미니룸에서 한다 */}
         {isOwner && (
           <Link
             href="/closet"
-            className="btn absolute right-3 top-3 z-30 bg-paper/90 px-3 py-1 text-sm text-ink backdrop-blur-sm"
+            className="btn absolute right-3 top-3 z-30 bg-paper/90 px-3 py-1 text-sm text-ink backdrop-blur-sm md:bottom-6 md:right-6 md:top-auto"
             data-miniroom-edit
           >
             미니룸 꾸미기 &gt;
