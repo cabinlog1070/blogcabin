@@ -55,10 +55,14 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
 
       <div className="mt-6 grid gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
         {/* 768px 미만에서는 aside를 풀어(contents) 친구 초대 카드를 글 목록 아래로 보낸다 */}
-        <aside className="space-y-4 max-md:contents md:sticky md:top-20 md:self-start">
+        <aside className="space-y-4 max-md:contents max-md:space-y-0 md:sticky md:top-20 md:self-start">
           {/* 마을 검색은 내 집(내 블로그 홈)에서만 (BLOG-07, spec 002 FR-042) */}
-          {isOwner && <SearchBox />}
-          <nav className="card p-4" aria-label="카테고리">
+          {isOwner && (
+            <div className="max-md:order-1">
+              <SearchBox />
+            </div>
+          )}
+          <nav className="card p-4 max-md:order-3" aria-label="카테고리">
             <h2 className="mb-2 font-display text-lg">카테고리</h2>
             <ul className="space-y-0.5 text-sm">
               <li>
@@ -78,16 +82,20 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
               ))}
             </ul>
           </nav>
-          {/* 휴대폰에서 내 이웃은 카테고리 바로 아래(글 목록 위), 친구 초대만 맨 아래 */}
-          {neighbors && <NeighborList neighbors={neighbors} />}
+          {/* 휴대폰 순서: 마을 검색 → 내 이웃 → 카테고리 → 글 목록 → 친구 초대 (컴퓨터는 적힌 순서 그대로) */}
+          {neighbors && (
+            <div className="max-md:order-2">
+              <NeighborList neighbors={neighbors} />
+            </div>
+          )}
           {inviteCode && (
-            <div className="max-md:order-last">
+            <div className="max-md:order-5">
               <InviteCard code={inviteCode} />
             </div>
           )}
         </aside>
 
-        <section>
+        <section className="max-md:order-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-display text-xl">
               {currentCat ? currentCat.name : "전체 글"} <span className="text-base text-ink-soft">{list.total}개</span>
