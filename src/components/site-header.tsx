@@ -10,7 +10,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { enabledProviders } from "@/lib/auth";
 import { getViewer, getViewerLoginMethods } from "@/server/dal";
 import { getNotificationState } from "@/server/notifications";
-import { getWallet } from "@/server/points";
+import { getWallet, rewardedSocialProviders } from "@/server/points";
 
 /**
  * 모든 화면 맨 위 헤더 (TOWN-10): 왼쪽 로고, 오른쪽 유저 상태창(캐릭터 얼굴·닉네임·블로그 제목).
@@ -21,9 +21,9 @@ import { getWallet } from "@/server/points";
 export async function SiteHeader() {
   const viewer = await getViewer();
   const member = viewer?.profile ? { ...viewer, profile: viewer.profile } : null;
-  const [wallet, notice, loginMethods] = member
-    ? await Promise.all([getWallet(member.userId), getNotificationState(member.userId), getViewerLoginMethods()])
-    : [null, null, null];
+  const [wallet, notice, loginMethods, rewardedSocial] = member
+    ? await Promise.all([getWallet(member.userId), getNotificationState(member.userId), getViewerLoginMethods(), rewardedSocialProviders(member.userId)])
+    : [null, null, null, null];
 
   return (
     <header className="sticky top-0 z-20 border-b-2 border-bark/30 bg-cream/95 backdrop-blur">
@@ -63,6 +63,7 @@ export async function SiteHeader() {
               blogTitle={member.profile.blogTitle}
               blogSlug={member.profile.blogSlug}
               linked={loginMethods}
+              rewarded={rewardedSocial ?? []}
               providers={enabledProviders}
             />
           </div>

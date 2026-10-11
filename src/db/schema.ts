@@ -67,6 +67,8 @@ export const LEDGER_REASONS = [
   "invited",
   // 관리자가 관리자 화면에서 직접 준 코인·경험치 (ref_id = 준 관리자 ID)
   "admin_grant",
+  // 주민이 프로필 메뉴에서 소셜 로그인을 연동함 (ref_id = "kakao:회원번호", 소셜 계정마다 사이트 전체에서 한 번)
+  "social_link",
 ] as const;
 export const ledgerReason = enumText(LEDGER_REASONS);
 // 동물 농장 (TOWN-09)
@@ -531,7 +533,22 @@ export const pointLedger = pgTable(
       t.createdAt,
     ),
     index("point_ledger_user_created_idx").on(t.userId, t.createdAt.desc()), // 내역 화면 최신순 (GAME-07)
+    // 같은 소셜 계정으로는 사이트 전체에서 한 번만 연동 보상 (탈퇴 후 새 회원에 다시 붙여 또 받는 것을 막는다)
+    uniqueIndex("point_ledger_social_link_uq").on(t.refId).where(sql`${t.reason} = 'social_link'`),
   ],
+);
+
+// 소셜 연동 보상을 이미 준 소셜 계정 (카카오 회원번호 등). 사이트 전체에서 소셜 계정 하나에 한 번만 준다.
+// 원장 행은 탈퇴하면 회원과 함께 지워지므로(CASCADE), 이 표는 일부러 users를 가리키지 않아 탈퇴 뒤에도 남는다
+// (탈퇴 후 새 회원에 같은 소셜을 붙여 또 받는 것을 막는다). 회원을 가리키는 칸은 없고 소셜 쪽 ID만 둔다
+export const socialLinkRewards = pgTable(
+  "social_link_rewards",
+  {
+    providerId: text("provider_id").notNull(), // google / kakao / naver
+    accountId: text("account_id").notNull(), // 소셜 서비스 쪽 사용자 ID (accounts.account_id)
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.providerId, t.accountId] })],
 );
 
 // ===== 알림함 (GAME-08, GAME-06) =====

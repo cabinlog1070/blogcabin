@@ -1,0 +1,3 @@
+ALTER TABLE "point_ledger" DROP CONSTRAINT "point_ledger_reason_check";--> statement-breakpoint
+CREATE UNIQUE INDEX "point_ledger_social_link_uq" ON "point_ledger" USING btree ("ref_id") WHERE "point_ledger"."reason" = 'social_link';--> statement-breakpoint
+ALTER TABLE "point_ledger" ADD CONSTRAINT "point_ledger_reason_check" CHECK ("point_ledger"."reason" IN ('signup', 'attendance', 'attendance_streak', 'post', 'comment', 'like_received', 'purchase', 'farm_care', 'farm_grown', 'egg_purchase', 'potion_purchase', 'invite', 'invited', 'admin_grant', 'social_link'));

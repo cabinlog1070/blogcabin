@@ -7,6 +7,7 @@ import { nextCookies } from "better-auth/next-js";
 import { username } from "better-auth/plugins";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { grantSocialLinkReward } from "@/server/points";
 
 // 키가 설정된 소셜 로그인만 켠다
 function provider<T extends object>(id: string, extra?: T) {
@@ -163,6 +164,18 @@ export const auth = betterAuth({
   emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 64 },
   hooks: loginHooks,
   databaseHooks: {
+    // 주민이 프로필 메뉴에서 소셜 로그인을 연동하면 🪙 100 (grantSocialLinkReward). 보상이 실패해도 연동은 그대로 둔다
+    account: {
+      create: {
+        after: async (account) => {
+          try {
+            await grantSocialLinkReward(account.userId, account.providerId, account.accountId);
+          } catch (err) {
+            console.error("소셜 연동 보상을 주지 못했어요", err);
+          }
+        },
+      },
+    },
     user: {
       create: {
         before: async (user) => {

@@ -8,6 +8,7 @@ import { PopoverPanel, useHeaderPopover } from "@/components/header-popover";
 import { Icon } from "@/components/icon";
 import { useSignOut } from "@/components/sign-out-button";
 import { authClient } from "@/lib/auth-client";
+import { SOCIAL_LINK_REWARD_COINS } from "@/lib/game";
 
 type SocialProvider = "google" | "kakao" | "naver";
 
@@ -21,6 +22,24 @@ const LOGIN_METHODS: { id: "credential" | SocialProvider; label: string }[] = [
 
 /** 연동이 실패해 돌아왔을 때 (Better Auth가 errorCallbackURL 뒤에 ?error=코드를 붙인다) */
 const LINK_FAILED = "link_failed";
+/** 연동에 성공해 돌아왔을 때 (?linked=kakao) */
+const LINKED = "linked";
+// 연동하러 가기 전에 그 소셜 보상을 이미 받았었는지 기억해 둔다 (돌아왔을 때 "받았어요"를 처음 받은 경우에만 보여 주려고)
+const BEFORE_KEY = "bc_link_rewarded_before";
+const rememberRewarded = (provider: string, before: boolean) => {
+  try {
+    sessionStorage.setItem(BEFORE_KEY, JSON.stringify({ provider, before }));
+  } catch {}
+};
+const rewardedBefore = (provider: string) => {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(BEFORE_KEY) ?? "null") as { provider: string; before: boolean } | null;
+    sessionStorage.removeItem(BEFORE_KEY);
+    return v?.provider === provider && v.before;
+  } catch {
+    return false;
+  }
+};
 const linkErrorText = (code: string | null) =>
   code === "account_already_linked_to_different_user"
     ? "이 계정은 이미 다른 회원에 연결돼 있어서 연동하지 못했어요."
@@ -35,6 +54,7 @@ export function ProfileMenu({
   blogTitle,
   blogSlug,
   linked,
+  rewarded,
   providers,
 }: {
   /** 헤더에 보이는 얼굴 (서버에서 그린 CharacterBadge) */
@@ -46,6 +66,8 @@ export function ProfileMenu({
   blogSlug: string;
   /** 이 회원에 연결된 accounts.provider_id 목록 */
   linked: string[];
+  /** 연동 보상(🪙 100)을 이미 받은 소셜 */
+  rewarded: string[];
   /** 키가 설정돼 켜진 소셜 로그인 (src/lib/auth.ts의 enabledProviders) */
   providers: Record<SocialProvider, boolean>;
 }) {
@@ -62,6 +84,16 @@ export function ProfileMenu({
     window.alert(linkErrorText(params.get("error")));
   }, []);
 
+  // 연동에 성공해 돌아왔으면 보상을 받았는지 한 번 알려 준다 (이미 받은 소셜이면 연동했다고만)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const provider = params.get(LINKED);
+    if (!provider) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    const name = LOGIN_METHODS.find((m) => m.id === provider)?.label ?? provider;
+    window.alert(rewarded.includes(provider) && !rewardedBefore(provider) ? `${name} 연동 완료! 🪙 ${SOCIAL_LINK_REWARD_COINS}을 받았어요.` : `${name} 연동을 마쳤어요.`);
+  }, [rewarded]);
+
   // 연결된 것은 ✓, 켜져 있지만 연결 안 된 소셜은 [연동하기]. 꺼진 소셜은 보이지 않는다
   const rows = LOGIN_METHODS.filter((m) => linked.includes(m.id) || (m.id !== "credential" && providers[m.id]));
 
@@ -69,7 +101,8 @@ export function ProfileMenu({
     setLinking(provider);
     const here = window.location.pathname;
     // 성공하면 소셜 로그인 화면으로 갔다가 지금 화면으로 돌아온다 (돌아오면 헤더를 새로 그려 ✓가 보인다)
-    const { error } = await authClient.linkSocial({ provider, callbackURL: here, errorCallbackURL: `${here}?${LINK_FAILED}=1` });
+    rememberRewarded(provider, rewarded.includes(provider));
+    const { error } = await authClient.linkSocial({ provider, callbackURL: `${here}?${LINKED}=${provider}`, errorCallbackURL: `${here}?${LINK_FAILED}=1` });
     if (error) {
       setLinking(null);
       window.alert(linkErrorText(null));
@@ -135,6 +168,12 @@ export function ProfileMenu({
                     >
                       {linking === m.id ? "여는 중..." : "연동하기"}
                     </button>
+                  )}
+                  {!on && !rewarded.includes(m.id) && (
+                    <span className="inline-flex items-center gap-0.5 text-xs font-bold text-sun-dark" data-link-reward>
+                      +<Icon name="coin" size={14} />
+                      {SOCIAL_LINK_REWARD_COINS}
+                    </span>
                   )}
                 </li>
               );

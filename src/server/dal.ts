@@ -51,10 +51,27 @@ export const getViewerLoginMethods = cache(async (): Promise<string[]> => {
   return rows.map((r) => r.providerId);
 });
 
-/** 로그인만 확인 (온보딩 페이지용) */
-export async function requireUser() {
+/**
+ * 한 회원 = 아이디 하나: 로그인했지만 아이디·비밀번호(credential)가 없는 회원인가 (소셜로 처음 들어온 회원).
+ * 그런 회원은 다른 화면보다 먼저 /account-setup에서 아이디를 만들거나 기존 아이디에 합친다.
+ * getViewerLoginMethods를 같이 써서 한 요청에 쿼리 한 번이다
+ */
+export async function needsAccountSetup(): Promise<boolean> {
+  if (!(await getSession())) return false;
+  return !(await getViewerLoginMethods()).includes("credential");
+}
+
+/** 로그인만 확인하고 아이디 만들기는 검사하지 않는다 (/account-setup 화면 전용) */
+export async function requireSignedIn() {
   const viewer = await getViewer();
   if (!viewer) redirect("/");
+  return viewer;
+}
+
+/** 로그인 + 아이디·비밀번호 확인 (온보딩 페이지용). 아이디가 없으면 /account-setup으로 */
+export async function requireUser() {
+  const viewer = await requireSignedIn();
+  if (await needsAccountSetup()) redirect("/account-setup");
   return viewer;
 }
 

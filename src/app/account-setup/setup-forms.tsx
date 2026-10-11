@@ -1,0 +1,64 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import { createLogin, linkExisting, type SetupState } from "./actions";
+
+const input = "w-full rounded-xl border-2 border-line bg-paper px-3 py-2.5 outline-none focus:border-sun";
+
+function NewLoginForm() {
+  const [state, action, pending] = useActionState<SetupState, FormData>(createLogin, {});
+  return (
+    <form action={action} className="space-y-3">
+      <div>
+        <input name="username" defaultValue={state.values?.username} placeholder="아이디" autoComplete="username" required minLength={4} maxLength={20} className={input} aria-label="아이디" />
+        <p className="mt-1 text-xs text-ink-soft">영문 소문자, 숫자, _ 로 4~20자</p>
+      </div>
+      <input name="password" type="password" placeholder="비밀번호 (8자 이상)" autoComplete="new-password" required minLength={8} maxLength={64} className={input} aria-label="비밀번호" />
+      <input name="passwordConfirm" type="password" placeholder="비밀번호 확인" autoComplete="new-password" required className={input} aria-label="비밀번호 확인" />
+      {state.error && <p role="alert" className="text-sm font-bold text-berry">{state.error}</p>}
+      <button disabled={pending} className="btn w-full bg-sun py-3 text-ink">
+        {pending ? "만드는 중..." : "아이디 만들기"}
+      </button>
+    </form>
+  );
+}
+
+function ExistingLoginForm({ providerLabel }: { providerLabel: string }) {
+  const [state, action, pending] = useActionState<SetupState, FormData>(linkExisting, {});
+  return (
+    <form action={action} className="space-y-3">
+      <p className="text-sm text-ink-soft">쓰던 아이디로 확인하면 {providerLabel} 로그인을 그 아이디에 이어 붙여요.</p>
+      <input name="username" defaultValue={state.values?.username} placeholder="아이디" autoComplete="username" required className={input} aria-label="아이디" />
+      <input name="password" type="password" placeholder="비밀번호" autoComplete="current-password" required className={input} aria-label="비밀번호" />
+      {state.error && <p role="alert" className="text-sm font-bold text-berry">{state.error}</p>}
+      <button disabled={pending} className="btn w-full bg-leaf py-3 text-white">
+        {pending ? "확인하는 중..." : "내 아이디에 합치기"}
+      </button>
+    </form>
+  );
+}
+
+/** [새로 시작해요] / [이미 아이디가 있어요] 두 갈래. 주민 등록을 마친 회원은 합치기 없이 아이디 만들기만 */
+export function SetupForms({ providerLabel, canMerge }: { providerLabel: string; canMerge: boolean }) {
+  const [tab, setTab] = useState<"new" | "existing">("new");
+  if (!canMerge) return <NewLoginForm />;
+  return (
+    <div>
+      <div className="mb-4 grid grid-cols-2 rounded-xl bg-cream p-1" role="tablist">
+        {(["new", "existing"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={`rounded-lg py-2 font-bold ${tab === t ? "bg-paper text-ink shadow-sm" : "text-ink-soft"}`}
+          >
+            {t === "new" ? "새로 시작해요" : "이미 아이디가 있어요"}
+          </button>
+        ))}
+      </div>
+      {tab === "new" ? <NewLoginForm /> : <ExistingLoginForm providerLabel={providerLabel} />}
+    </div>
+  );
+}

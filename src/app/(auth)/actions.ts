@@ -4,27 +4,13 @@ import { APIError } from "better-auth/api";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import { auth, LOGIN_LOCKED_CODE, LOGIN_LOCKED_MESSAGE } from "@/lib/auth";
+import { authErrorCode, newLoginSchema, USERNAME_RULE_MESSAGE } from "@/lib/login-rules";
 
 export type AuthFormState = { error?: string; values?: { username: string } };
 
-const usernameSchema = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .regex(/^[a-z0-9_]{4,20}$/, "아이디는 영문 소문자, 숫자, _ 로 4~20자예요");
-
-const signUpSchema = z
-  .object({
-    username: usernameSchema,
-    password: z.string().min(8, "비밀번호는 8자 이상이에요").max(64, "비밀번호는 64자까지예요"),
-    passwordConfirm: z.string(),
-  })
-  .refine((v) => v.password === v.passwordConfirm, { message: "비밀번호가 서로 달라요", path: ["passwordConfirm"] });
-
 function errorCode(err: unknown): string | undefined {
-  return err instanceof APIError ? (err.body as { code?: string } | undefined)?.code : undefined;
+  return err instanceof APIError ? authErrorCode(err) : undefined;
 }
 
 export async function signUp(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -33,7 +19,7 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
     password: String(formData.get("password") ?? ""),
     passwordConfirm: String(formData.get("passwordConfirm") ?? ""),
   };
-  const parsed = signUpSchema.safeParse(raw);
+  const parsed = newLoginSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0].message, values: { username: raw.username } };
   const { username, password } = parsed.data;
 
@@ -54,7 +40,7 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
       return { error: "이미 있는 아이디예요", values: { username: raw.username } };
     }
     if (code === "INVALID_USERNAME" || code === "USERNAME_TOO_SHORT" || code === "USERNAME_TOO_LONG") {
-      return { error: "아이디는 영문 소문자, 숫자, _ 로 4~20자예요", values: { username: raw.username } };
+      return { error: USERNAME_RULE_MESSAGE, values: { username: raw.username } };
     }
     throw err;
   }

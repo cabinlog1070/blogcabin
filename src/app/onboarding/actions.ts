@@ -10,7 +10,7 @@ import { blogs, categories, items, profiles, userItems } from "@/db/schema";
 import { generateInviteCode, INVITE_COOKIE, normalizeInviteCode } from "@/lib/invite";
 import { requireUser } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
-import { grantReward, lockUser } from "@/server/points";
+import { grantReward, grantSocialLinkRewardsFor, lockUser } from "@/server/points";
 
 const schema = z.object({
   nickname: z
@@ -71,6 +71,9 @@ export async function completeOnboarding(_prev: OnboardingState, formData: FormD
     }
     if (attempt >= 5) throw new Error("초대 코드를 만들지 못했어요");
   }
+
+  // 소셜로 처음 가입한 회원은 주민 등록을 마칠 때 그 소셜 몫 연동 보상(🪙 100)을 받는다 (회원·소셜당 한 번)
+  await grantSocialLinkRewardsFor(viewer.userId);
 
   // 초대 링크로 기억해 둔 코드는 다 썼으니 지운다
   (await cookies()).delete(INVITE_COOKIE);

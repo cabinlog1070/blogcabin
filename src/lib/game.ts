@@ -46,6 +46,10 @@ export const MAX_FAVORITES = 10;
 /** 관리자 지급의 "코인 최대": 잔액을 이만큼까지 채운다 (원장 합계라 진짜 한도는 없다) */
 export const ADMIN_MAX_COINS = 999_999;
 
+/** 소셜 로그인 연동 보상: 카카오·네이버·구글 각각 한 번씩 (최대 300) */
+export const SOCIAL_LINK_REWARD_COINS = 100;
+export const SOCIAL_PROVIDERS = ["google", "kakao", "naver"] as const;
+
 /** 연속 출석 보너스를 주는 주기 (7일마다) */
 export const ATTENDANCE_STREAK_BONUS_EVERY = 7;
 

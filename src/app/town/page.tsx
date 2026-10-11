@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { TownGame } from "@/components/town/town-game";
 import { WelcomeOnce } from "@/components/town/welcome-once";
 import type { TownData } from "@/components/town/types";
-import { getViewer } from "@/server/dal";
+import { getViewer, needsAccountSetup } from "@/server/dal";
 import { getCarriedPet } from "@/server/farm";
 import { getDailyQuests, questProgress } from "@/server/quests";
 import { favoriteHouses, getMyHouse, getNeighbors, getPopularHouses, hasAttendedToday } from "@/server/town";
@@ -12,6 +12,7 @@ export const metadata = { title: "중앙 광장" };
 
 export default async function TownPage(props: PageProps<"/town">) {
   const viewer = await getViewer();
+  if (viewer && (await needsAccountSetup())) redirect("/account-setup"); // 아이디가 없는 소셜 회원은 먼저 아이디부터
   if (viewer && !viewer.profile) redirect("/onboarding");
   const member = viewer?.profile ? viewer : null;
   const { welcome } = await props.searchParams;

@@ -1,7 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
+- 버전: 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
+- 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
 - 0.8 (2026-10-08, PostgreSQL enum 타입 12개를 text + CHECK로 바꿈(마이그레이션 `0010_enums_to_text`). 같은 구조를 Crowfoot 문서 673 "BlogCabin ERD"(https://crowfoot.java21.net/workspaces/43/models/673)로 그려 운영 DB에 배포했다)
 - 0.7 (2026-10-08, 배치 D: 방문자 수 `blog_visits`(BLOG-06), 글 조회 기록 `post_views`(POST-06), 로그인 시도 제한 `login_attempts`(NF-10), 즐겨찾는 이웃 `follows.is_favorite`(TOWN-08), 지붕 색 `blogs.roof_color`(TOWN-07), 친구 초대 `profiles.invite_code`·`invited_by`·`invite_rewarded_at`와 원장 사유 `invite`·`invited`(GAME-09), 회원 탈퇴를 위한 `comments.author_id` NULL 허용(AUTH-06). 마이그레이션 `0009_batch_d`)
 - 0.6 (2026-10-08): 동물 농장 펫(TOWN-09): `user_animals`에 이름·성별·꾸미기·데리고 다니기, `animal_species.max_level`, 농장 가방 `farm_items`, `profiles.displayed_animal_id`, `pet_level_up` 알림. 마이그레이션 `0008_pet_farm`)
@@ -255,6 +256,11 @@ erDiagram
         text viewer_key PK "u:회원ID / b:브라우저UUID / w:탈퇴"
         timestamptz created_at
     }
+    social_link_rewards {
+        text provider_id PK "google | kakao | naver"
+        text account_id PK "소셜 쪽 사용자 ID"
+        timestamptz created_at
+    }
     login_attempts {
         text login_key PK "소문자 아이디 (없는 아이디도)"
         int failures "연속 실패 수"
@@ -286,6 +292,7 @@ erDiagram
 | 동물 농장 | `animal_species`, `user_animals`, `animal_cares`, `farm_items` (+ `profiles.displayed_animal_id`) | TOWN-09, GAME-05 |
 | 방문·조회 기록 | `blog_visits`, `post_views` | BLOG-06, POST-06 |
 | 로그인 시도 제한 | `login_attempts` (어느 테이블도 가리키지 않음) | NF-10 |
+| 소셜 연동 보상 기록 | `social_link_rewards` (어느 테이블도 가리키지 않음) | AUTH-05 |
 
 인증 테이블 4개는 로그인 라이브러리(Better Auth)가 정한 구조를 따르고, 나머지는 직접 설계했다.
 `verifications`는 로그인 과정의 임시 값을 담는 라이브러리 내부용이라 관계도에서 뺐다.
@@ -370,6 +377,12 @@ FOREIGN KEY (item_id, slot) REFERENCES items (id, slot)                         
 - **방문자 수·조회수** (BLOG-06, POST-06): `blog_visits (blog_id, date, visitor_key)`, `post_views (post_id, date, viewer_key)`. 기본 키가 "같은 대상·같은 한국 날짜·같은 사람은 한 줄"을 DB에서 보장한다 (출석 `attendances (user_id, date)`와 같은 방식). 사람 키는 온보딩을 마친 회원이면 `u:회원ID`, 방문자면 브라우저 쿠키 UUID `b:…`(IP는 저장하지 않는다). 회원 ID를 외래 키로 두지 않은 이유: 방문자도 같은 칸에 들어가고, 회원이 탈퇴해도 숫자가 줄면 안 된다. 탈퇴할 때는 키만 `w:무작위 32자`로 바꾼다 (CHECK로 세 형식만 허용). 조회수 `posts.view_count`는 그대로 두고, `post_views`에 새 줄이 생긴 요청만 +1 한다 (목록마다 COUNT를 다시 세지 않게).
 - **로그인 시도 제한** (NF-10): `login_attempts (login_key PK, failures, locked_until)`. 없는 아이디도 똑같이 세야 해서 `users`를 가리키지 않는다. 로그인 실패마다 UPSERT로 `failures + 1`, 5가 되면 `locked_until = now() + 5분`. 성공하면 행을 지운다.
 - **회원 탈퇴의 댓글** (AUTH-06): `comments.author_id`를 NULL 허용 + `ON DELETE SET NULL`로 바꿨다(예전 `CASCADE`는 탈퇴한 회원의 원댓글과 거기 달린 **남의 답글**까지 지웠다). 탈퇴 처리(`deleteMember`)가 남의 답글이 남은 원댓글만 `deleted_at`·작성자 NULL·내용 `삭제된 댓글이에요`로 남기고 나머지 내 댓글은 지운다. CHECK `comments_author_check`: 작성자가 없는 댓글은 반드시 삭제된 댓글이다.
+
+### 3.3-6 소셜 로그인 연동 보상 (2026-10-11, 마이그레이션 0012·0013)
+
+- 카카오·네이버·구글을 연동하면 연동마다 🪙 100. 원장 사유 `social_link`, ref_id = `제공자:소셜 쪽 사용자 ID`. 한 회원은 같은 소셜로 한 번만 (`grantSocialLinkReward`가 `lockUser` 안에서 확인).
+- "같은 소셜 계정은 사이트 전체에서 한 번만"은 원장으로는 지킬 수 없다: `point_ledger.user_id`가 `ON DELETE CASCADE`라 탈퇴하면 그 회원의 `social_link` 행도 지워져 같은 소셜 계정을 새 회원에 붙이면 또 받는다. 그래서 준 소셜 계정을 `social_link_rewards (provider_id, account_id) PK`에 남긴다. `users`를 가리키지 않아 탈퇴해도 남고(`login_attempts`와 같은 이유), 회원을 가리키는 칸 없이 소셜 쪽 ID만 둔다. 보상 트랜잭션은 이 표에 `INSERT … ON CONFLICT DO NOTHING`이 성공했을 때만 원장에 넣는다.
+- 원장의 부분 유니크 인덱스 `point_ledger_social_link_uq (ref_id) WHERE reason = 'social_link'`는 살아 있는 회원끼리 겹치지 않게 하는 이중 장치로 남겨 둔다.
 
 ### 3.4 코인과 경험치는 저장하지 않고 원장에서 계산 (정규화)
 

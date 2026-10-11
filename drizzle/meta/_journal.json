@@ -85,6 +85,20 @@
       "when": 1791467150036,
       "tag": "0011_admin_grant",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791697297300,
+      "tag": "0012_social_link_reward",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791698942073,
+      "tag": "0013_social_link_rewards",
+      "breakpoints": true
     }
   ]
 }

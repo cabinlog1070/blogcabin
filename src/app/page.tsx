@@ -2,11 +2,11 @@ import { redirect } from "next/navigation";
 import { CharacterArt } from "@/components/character";
 import { LoginButtons } from "@/components/login-buttons";
 import { enabledProviders } from "@/lib/auth";
-import { getViewer } from "@/server/dal";
+import { getViewer, needsAccountSetup } from "@/server/dal";
 
 export default async function LandingPage(props: PageProps<"/">) {
   const viewer = await getViewer();
-  if (viewer) redirect(viewer.profile ? "/town" : "/onboarding");
+  if (viewer) redirect((await needsAccountSetup()) ? "/account-setup" : viewer.profile ? "/town" : "/onboarding");
   const { withdrawn, invite } = await props.searchParams;
 
   return (

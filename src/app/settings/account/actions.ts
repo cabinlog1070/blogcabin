@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { accounts } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { requireUser } from "@/server/dal";
+import { requireSignedIn } from "@/server/dal";
 import { deleteMember } from "@/server/withdraw";
 
 export type WithdrawState = { error?: string };
@@ -16,9 +16,11 @@ export type WithdrawState = { error?: string };
 /**
  * 회원 탈퇴 (AUTH-06). 재확인: 아이디 회원은 비밀번호를 다시 입력하고, 소셜 회원은 화면의 확인 창만 (spec 001 FR-031).
  * 유예 기간 없이 바로 지운다. 끝나면 로그인 상태를 끝내고 첫 화면으로 간다.
+ * 아이디·비밀번호가 없는 소셜 회원도 탈퇴할 수 있어야 하므로 requireUser(→ /account-setup)가 아니라 requireSignedIn을 쓴다.
+ * 그런 회원은 /account-setup 화면 아래의 탈퇴 칸에서 부른다.
  */
 export async function withdraw(_prev: WithdrawState, formData: FormData): Promise<WithdrawState> {
-  const viewer = await requireUser(); // 온보딩 전 회원도 탈퇴할 수 있다 (지울 블로그가 없을 뿐)
+  const viewer = await requireSignedIn(); // 온보딩 전 회원·아이디 만들기 전 소셜 회원도 탈퇴할 수 있다
 
   const [credential] = await db
     .select({ password: accounts.password })
