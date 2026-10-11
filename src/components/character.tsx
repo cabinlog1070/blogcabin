@@ -73,7 +73,8 @@ export function MiniRoom({
 }) {
   return (
     <div
-      className={`relative overflow-hidden bg-cover bg-bottom ${className}`}
+      // isolate: 가구 z-index(최대 120)가 이 방 안에서만 겨루게 한다. 없으면 body에 뜨는 헤더 메뉴(z-40)를 덮는다
+      className={`relative isolate overflow-hidden bg-cover bg-bottom ${className}`}
       // 미니룸은 넓은 배너로 쓰이므로 넓게 그린 장면을 쓴다 (확대돼서 흐려지지 않게)
       style={{ backgroundImage: `url("${backgroundDataUri(bgKey, 760)}")` }}
       data-mini-room

@@ -2,6 +2,7 @@
 // 그림은 src/lib/art/ 의 SVG를 이미지로 바꿔 쓴다 (townTextures → TownGame이 미리 불러온다).
 import type * as PhaserNS from "phaser";
 import { animalSvg, toAnimalDataUri } from "@/lib/art/animals";
+import { headerPopoverBlocksTap } from "@/components/header-popover";
 import { PHONE_MEDIA } from "@/lib/device";
 import { characterDataUri, VISITOR_CHARACTER } from "@/lib/art/characters";
 import {
@@ -437,6 +438,8 @@ export function createTownScene(
       this.game.canvas.dataset.joystick = this.joystick ? "on" : "off"; // e2e 확인용
 
       this.input.on("pointerdown", (pointer: PhaserNS.Input.Pointer) => {
+        // 헤더의 내 정보·쪽지 창을 쓰는 탭은 광장 이동으로 치지 않는다
+        if (headerPopoverBlocksTap()) return;
         // 조이스틱을 누른 경우: 걷기 목표를 정하지 않고 조이스틱으로 움직인다
         if (this.joystick && this.isOnJoystick(pointer)) {
           this.joystick.pointerId = pointer.id;

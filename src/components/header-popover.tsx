@@ -9,6 +9,19 @@ import { createPortal } from "react-dom";
 /** 화면 가장자리와 띄우는 거리 (px) */
 const MARGIN = 12;
 
+/** 창이 닫힌 뒤에도 광장이 탭을 무시하는 시간 (ms). 닫는 탭 뒤에 늦게 오는 터치까지 막는다 */
+const GHOST_TAP_MS = 500;
+let openCount = 0;
+let closedAt = 0;
+
+/**
+ * 창이 열려 있거나 막 닫혔으면 true. 광장(Phaser)은 창 밖 탭을 걷기로 받으므로,
+ * 창 안의 버튼(로그아웃 등)이나 창을 닫으려고 바깥을 누른 탭은 이 값을 보고 걷지 않는다
+ */
+export function headerPopoverBlocksTap(): boolean {
+  return openCount > 0 || performance.now() - closedAt < GHOST_TAP_MS;
+}
+
 export type PopoverBox = { top: number; left: number; width: number };
 
 /**
@@ -50,6 +63,15 @@ export function useHeaderPopover(maxWidth: number): HeaderPopover {
     setPrevPath(pathname);
     setOpen(false);
   }
+
+  useEffect(() => {
+    if (!open) return;
+    openCount++;
+    return () => {
+      openCount--;
+      closedAt = performance.now();
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
