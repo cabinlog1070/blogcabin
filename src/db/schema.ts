@@ -540,15 +540,16 @@ export const pointLedger = pgTable(
 
 // 소셜 연동 보상을 이미 준 소셜 계정 (카카오 회원번호 등). 사이트 전체에서 소셜 계정 하나에 한 번만 준다.
 // 원장 행은 탈퇴하면 회원과 함께 지워지므로(CASCADE), 이 표는 일부러 users를 가리키지 않아 탈퇴 뒤에도 남는다
-// (탈퇴 후 새 회원에 같은 소셜을 붙여 또 받는 것을 막는다). 회원을 가리키는 칸은 없고 소셜 쪽 ID만 둔다
+// (탈퇴 후 새 회원에 같은 소셜을 붙여 또 받는 것을 막는다). 회원을 가리키는 칸은 없고,
+// 소셜 쪽 ID도 그대로 두지 않고 사이트 비밀키로 만든 해시(HMAC-SHA256)만 둔다 (탈퇴한 사람의 소셜 번호를 남기지 않게)
 export const socialLinkRewards = pgTable(
   "social_link_rewards",
   {
     providerId: text("provider_id").notNull(), // google / kakao / naver
-    accountId: text("account_id").notNull(), // 소셜 서비스 쪽 사용자 ID (accounts.account_id)
+    accountHash: text("account_hash").notNull(), // HMAC-SHA256(BETTER_AUTH_SECRET, "kakao:회원번호")의 hex (src/server/points.ts)
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.providerId, t.accountId] })],
+  (t) => [primaryKey({ columns: [t.providerId, t.accountHash] })],
 );
 
 // ===== 알림함 (GAME-08, GAME-06) =====

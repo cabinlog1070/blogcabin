@@ -258,7 +258,7 @@ erDiagram
     }
     social_link_rewards {
         text provider_id PK "google | kakao | naver"
-        text account_id PK "소셜 쪽 사용자 ID"
+        text account_hash PK "소셜 쪽 사용자 ID의 HMAC-SHA256 해시"
         timestamptz created_at
     }
     login_attempts {
@@ -381,7 +381,7 @@ FOREIGN KEY (item_id, slot) REFERENCES items (id, slot)                         
 ### 3.3-6 소셜 로그인 연동 보상 (2026-10-11, 마이그레이션 0012·0013)
 
 - 카카오·네이버·구글을 연동하면 연동마다 🪙 100. 원장 사유 `social_link`, ref_id = `제공자:소셜 쪽 사용자 ID`. 한 회원은 같은 소셜로 한 번만 (`grantSocialLinkReward`가 `lockUser` 안에서 확인).
-- "같은 소셜 계정은 사이트 전체에서 한 번만"은 원장으로는 지킬 수 없다: `point_ledger.user_id`가 `ON DELETE CASCADE`라 탈퇴하면 그 회원의 `social_link` 행도 지워져 같은 소셜 계정을 새 회원에 붙이면 또 받는다. 그래서 준 소셜 계정을 `social_link_rewards (provider_id, account_id) PK`에 남긴다. `users`를 가리키지 않아 탈퇴해도 남고(`login_attempts`와 같은 이유), 회원을 가리키는 칸 없이 소셜 쪽 ID만 둔다. 보상 트랜잭션은 이 표에 `INSERT … ON CONFLICT DO NOTHING`이 성공했을 때만 원장에 넣는다.
+- "같은 소셜 계정은 사이트 전체에서 한 번만"은 원장으로는 지킬 수 없다: `point_ledger.user_id`가 `ON DELETE CASCADE`라 탈퇴하면 그 회원의 `social_link` 행도 지워져 같은 소셜 계정을 새 회원에 붙이면 또 받는다. 그래서 준 소셜 계정을 `social_link_rewards (provider_id, account_hash) PK`에 남긴다. 소셜 번호는 그대로 두지 않고 `HMAC-SHA256(BETTER_AUTH_SECRET, "kakao:회원번호")`만 둔다(제품 담당 결정 2026-10-11: 탈퇴한 사람의 소셜 번호를 남기지 않음, 같은 계정 판별은 그대로 됨). `users`를 가리키지 않아 탈퇴해도 남고(`login_attempts`와 같은 이유), 회원을 가리키는 칸 없이 소셜 쪽 ID의 해시만 둔다. 보상 트랜잭션은 이 표에 `INSERT … ON CONFLICT DO NOTHING`이 성공했을 때만 원장에 넣는다.
 - 원장의 부분 유니크 인덱스 `point_ledger_social_link_uq (ref_id) WHERE reason = 'social_link'`는 살아 있는 회원끼리 겹치지 않게 하는 이중 장치로 남겨 둔다.
 
 ### 3.4 코인과 경험치는 저장하지 않고 원장에서 계산 (정규화)

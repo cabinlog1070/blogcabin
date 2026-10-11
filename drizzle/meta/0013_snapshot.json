@@ -1,5 +1,5 @@
 {
-  "id": "f4ca2ea6-df71-4e23-b947-ec0bd81f41d9",
+  "id": "158098fd-a60d-4337-977b-13f420d801af",
   "prevId": "f2aba42e-6b64-4f91-a94f-421b75c18e1e",
   "version": "7",
   "dialect": "postgresql",
@@ -2447,8 +2447,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "account_id": {
-          "name": "account_id",
+        "account_hash": {
+          "name": "account_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -2464,11 +2464,11 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "social_link_rewards_provider_id_account_id_pk": {
-          "name": "social_link_rewards_provider_id_account_id_pk",
+        "social_link_rewards_provider_id_account_hash_pk": {
+          "name": "social_link_rewards_provider_id_account_hash_pk",
           "columns": [
             "provider_id",
-            "account_id"
+            "account_hash"
           ]
         }
       },

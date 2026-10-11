@@ -9,6 +9,9 @@ import { config } from "dotenv";
 import pg from "pg";
 import { BASE, coins, collectErrors, loginDev } from "./helpers.mjs";
 
+// 소셜 연동 보상 기록은 소셜 번호 대신 해시로 남는다 (src/server/points.ts socialAccountHash와 같은 계산)
+const rewardHash = (provider, accountId) => createHmac("sha256", process.env.BETTER_AUTH_SECRET).update(`${provider}:${accountId}`).digest("hex");
+
 config({ path: ".env.local", quiet: true });
 const outDir = process.argv[2] ?? "e2e-shots";
 const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -320,7 +323,7 @@ const member = await one("SELECT id FROM users WHERE username = $1", [memberId])
   await page.getByRole("button", { name: "회원 탈퇴" }).click();
   await page.waitForURL(/withdrawn=1/);
   check("A 탈퇴 → 원장·카카오 계정이 함께 지워짐", !(await one("SELECT id FROM users WHERE id = $1", [a.id])) && !(await one("SELECT id FROM accounts WHERE account_id = $1", [K])));
-  check("준 기록은 탈퇴 뒤에도 남는다", Boolean(await one("SELECT 1 AS ok FROM social_link_rewards WHERE provider_id = 'kakao' AND account_id = $1", [K])));
+  check("준 기록은 탈퇴 뒤에도 남는다", Boolean(await one("SELECT 1 AS ok FROM social_link_rewards WHERE provider_id = 'kakao' AND account_hash = $1", [rewardHash("kakao", K)])));
   await page.context().close();
 
   // 같은 카카오 K로 다시 로그인 → 새로 시작해요 → 주민 등록 → 0

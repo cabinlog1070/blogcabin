@@ -1,4 +1,5 @@
 import "server-only";
+import { createHmac } from "node:crypto";
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { accounts, items, pointLedger, profiles, socialLinkRewards } from "@/db/schema";
@@ -124,6 +125,13 @@ export async function listLedger(userId: string, page: number) {
  *   준 기록은 users를 가리키지 않는 social_link_rewards에 남겨 두고 그것으로 막는다 (탈퇴 후 다시 붙여도 0)
  * 반환: 실제로 줬으면 true
  */
+/** 소셜 계정 번호를 남기지 않고 같은 계정인지만 알 수 있는 값 (사이트 비밀키로 만든 HMAC-SHA256 hex) */
+export function socialAccountHash(providerId: string, accountId: string): string {
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret) throw new Error("BETTER_AUTH_SECRET이 없어요");
+  return createHmac("sha256", secret).update(`${providerId}:${accountId}`).digest("hex");
+}
+
 export async function grantSocialLinkReward(userId: string, providerId: string, accountId: string): Promise<boolean> {
   if (!(SOCIAL_PROVIDERS as readonly string[]).includes(providerId)) return false;
   return db.transaction(async (tx) => {
@@ -138,7 +146,7 @@ export async function grantSocialLinkReward(userId: string, providerId: string, 
     // 이 소셜 계정으로 받은 적이 있으면(받은 회원이 탈퇴했어도) 주지 않는다. 동시에 들어와도 기본 키가 한 번만 통과시킨다
     const claimed = await tx
       .insert(socialLinkRewards)
-      .values({ providerId, accountId })
+      .values({ providerId, accountHash: socialAccountHash(providerId, accountId) })
       .onConflictDoNothing()
       .returning({ providerId: socialLinkRewards.providerId });
     if (!claimed.length) return false;

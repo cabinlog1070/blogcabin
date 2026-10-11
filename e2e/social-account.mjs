@@ -14,6 +14,9 @@ import { config } from "dotenv";
 import pg from "pg";
 import { BASE, coins, collectErrors, loginDev } from "./helpers.mjs";
 
+// 소셜 연동 보상 기록은 소셜 번호 대신 해시로 남는다 (src/server/points.ts socialAccountHash와 같은 계산)
+const rewardHash = (provider, accountId) => createHmac("sha256", process.env.BETTER_AUTH_SECRET).update(`${provider}:${accountId}`).digest("hex");
+
 config({ path: ".env.local", quiet: true });
 const outDir = process.argv[2] ?? "e2e-shots";
 const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -110,7 +113,7 @@ const sessionUser = (page) => page.evaluate(async () => (await (await fetch("/ap
   const rows1 = await socialRows(uid);
   check("연동하면 🪙100 (경험치 0)", rows1.length === 1 && rows1[0].coin_delta === 100 && rows1[0].exp_delta === 0 && rows1[0].ref_id === `kakao:ka${run}`, JSON.stringify(rows1));
   check("잔액 +100", (await coinSum(uid)) - before === 100);
-  check("준 기록(social_link_rewards)", Boolean(await one("SELECT 1 AS ok FROM social_link_rewards WHERE provider_id = 'kakao' AND account_id = $1", [`ka${run}`])));
+  check("준 기록(social_link_rewards)", Boolean(await one("SELECT 1 AS ok FROM social_link_rewards WHERE provider_id = 'kakao' AND account_hash = $1", [rewardHash("kakao", `ka${run}`)])));
 
   // 연동하고 돌아온 화면(?linked=kakao): 한 번 알림, 헤더 코인·메뉴 ✓
   let alertText = "";
@@ -136,7 +139,7 @@ const sessionUser = (page) => page.evaluate(async () => (await (await fetch("/ap
   // 같은 회원이 다른 카카오 계정을 또 붙여도 → 카카오 몫은 이미 받아서 0
   const r3 = linkSocial(uid, "kakao", `kb${run}`);
   check("다른 카카오 계정을 또 붙여도 0 (회원·소셜당 한 번)", r3.ok && (await socialRows(uid)).length === 1 && (await coinSum(uid)) - before === 100);
-  check("받지 못한 두 번째 카카오는 준 기록도 남기지 않음", !(await one("SELECT 1 AS ok FROM social_link_rewards WHERE account_id = $1", [`kb${run}`])));
+  check("받지 못한 두 번째 카카오는 준 기록도 남기지 않음", !(await one("SELECT 1 AS ok FROM social_link_rewards WHERE account_hash = $1", [rewardHash("kakao", `kb${run}`)])));
 
   // 이미 받은 소셜이면 돌아와도 "받았어요"가 아니라 "연동했어요"
   await page.evaluate(() => sessionStorage.setItem("bc_link_rewarded_before", JSON.stringify({ provider: "kakao", before: true })));
@@ -326,7 +329,7 @@ const sessionUser = (page) => page.evaluate(async () => (await (await fetch("/ap
   // A가 탈퇴해 원장이 지워져도, K로 새로 가입한 회원은 0
   await db.query("DELETE FROM accounts WHERE provider_id = 'kakao' AND account_id = $1", [K]);
   await db.query("DELETE FROM users WHERE id = $1", [aUid]);
-  check("A 탈퇴 뒤에도 준 기록은 남음", Boolean(await one("SELECT 1 AS ok FROM social_link_rewards WHERE provider_id = 'kakao' AND account_id = $1", [K])));
+  check("A 탈퇴 뒤에도 준 기록은 남음", Boolean(await one("SELECT 1 AS ok FROM social_link_rewards WHERE provider_id = 'kakao' AND account_hash = $1", [rewardHash("kakao", K)])));
   const s = await socialUser("kakao", K);
   const page = await newPage(s);
   await page.goto(`${BASE}/account-setup`);
