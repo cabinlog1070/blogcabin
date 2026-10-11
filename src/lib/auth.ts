@@ -159,7 +159,10 @@ export const auth = betterAuth({
   // 헤더 내 정보 메뉴의 [연동하기] (AUTH-05): 로그인한 회원이 직접 소셜 계정을 연결할 때는 이메일이 달라도 된다.
   // 아이디 회원의 이메일은 대체 주소(아이디@users.blogcabin.invalid)라 소셜 계정 이메일과 같을 수 없다.
   // 로그인 중에만 쓰는 연결 요청에만 적용된다 (소셜로 처음 로그인할 때 자동으로 합치는 규칙은 그대로)
-  account: { accountLinking: { allowDifferentEmails: true } },
+  // 카카오는 이메일을 주지 않고(대체 주소), 네이버는 이메일 인증 여부를 알려 주지 않아서 Better Auth가 "믿을 수 없는 소셜"로 보고
+  // 연동을 막았다(unable_to_link_account). 세 소셜을 믿을 수 있는 소셜로 둔다. 소셜로 처음 로그인할 때 같은 이메일 회원에 자동으로
+  // 붙는 규칙도 함께 켜지지만, 아이디 회원의 이메일은 대체 주소라 실제 소셜 이메일과 겹치지 않는다
+  account: { accountLinking: { allowDifferentEmails: true, trustedProviders: ["google", "kakao", "naver"] } },
   // 사이트 자체 회원가입: 아이디 + 비밀번호 (username 플러그인이 이메일·비밀번호 로그인 위에 아이디를 얹는다)
   emailAndPassword: { enabled: true, minPasswordLength: 8, maxPasswordLength: 64 },
   hooks: loginHooks,
