@@ -11,6 +11,7 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
 
   useEffect(() => {
     let game: import("phaser").Game | null = null;
+    let observer: ResizeObserver | null = null;
     let starting = false;
     let cancelled = false;
 
@@ -45,16 +46,29 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
       starting = false;
       // 불러오는 동안 화면을 떠났으면 만들지 않는다
       if (cancelled || !containerRef.current) return;
+      // 캔버스를 화면의 실제 픽셀 수(devicePixelRatio배)로 그리고 CSS로 줄여 보여 준다.
+      // 예전에는 CSS 크기로 그린 뒤 휴대폰이 2~3배로 늘려 보여서 글자가 흐릿하게 깨졌다
+      const el = containerRef.current;
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      const size = () => [Math.max(1, Math.round(el.clientWidth * dpr)), Math.max(1, Math.round(el.clientHeight * dpr))] as const;
+      const [w, h] = size();
       game = new Phaser.Game({
         type: Phaser.AUTO,
-        parent: containerRef.current,
+        parent: el,
         backgroundColor: "#8aba5c",
         physics: { default: "arcade", arcade: { debug: false } },
-        scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" },
-        scene: createTownScene(Phaser, data, images, onEnter, getComputedStyle(document.body).fontFamily),
+        scale: { mode: Phaser.Scale.NONE, width: w, height: h, zoom: 1 / dpr, autoRound: false },
+        scene: createTownScene(Phaser, data, images, onEnter, getComputedStyle(document.body).fontFamily, dpr),
       });
+      observer = new ResizeObserver(() => {
+        const [nw, nh] = size();
+        if (game && (game.scale.width !== nw || game.scale.height !== nh)) game.scale.resize(nw, nh);
+      });
+      observer.observe(el);
     };
     const stop = () => {
+      observer?.disconnect();
+      observer = null;
       game?.destroy(true);
       game = null;
       for (const url of blobUrls.splice(0)) URL.revokeObjectURL(url);

@@ -320,8 +320,10 @@ export function createTownScene(
   images: Map<string, HTMLImageElement>,
   onEnter: (target: TownTarget) => void,
   fontFamily = "sans-serif",
+  dpr = 1, // 캔버스가 CSS 1px당 몇 픽셀인가. 카메라를 이만큼 확대해 화면에 보이는 크기는 그대로 둔다
 ) {
-  const font = (style: PhaserNS.Types.GameObjects.Text.TextStyle = {}) => ({ fontFamily, ...style });
+  // 글자 텍스처도 화면 픽셀 밀도로 그려야 확대돼도 선명하다
+  const font = (style: PhaserNS.Types.GameObjects.Text.TextStyle = {}) => ({ fontFamily, resolution: dpr, ...style });
 
   return class TownScene extends Phaser.Scene {
     private feet!: PhaserNS.GameObjects.Zone; // 부딪힘을 계산하는 발밑 상자
@@ -353,6 +355,8 @@ export function createTownScene(
       thumb: PhaserNS.GameObjects.Arc;
       pointerId: number | null;
       vector: PhaserNS.Math.Vector2;
+      cx: number; // 조이스틱 가운데 (화면 CSS px)
+      cy: number;
     } | null = null;
 
     constructor() {
@@ -434,7 +438,7 @@ export function createTownScene(
       const phone = window.matchMedia?.(PHONE_MEDIA).matches;
       if (!phone && window.matchMedia?.("(pointer: coarse)").matches) this.createJoystick();
       this.touch = Boolean(phone || this.joystick);
-      if (phone) this.cameras.main.setZoom(PHONE_ZOOM);
+      this.cameras.main.setZoom((phone ? PHONE_ZOOM : 1) * dpr);
       this.game.canvas.dataset.joystick = this.joystick ? "on" : "off"; // e2e 확인용
 
       this.input.on("pointerdown", (pointer: PhaserNS.Input.Pointer) => {
@@ -470,31 +474,45 @@ export function createTownScene(
       const base = this.add.circle(0, 0, JOYSTICK.radius, 0x2b2118, 0.18).setStrokeStyle(3, 0xffffff, 0.7);
       const thumb = this.add.circle(0, 0, JOYSTICK.thumb, 0xffffff, 0.85).setStrokeStyle(2, 0x2b2118, 0.4);
       for (const o of [base, thumb]) o.setScrollFactor(0).setDepth(200000);
-      this.joystick = { base, thumb, pointerId: null, vector: new Phaser.Math.Vector2() };
+      this.joystick = { base, thumb, pointerId: null, vector: new Phaser.Math.Vector2(), cx: 0, cy: 0 };
       this.placeJoystick();
       this.scale.on("resize", () => this.placeJoystick());
     }
 
+    /**
+     * 화면 CSS 좌표 → 고정(scrollFactor 0) 물체 좌표. 카메라가 가운데를 기준으로 확대(dpr배)돼 있어서 되돌려 준다.
+     * 조이스틱은 휴대폰이 아닐 때만 있으므로 카메라 확대 = dpr
+     */
+    private screenToFixed(x: number, y: number) {
+      const zoom = this.cameras.main.zoom;
+      const cx = this.scale.width / 2;
+      const cy = this.scale.height / 2;
+      return { x: cx + (x * dpr - cx) / zoom, y: cy + (y * dpr - cy) / zoom };
+    }
+
     /** 화면 왼쪽 아래 (화면 크기가 바뀌어도 따라간다) */
     private placeJoystick() {
-      if (!this.joystick) return;
-      const x = JOYSTICK.margin + JOYSTICK.radius;
-      const y = this.scale.height - JOYSTICK.margin - JOYSTICK.radius;
-      this.joystick.base.setPosition(x, y);
-      if (this.joystick.pointerId === null) this.joystick.thumb.setPosition(x, y);
+      const j = this.joystick;
+      if (!j) return;
+      j.cx = JOYSTICK.margin + JOYSTICK.radius;
+      j.cy = this.scale.height / dpr - JOYSTICK.margin - JOYSTICK.radius;
+      const p = this.screenToFixed(j.cx, j.cy);
+      j.base.setPosition(p.x, p.y);
+      if (j.pointerId === null) j.thumb.setPosition(p.x, p.y);
     }
 
     private isOnJoystick(pointer: PhaserNS.Input.Pointer) {
-      const { base } = this.joystick!;
-      return Phaser.Math.Distance.Between(pointer.x, pointer.y, base.x, base.y) <= JOYSTICK.radius + 20;
+      const j = this.joystick!;
+      return Phaser.Math.Distance.Between(pointer.x / dpr, pointer.y / dpr, j.cx, j.cy) <= JOYSTICK.radius + 20;
     }
 
     /** 손가락 위치 → 방향 벡터 (조이스틱 반지름 밖으로는 나가지 않는다) */
     private moveJoystick(pointer: PhaserNS.Input.Pointer) {
       const j = this.joystick!;
-      const v = new Phaser.Math.Vector2(pointer.x - j.base.x, pointer.y - j.base.y);
+      const v = new Phaser.Math.Vector2(pointer.x / dpr - j.cx, pointer.y / dpr - j.cy);
       if (v.length() > JOYSTICK.radius) v.setLength(JOYSTICK.radius);
-      j.thumb.setPosition(j.base.x + v.x, j.base.y + v.y);
+      const p = this.screenToFixed(j.cx + v.x, j.cy + v.y);
+      j.thumb.setPosition(p.x, p.y);
       j.vector = v.length() < JOYSTICK.deadZone ? new Phaser.Math.Vector2() : v.clone().scale(1 / JOYSTICK.radius);
     }
 
