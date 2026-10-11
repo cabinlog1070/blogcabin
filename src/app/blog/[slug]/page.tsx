@@ -8,7 +8,7 @@ import { PostCard } from "@/components/blog/post-card";
 import { Pagination, parsePage } from "@/components/pagination";
 import { parseId } from "@/lib/ids";
 import { getRoomFurniture } from "@/server/look";
-import { getBlogBySlug, getCategories, getFollow, getInviteCode, listBlogPosts, listMyNeighbors } from "@/server/blog";
+import { canSeePrivatePosts, getBlogBySlug, getCategories, getFollow, getInviteCode, listBlogPosts, listMyNeighbors } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { getCarriedPet, getDisplayedCard } from "@/server/farm";
 import { getBlogVisitStats } from "@/server/visits";
@@ -28,12 +28,13 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
   const viewer = await getViewer();
   const viewerId = viewer?.profile ? viewer.userId : null;
   const isOwner = viewerId === blog.ownerId;
+  const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인과 서로 이웃만
   const page = parsePage(sp.page);
   const categoryId = parseId(sp.category) ?? undefined; // 이상한 값이면 전체 글
 
   const [cats, list, follow, furniture, pet, card, visits, neighbors, inviteCode] = await Promise.all([
-    getCategories(blog.id, isOwner),
-    listBlogPosts({ blogId: blog.id, isOwner, categoryId, page }),
+    getCategories(blog.id, includePrivate),
+    listBlogPosts({ blogId: blog.id, includePrivate, categoryId, page }),
     viewerId && !isOwner ? getFollow(viewerId, blog.ownerId) : null,
     getRoomFurniture(blog.ownerId), // 미니룸 가구 (SHOP-05)
     getCarriedPet(blog.ownerId), // 미니룸 펫 (TOWN-09)

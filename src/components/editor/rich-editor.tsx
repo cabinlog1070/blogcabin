@@ -5,7 +5,9 @@ import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/r
 import StarterKit from "@tiptap/starter-kit";
 import { postTextLength } from "@/lib/text-length";
 import Image from "@tiptap/extension-image";
-import { useEffect, useRef } from "react";
+import TextAlign from "@tiptap/extension-text-align";
+import { BackgroundColor, Color, FontSize, TextStyle } from "@tiptap/extension-text-style";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { attachmentPath, FILE_TYPES, IMAGE_TYPES } from "@/lib/attachments";
 import { FileCard } from "./file-card";
 import { filesFrom, useAttachmentUpload } from "./use-attachment-upload";
@@ -25,20 +27,74 @@ const PostImage = Image.extend({
 });
 
 type ToolButton = {
-  label: string;
+  label: ReactNode;
   title: string;
   run: (e: Editor) => void;
   active?: (e: Editor) => boolean;
+  className?: string;
 };
 
-const TOOLS: (ToolButton | "sep")[] = [
-  { label: "H2", title: "큰 제목", run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(), active: (e) => e.isActive("heading", { level: 2 }) },
-  { label: "H3", title: "작은 제목", run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run(), active: (e) => e.isActive("heading", { level: 3 }) },
+// 문단 스타일: H2·H3 대신 티스토리처럼 이름으로 고른다. 저장되는 태그는 그대로 (제목 h2, 부제목 h3)
+const BLOCK_STYLES = [
+  { value: "p", label: "본문" },
+  { value: "h2", label: "제목" },
+  { value: "h3", label: "부제목" },
+] as const;
+type BlockStyle = (typeof BLOCK_STYLES)[number]["value"];
+
+const blockStyleOf = (e: Editor): BlockStyle =>
+  e.isActive("heading", { level: 2 }) ? "h2" : e.isActive("heading", { level: 3 }) ? "h3" : "p";
+
+const setBlockStyle = (e: Editor, style: BlockStyle) => {
+  const chain = e.chain().focus();
+  if (style === "p") chain.setParagraph().run();
+  else chain.setHeading({ level: style === "h2" ? 2 : 3 }).run();
+};
+
+// 글자 크기 (px). 본문 기본은 16이라 16을 고르면 크기 지정을 지운다
+const DEFAULT_FONT_SIZE = 16;
+export const FONT_SIZES = [11, 13, 15, 16, 19, 24, 28, 30, 34, 38];
+
+// 글자색·배경색 팔레트. 저장 화면에서 허용하는 값과 같아야 한다 (src/server/sanitize.ts)
+export const TEXT_COLORS = ["#2e2118", "#6a5444", "#b83a29", "#e8590c", "#96500f", "#3d7a4a", "#2f6f9e", "#5f3dc4", "#c2255c", "#868e96"];
+export const BACKGROUND_COLORS = ["#fff3bf", "#ffe8cc", "#ffe3e3", "#d3f9d8", "#d0ebff", "#e5dbff", "#f1f3f5"];
+
+const ALIGNS = [
+  { value: "left", title: "왼쪽 정렬" },
+  { value: "center", title: "가운데 정렬" },
+  { value: "right", title: "오른쪽 정렬" },
+] as const;
+type Align = (typeof ALIGNS)[number]["value"];
+
+function AlignIcon({ align }: { align: Align }) {
+  const widths = [16, 10, 16, 10];
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      {widths.map((w, i) => {
+        const x = align === "left" ? 1 : align === "right" ? 17 - w : (18 - w) / 2;
+        return <rect key={i} x={x} y={2 + i * 4} width={w} height="2" rx="1" fill="currentColor" />;
+      })}
+    </svg>
+  );
+}
+
+// "colors" 자리에 글자색·배경색 버튼이 들어간다
+const TOOLS: (ToolButton | "sep" | "colors")[] = [
+  { label: "B", title: "굵게", className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
+  { label: "I", title: "기울임", className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
+  { label: "U", title: "밑줄", className: "underline underline-offset-2", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
+  { label: "S", title: "취소선", className: "line-through", run: (e) => e.chain().focus().toggleStrike().run(), active: (e) => e.isActive("strike") },
+  "colors",
   "sep",
-  { label: "B", title: "굵게", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
-  { label: "I", title: "기울임", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
-  { label: "U", title: "밑줄", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
-  { label: "S", title: "취소선", run: (e) => e.chain().focus().toggleStrike().run(), active: (e) => e.isActive("strike") },
+  ...ALIGNS.map(
+    (a): ToolButton => ({
+      label: <AlignIcon align={a.value} />,
+      title: a.title,
+      run: (e) => e.chain().focus().setTextAlign(a.value).run(),
+      // 정렬을 고른 적 없는 문단은 왼쪽 정렬로 본다
+      active: (e) => (a.value === "left" ? !e.isActive({ textAlign: "center" }) && !e.isActive({ textAlign: "right" }) : e.isActive({ textAlign: a.value })),
+    }),
+  ),
   "sep",
   { label: "• 목록", title: "글머리 목록", run: (e) => e.chain().focus().toggleBulletList().run(), active: (e) => e.isActive("bulletList") },
   { label: "1. 목록", title: "번호 목록", run: (e) => e.chain().focus().toggleOrderedList().run(), active: (e) => e.isActive("orderedList") },
@@ -62,6 +118,90 @@ const TOOLS: (ToolButton | "sep")[] = [
   { label: "↷", title: "다시 실행", run: (e) => e.chain().focus().redo().run() },
 ];
 
+const SELECT_CLASS =
+  "h-8 rounded-lg border-2 border-line bg-paper px-2 text-sm font-bold text-ink outline-none hover:border-sun focus:border-sun disabled:opacity-40";
+
+/** 글자색·배경색: 버튼을 누르면 색 판이 열린다 */
+function ColorPicker({
+  editor,
+  kind,
+  current,
+}: {
+  editor: Editor | null;
+  kind: "color" | "background";
+  current: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  const colors = kind === "color" ? TEXT_COLORS : BACKGROUND_COLORS;
+  const title = kind === "color" ? "글자색" : "글자 배경색";
+  const apply = (c: string | null) => {
+    if (!editor) return;
+    const chain = editor.chain().focus();
+    if (kind === "color") (c ? chain.setColor(c) : chain.unsetColor()).run();
+    else (c ? chain.setBackgroundColor(c) : chain.unsetBackgroundColor()).run();
+    setOpen(false);
+  };
+  return (
+    <div ref={box} className="relative">
+      <button
+        type="button"
+        title={title}
+        aria-label={title}
+        aria-expanded={open}
+        disabled={!editor}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex h-8 flex-col items-center justify-center rounded-lg px-2 text-sm font-black transition ${open ? "bg-paper text-ink" : "text-ink-soft hover:bg-paper hover:text-ink"}`}
+      >
+        <span
+          className="leading-none"
+          style={kind === "background" ? { background: current ?? BACKGROUND_COLORS[0], padding: "0 2px", borderRadius: 2 } : undefined}
+        >
+          가
+        </span>
+        {kind === "color" && <span className="mt-0.5 h-1 w-4 rounded-full" style={{ background: current ?? "var(--color-ink)" }} />}
+      </button>
+      {open && (
+        <div role="menu" aria-label={title} className="absolute left-0 top-full z-20 mt-1 w-44 rounded-xl border-2 border-line bg-paper p-2 shadow-lg">
+          <div className="grid grid-cols-5 gap-1.5">
+            {colors.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="menuitem"
+                title={c}
+                aria-label={`${title} ${c}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => apply(c)}
+                className={`h-6 w-6 rounded-md border-2 ${current === c ? "border-ink" : "border-line"}`}
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => apply(null)}
+            className="mt-2 w-full rounded-lg py-1 text-xs font-bold text-ink-soft hover:bg-cream hover:text-ink"
+          >
+            {kind === "color" ? "기본 색으로" : "배경색 없애기"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function RichEditor({
   initialHtml,
   onChange,
@@ -79,6 +219,11 @@ export function RichEditor({
       PostImage.configure({ inline: false, allowBase64: false }), // 사진 (POST-07)
       FileCard, // 파일 카드 (POST-09)
       StarterKit.configure({ heading: { levels: [2, 3] }, link: { openOnClick: false, autolink: true } }),
+      TextStyle, // 글자 크기·색을 <span style>로 담는다
+      FontSize,
+      Color,
+      BackgroundColor,
+      TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right"] }),
       Placeholder.configure({ placeholder: "오늘 배운 것, 생각한 것, 무엇이든 적어 보세요 ✏️" }),
     ],
     content: initialHtml,
@@ -146,18 +291,68 @@ export function RichEditor({
   };
 
   // 버튼 활성 상태는 선택이 바뀔 때마다 다시 계산한다
-  const active = useEditorState({
+  const state = useEditorState({
     editor,
-    selector: ({ editor }) =>
-      editor ? TOOLS.map((t) => (t !== "sep" && t.active ? t.active(editor) : false)) : [],
+    selector: ({ editor }) => {
+      if (!editor) return null;
+      const style = editor.getAttributes("textStyle") as { fontSize?: string; color?: string; backgroundColor?: string };
+      return {
+        tools: TOOLS.map((t) => (typeof t !== "string" && t.active ? t.active(editor) : false)),
+        block: blockStyleOf(editor),
+        fontSize: style.fontSize ? parseInt(style.fontSize, 10) || DEFAULT_FONT_SIZE : DEFAULT_FONT_SIZE,
+        color: style.color ?? null,
+        background: style.backgroundColor ?? null,
+      };
+    },
   });
+  const active = state?.tools;
 
   return (
     <div data-rich-editor className="overflow-hidden rounded-2xl border-2 border-line bg-paper focus-within:border-sun">
       <div className="flex flex-wrap items-center gap-1 border-b-2 border-line bg-cream/60 p-2" role="toolbar" aria-label="글꼴 도구">
+        <select
+          aria-label="문단 스타일"
+          title="문단 스타일"
+          disabled={!editor}
+          value={state?.block ?? "p"}
+          onChange={(e) => editor && setBlockStyle(editor, e.currentTarget.value as BlockStyle)}
+          className={`${SELECT_CLASS} w-24`}
+        >
+          {BLOCK_STYLES.map((b) => (
+            <option key={b.value} value={b.value}>
+              {b.label}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="글자 크기"
+          title="글자 크기"
+          disabled={!editor}
+          value={state?.fontSize ?? DEFAULT_FONT_SIZE}
+          onChange={(e) => {
+            if (!editor) return;
+            const size = Number(e.currentTarget.value);
+            const chain = editor.chain().focus();
+            (size === DEFAULT_FONT_SIZE ? chain.unsetFontSize() : chain.setFontSize(`${size}px`)).run();
+          }}
+          className={`${SELECT_CLASS} w-16`}
+        >
+          {/* 목록에 없는 크기(붙여 넣은 글 등)도 지금 값으로 보이게 */}
+          {[...new Set([...FONT_SIZES, state?.fontSize ?? DEFAULT_FONT_SIZE])].sort((a, b) => a - b).map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+        <span className="mx-1 h-5 w-px bg-line" />
         {TOOLS.map((tool, i) =>
           tool === "sep" ? (
             <span key={i} className="mx-1 h-5 w-px bg-line" />
+          ) : tool === "colors" ? (
+            <Fragment key={i}>
+              <ColorPicker editor={editor} kind="color" current={state?.color ?? null} />
+              <ColorPicker editor={editor} kind="background" current={state?.background ?? null} />
+            </Fragment>
           ) : (
             <button
               key={tool.title}
@@ -167,7 +362,7 @@ export function RichEditor({
               disabled={!editor}
               onMouseDown={(e) => e.preventDefault()} // 버튼이 포커스를 가져가 커서 위치를 잃지 않게
               onClick={() => editor && tool.run(editor)}
-              className={`rounded-lg px-2.5 py-1 text-sm font-bold transition ${
+              className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-bold transition ${tool.className ?? ""} ${
                 active?.[i] ? "bg-ink text-cream" : "text-ink-soft hover:bg-paper hover:text-ink"
               }`}
             >

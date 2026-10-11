@@ -10,6 +10,7 @@ import { formatDateTime } from "@/lib/format";
 import { REWARD_RULES } from "@/lib/game";
 import { parseId } from "@/lib/ids";
 import {
+  canSeePrivatePosts,
   getAdjacentPosts,
   getBlogBySlug,
   getComments,
@@ -45,13 +46,14 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
   const viewer = await getViewer();
   const viewerId = viewer?.profile ? viewer.userId : null;
   const isOwner = viewerId === blog.ownerId;
-  if (post.visibility === "private" && !isOwner) notFound();
+  const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인과 서로 이웃만
+  if (post.visibility === "private" && !includePrivate) notFound();
 
   const [tagNames, like, comments, adjacent] = await Promise.all([
     getPostTags(post.id),
     getLikeState(post.id, viewerId),
     getComments(post.id),
-    getAdjacentPosts(blog.id, post, isOwner),
+    getAdjacentPosts(blog.id, post, includePrivate),
   ]);
 
   return (
@@ -85,7 +87,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
                 {post.categoryName}
               </Link>
             )}
-            {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">🔒 비공개</span>}
+            {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">🔒 서로 이웃 공개</span>}
           </div>
           <h1 className="font-display text-3xl leading-snug sm:text-4xl">{post.title}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">

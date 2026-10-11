@@ -7,12 +7,13 @@ import { db } from "@/db";
 import { blogs, comments, follows, pointLedger, postLikes, posts } from "@/db/schema";
 import { MAX_FAVORITES } from "@/lib/game";
 import { MAX_DB_INT, parseId } from "@/lib/ids";
+import { canSeePrivatePosts } from "@/server/blog";
 import { requireMember } from "@/server/dal";
 import { hasLikeNotification, notifySocial } from "@/server/notifications";
 import { grantReward, lockUser } from "@/server/points";
 import { addBlogVisit, addPostView, currentViewerKey, getBlogVisitStats } from "@/server/visits";
 
-/** 글과 그 글의 블로그 주인 (공개 글이거나 내 글일 때만) */
+/** 글과 그 글의 블로그 주인 (공개 글이거나, 내 글이거나, 서로 이웃의 비공개 글일 때만) */
 async function findVisiblePost(postId: number, viewerId: string) {
   const [row] = await db
     .select({ id: posts.id, visibility: posts.visibility, ownerId: blogs.ownerId })
@@ -20,7 +21,7 @@ async function findVisiblePost(postId: number, viewerId: string) {
     .innerJoin(blogs, eq(blogs.id, posts.blogId))
     .where(eq(posts.id, postId));
   if (!row) return null;
-  if (row.visibility === "private" && row.ownerId !== viewerId) return null;
+  if (row.visibility === "private" && !(await canSeePrivatePosts(viewerId, row.ownerId))) return null;
   return row;
 }
 
@@ -217,7 +218,8 @@ export async function recordPostView(postId: number): Promise<number | null> {
   if (!post) return null;
   const { key, memberId } = await currentViewerKey();
   const isOwner = memberId === post.ownerId;
-  if (post.visibility === "private" && !isOwner) return null; // 남의 비공개 글은 404 화면이라 세지 않는다
+  // 볼 수 없는 비공개 글은 404 화면이라 세지 않는다 (주인과 서로 이웃만 본다)
+  if (post.visibility === "private" && !(await canSeePrivatePosts(memberId, post.ownerId))) return null;
   if (isOwner) return post.viewCount;
   return addPostView(postId, key);
 }

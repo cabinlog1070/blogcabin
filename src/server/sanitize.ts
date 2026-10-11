@@ -5,19 +5,30 @@ import { ATTACHMENT_URL_RE, extensionOf, fileCardLabel, formatBytes } from "@/li
 /** 저장할 때 확인한 첨부 정보 (키 → DB의 원래 이름·크기·종류) */
 export type KnownAttachments = Map<string, { kind: "image" | "file"; name: string; size: number }>;
 
+// 에디터의 정렬·글자 크기·글자색·배경색만 style로 남긴다. 값 모양을 좁게 잡아 url(), expression() 같은 것은 들어올 수 없다
+const COLOR_RE = [/^#[0-9a-f]{3}([0-9a-f]{3})?$/i, /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\)$/i];
+const ALIGN_STYLE = { "text-align": [/^(left|center|right)$/] };
+const SPAN_STYLE = { "font-size": [/^([89]|[1-6]\d|7[0-2])px$/], color: COLOR_RE, "background-color": COLOR_RE };
+
 const attachmentKey = (url: string | undefined) => ATTACHMENT_URL_RE.exec(url ?? "")?.[1] ?? null;
 
 // 에디터가 만들 수 있는 태그만 허용한다. <script>, onClick 같은 속성은 모두 제거된다 (XSS 방지)
 function options(known?: KnownAttachments): sanitizeHtml.IOptions {
   return {
     allowedTags: [
-      "p", "br", "h1", "h2", "h3", "strong", "em", "u", "s", "code", "pre",
+      "p", "br", "h1", "h2", "h3", "strong", "em", "u", "s", "code", "pre", "span",
       "blockquote", "ul", "ol", "li", "a", "hr", "img",
     ],
     allowedAttributes: {
       a: ["href", "target", "rel", "data-file", "data-name", "data-size", "data-size-label", "data-ext", "aria-label"],
       img: ["src", "alt"],
+      p: ["style"],
+      h1: ["style"],
+      h2: ["style"],
+      h3: ["style"],
+      span: ["style"],
     },
+    allowedStyles: { p: ALIGN_STYLE, h1: ALIGN_STYLE, h2: ALIGN_STYLE, h3: ALIGN_STYLE, span: SPAN_STYLE },
     allowedSchemes: ["http", "https", "mailto"],
     transformTags: {
       a: (tagName, attribs): sanitizeHtml.Tag => {

@@ -3,6 +3,7 @@ import { eq, like } from "drizzle-orm";
 import { db } from "@/db";
 import { attachments, blogs, posts } from "@/db/schema";
 import { ATTACHMENT_KEY_RE } from "@/lib/attachments";
+import { canSeePrivatePosts } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { openAttachment } from "@/server/storage";
 
@@ -39,7 +40,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/files/[key]">) 
 /**
  * 이 첨부를 지금 보는 사람이 열 수 있는가 (POST-07·09, spec 003 FR-059).
  * - 쓰인 글 중 하나라도 공개 글 → 누구나
- * - 비공개 글에만 쓰임 → 그 글의 주인만 (관리자도 안 됨)
+ * - 비공개 글에만 쓰임 → 그 글의 주인과 주인의 서로 이웃만 (관리자도 안 됨)
  * - 어느 글에도 쓰이지 않음(발행 전, 글에서 빠짐, 글 삭제) → 올린 사람만
  * 글과 첨부를 잇는 표가 없어서 본문(content_html)에 `/files/키`가 들어 있는지로 찾는다 (키는 무작위 32자라 겹치지 않는다)
  */
@@ -53,6 +54,9 @@ async function canOpen(key: string, uploaderId: string) {
   const viewer = await getViewer();
   const me = viewer?.profile ? viewer.userId : null;
   if (!me) return false;
-  if (used.length) return used.some((p) => p.ownerId === me);
+  if (used.length) {
+    for (const ownerId of new Set(used.map((p) => p.ownerId))) if (await canSeePrivatePosts(me, ownerId)) return true;
+    return false;
+  }
   return uploaderId === me;
 }

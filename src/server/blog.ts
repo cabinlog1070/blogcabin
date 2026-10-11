@@ -70,6 +70,27 @@ export async function getCategories(blogId: number, includePrivate: boolean) {
     .orderBy(asc(categories.position), asc(categories.id));
 }
 
+/** 서로 이웃: 두 사람이 서로를 이웃으로 추가했다. 비공개 글은 주인과 서로 이웃만 본다 */
+export async function isMutualNeighbor(a: string, b: string) {
+  if (a === b) return false;
+  const rows = await db
+    .select({ x: follows.followerId })
+    .from(follows)
+    .where(
+      or(
+        and(eq(follows.followerId, a), eq(follows.followeeId, b)),
+        and(eq(follows.followerId, b), eq(follows.followeeId, a)),
+      ),
+    );
+  return rows.length === 2;
+}
+
+/** 이 사람이 이 블로그 주인의 비공개 글을 볼 수 있는가 (주인 또는 서로 이웃) */
+export async function canSeePrivatePosts(viewerId: string | null, ownerId: string) {
+  if (!viewerId) return false;
+  return viewerId === ownerId || isMutualNeighbor(viewerId, ownerId);
+}
+
 /** 이웃 관계와 즐겨찾기 여부. 이웃이 아니면 null (남의 블로그 헤더의 ☆, TOWN-08) */
 export async function getFollow(followerId: string, followeeId: string) {
   const [row] = await db
@@ -126,11 +147,11 @@ function baseList(where: SQL | undefined, orderFirst?: SQL) {
     .orderBy(...(orderFirst ? [desc(orderFirst)] : []), desc(posts.createdAt), desc(posts.id));
 }
 
-/** 블로그 홈 글 목록. 주인이 보면 비공개 글도 보인다 */
-export async function listBlogPosts(opts: { blogId: number; isOwner: boolean; categoryId?: number; page: number }) {
+/** 블로그 홈 글 목록. 주인이나 서로 이웃이 보면 비공개 글도 보인다 */
+export async function listBlogPosts(opts: { blogId: number; includePrivate: boolean; categoryId?: number; page: number }) {
   const where = and(
     eq(posts.blogId, opts.blogId),
-    opts.isOwner ? undefined : eq(posts.visibility, "public"),
+    opts.includePrivate ? undefined : eq(posts.visibility, "public"),
     opts.categoryId ? eq(posts.categoryId, opts.categoryId) : undefined,
   );
   return paged(where, opts.page, (q) => q.limit(PAGE_SIZE).offset((opts.page - 1) * PAGE_SIZE));
@@ -239,8 +260,8 @@ export async function getComments(postId: number) {
 }
 
 /** 같은 블로그 안에서 바로 이전 / 다음 글 */
-export async function getAdjacentPosts(blogId: number, post: { id: number; createdAt: Date }, isOwner: boolean) {
-  const visible = isOwner ? undefined : eq(posts.visibility, "public");
+export async function getAdjacentPosts(blogId: number, post: { id: number; createdAt: Date }, includePrivate: boolean) {
+  const visible = includePrivate ? undefined : eq(posts.visibility, "public");
   // 시각은 DB 값 그대로 비교한다. DB는 마이크로초까지, JS Date는 밀리초까지라 post.createdAt을 넘기면
   // 지금 글이 자기보다 "나중 글"로 잡혀 [다음 글]이 지금 화면을 가리켰다
   const current = sql`(SELECT ${posts.createdAt}, ${posts.id} FROM ${posts} WHERE ${posts.id} = ${post.id})`;

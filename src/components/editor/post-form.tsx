@@ -167,9 +167,10 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
               role="radio"
               aria-checked={visibility === v}
               onClick={() => setVisibility(v)}
+              title={v === "public" ? "누구나 볼 수 있어요" : "나와 서로 이웃(서로 이웃 추가한 사이)만 볼 수 있어요"}
               className={`rounded-lg px-3 py-1.5 text-sm font-bold ${visibility === v ? "bg-ink text-cream" : "text-ink-soft"}`}
             >
-              {v === "public" ? "🌍 공개" : "🔒 비공개"}
+              {v === "public" ? "🌍 공개" : "🔒 서로 이웃만"}
             </button>
           ))}
         </div>
@@ -206,7 +207,7 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
                 저장하면 ✨ 경험치 {REWARD_RULES.post.exp} · 🪙 {REWARD_RULES.post.coins} 보상 (하루 {REWARD_RULES.post.dailyLimit}번까지)
               </span>
             ) : visibility === "private" ? (
-              "비공개 글은 보상이 없어요"
+              "서로 이웃만 보는 비공개 글은 보상이 없어요"
             ) : (
               `${POST_REWARD_MIN_LENGTH}자 이상 쓰면 보상을 받아요`
             )

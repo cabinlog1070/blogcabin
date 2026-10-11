@@ -32,7 +32,7 @@ export function PostCard({ post, showAuthor = false }: { post: PostCardData; sho
       <Link href={`/@${post.blogSlug}/${post.id}`} className="block">
         <div className="mb-1 flex items-center gap-2 text-xs font-bold">
           {post.categoryName && <span className="rounded-full bg-honey px-2 py-0.5 text-sun-dark">{post.categoryName}</span>}
-          {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">🔒 비공개</span>}
+          {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">🔒 서로 이웃 공개</span>}
         </div>
         <h3 className="font-display text-xl leading-snug">{post.title}</h3>
         <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-ink-soft">{post.excerpt}</p>
