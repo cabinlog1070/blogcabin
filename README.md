@@ -29,7 +29,7 @@ AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory
 | 로그인 | Better Auth | 네이버·카카오·구글을 기본 지원하는 안정 버전, Drizzle 연동 |
 | 스타일 | Tailwind CSS 4 | 빠른 화면 작업 |
 | 에디터 | Tiptap 3 + sanitize-html | Tistory 같은 WYSIWYG 편집, 저장 시 HTML 정화로 XSS 방지 |
-| 게임 화면 | Phaser 4 | 2D 이동·충돌·카메라, 같은 엔진으로 2.5D(아이소메트릭) 확장 가능 |
+| 게임 화면 | Phaser 4 | 2D 이동·충돌·카메라 |
 | 테스트 | Playwright | 실제 브라우저로 가입·글쓰기·보상·구매 흐름 검증 |
 
 ## 실행 방법
