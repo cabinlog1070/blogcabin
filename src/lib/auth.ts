@@ -26,8 +26,9 @@ const kakao = provider("KAKAO", {
   // 개인 개발자 앱은 이메일 동의항목을 쓰기 어려워서 닉네임과 프로필 사진만 요청한다
   disableDefaultScope: true,
   scope: ["profile_nickname", "profile_image"],
-  mapProfileToUser: (profile: { id: number; kakao_account?: { email?: string } }) => ({
-    email: profile.kakao_account?.email ?? fallbackEmail("kakao", profile.id),
+  // 이메일 동의항목을 받지 않고, 받더라도 회원에는 늘 대체 주소를 쓴다 (네이버와 같은 이유, 아래 trustedProviders 참고)
+  mapProfileToUser: (profile: { id: number }) => ({
+    email: fallbackEmail("kakao", profile.id),
   }),
 });
 // 네이버 이메일은 사용자가 바꿀 수 있는 연락처 이메일이라 인증됐다고 볼 수 없다. 네이버를 믿을 수 있는 소셜(trustedProviders)로
