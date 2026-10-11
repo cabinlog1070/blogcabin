@@ -118,18 +118,19 @@ async function paged<T>(
   page: number,
   extra: (q: ReturnType<typeof baseList>) => Promise<T[]>,
   orderFirst?: SQL,
+  order?: SQL[],
 ) {
   const [{ total }] = await db
     .select({ total: sql<number>`COUNT(*)::int` })
     .from(posts)
     .innerJoin(blogs, eq(blogs.id, posts.blogId))
     .where(where);
-  const items = await extra(baseList(where, orderFirst));
+  const items = await extra(baseList(where, orderFirst, order));
   return { items, total, page, pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
 
-/** orderFirst: 최신순보다 먼저 정렬할 값 (참이 위로, 💛 이웃 새 글의 즐겨찾기) */
-function baseList(where: SQL | undefined, orderFirst?: SQL) {
+/** orderFirst: 최신순보다 먼저 정렬할 값 (참이 위로, 💛 이웃 새 글의 즐겨찾기). order: 기본(최신순) 대신 쓸 정렬 */
+function baseList(where: SQL | undefined, orderFirst?: SQL, order: SQL[] = [desc(posts.createdAt), desc(posts.id)]) {
   return db
     .select({
       ...listColumns,
@@ -144,17 +145,26 @@ function baseList(where: SQL | undefined, orderFirst?: SQL) {
     .innerJoin(characterItem, eq(characterItem.id, profiles.characterItemId))
     .leftJoin(categories, eq(categories.id, posts.categoryId))
     .where(where)
-    .orderBy(...(orderFirst ? [desc(orderFirst)] : []), desc(posts.createdAt), desc(posts.id));
+    .orderBy(...(orderFirst ? [desc(orderFirst)] : []), ...order);
 }
 
+export const POST_SORTS = { latest: "최신순", oldest: "오래된순", popular: "인기순" } as const;
+export type PostSort = keyof typeof POST_SORTS;
+
+const SORT_ORDER: Record<PostSort, SQL[]> = {
+  latest: [desc(posts.createdAt), desc(posts.id)],
+  oldest: [asc(posts.createdAt), asc(posts.id)],
+  popular: [desc(listColumns.likeCount), desc(posts.viewCount), desc(posts.createdAt), desc(posts.id)], // 좋아요 → 조회수 → 최신
+};
+
 /** 블로그 홈 글 목록. 주인이나 서로 이웃이 보면 비공개 글도 보인다 */
-export async function listBlogPosts(opts: { blogId: number; includePrivate: boolean; categoryId?: number; page: number }) {
+export async function listBlogPosts(opts: { blogId: number; includePrivate: boolean; categoryId?: number; page: number; sort?: PostSort }) {
   const where = and(
     eq(posts.blogId, opts.blogId),
     opts.includePrivate ? undefined : eq(posts.visibility, "public"),
     opts.categoryId ? eq(posts.categoryId, opts.categoryId) : undefined,
   );
-  return paged(where, opts.page, (q) => q.limit(PAGE_SIZE).offset((opts.page - 1) * PAGE_SIZE));
+  return paged(where, opts.page, (q) => q.limit(PAGE_SIZE).offset((opts.page - 1) * PAGE_SIZE), undefined, SORT_ORDER[opts.sort ?? "latest"]);
 }
 
 /** 마을 최신 글 (공개 글만). followerId가 있으면 이웃 글만 */

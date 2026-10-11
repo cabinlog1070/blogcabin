@@ -5,10 +5,11 @@ import { InviteCard } from "@/components/blog/invite-card";
 import { NeighborList } from "@/components/blog/neighbor-list";
 import { SearchBox } from "@/components/blog/search-box";
 import { PostCard } from "@/components/blog/post-card";
+import { PostListToolbar } from "@/components/blog/post-list-toolbar";
 import { Pagination, parsePage } from "@/components/pagination";
 import { parseId } from "@/lib/ids";
 import { getRoomFurniture } from "@/server/look";
-import { canSeePrivatePosts, getBlogBySlug, getCategories, getFollow, getInviteCode, listBlogPosts, listMyNeighbors } from "@/server/blog";
+import { canSeePrivatePosts, getBlogBySlug, getCategories, getFollow, getInviteCode, listBlogPosts, POST_SORTS, type PostSort, listMyNeighbors } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { getCarriedPet, getDisplayedCard } from "@/server/farm";
 import { getBlogVisitStats } from "@/server/visits";
@@ -31,10 +32,12 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
   const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인과 서로 이웃만
   const page = parsePage(sp.page);
   const categoryId = parseId(sp.category) ?? undefined; // 이상한 값이면 전체 글
+  const sort: PostSort = typeof sp.sort === "string" && sp.sort in POST_SORTS ? (sp.sort as PostSort) : "latest";
+  const view = sp.view === "grid" ? "grid" : "list";
 
   const [cats, list, follow, furniture, pet, card, visits, neighbors, inviteCode] = await Promise.all([
     getCategories(blog.id, includePrivate),
-    listBlogPosts({ blogId: blog.id, includePrivate, categoryId, page }),
+    listBlogPosts({ blogId: blog.id, includePrivate, categoryId, page, sort }),
     viewerId && !isOwner ? getFollow(viewerId, blog.ownerId) : null,
     getRoomFurniture(blog.ownerId), // 미니룸 가구 (SHOP-05)
     getCarriedPet(blog.ownerId), // 미니룸 펫 (TOWN-09)
@@ -84,13 +87,16 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
         </aside>
 
         <section>
-          <h2 className="mb-3 font-display text-xl">
-            {currentCat ? currentCat.name : "전체 글"} <span className="text-base text-ink-soft">{list.total}개</span>
-          </h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-xl">
+              {currentCat ? currentCat.name : "전체 글"} <span className="text-base text-ink-soft">{list.total}개</span>
+            </h2>
+            <PostListToolbar sort={sort} view={view} sorts={Object.entries(POST_SORTS).map(([value, label]) => ({ value, label }))} />
+          </div>
           {list.items.length ? (
-            <div className="grid gap-4">
+            <div className={`grid gap-4 ${view === "grid" ? "sm:grid-cols-2" : ""}`} data-post-view={view}>
               {list.items.map((p) => (
-                <PostCard key={p.id} post={p} />
+                <PostCard key={p.id} post={p} compact={view === "grid"} />
               ))}
             </div>
           ) : (
@@ -107,7 +113,14 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
           <Pagination
             page={list.page}
             pageCount={list.pageCount}
-            hrefFor={(n) => `${base}?${new URLSearchParams({ ...(categoryId && { category: String(categoryId) }), page: String(n) })}`}
+            hrefFor={(n) =>
+              `${base}?${new URLSearchParams({
+                ...(categoryId && { category: String(categoryId) }),
+                ...(sort !== "latest" && { sort }),
+                ...(view === "grid" && { view }),
+                page: String(n),
+              })}`
+            }
           />
         </section>
       </div>

@@ -42,37 +42,33 @@ export function BlogHeader({
 }) {
   const isOwner = viewerId === blog.ownerId;
   return (
-    <section className="card overflow-hidden">
-      <MiniRoom
-        characterAsset={blog.characterAsset}
-        backgroundAsset={blog.backgroundAsset}
-        nickname={blog.nickname}
-        furniture={furniture.map((f) => ({ id: f.itemId, assetKey: f.assetKey, x: f.x, y: f.y }))}
-        pet={pet}
-        className="h-56 border-b-2 border-line sm:h-64"
-      />
-      <div className="flex flex-wrap items-end justify-between gap-4 p-5">
-        {card && (
-          <figure className="-mt-16 shrink-0 sm:-mt-20" data-displayed-card={card.id}>
-            <PetCard pet={card} grownAt={card.grownAt} size="sm" className="relative z-20" />
-            <figcaption className="mt-1 text-center text-[11px] text-ink-soft">🏅 대표 동물</figcaption>
-          </figure>
-        )}
-        <div className="min-w-0 flex-1">
-          <Link href={`/@${blog.slug}`}>
-            <h1 className="font-display text-2xl sm:text-3xl">{blog.title}</h1>
-          </Link>
-          {blog.description && <p className="mt-1 text-ink-soft">{blog.description}</p>}
-          {/* 375px에서 줄이 넘치면 다음 줄로 내려간다 (NF-06) */}
-          <p className="mt-2 text-sm text-ink-soft">
-            @{blog.slug} · 글 {blog.postCount} · 이웃 {blog.followerCount}
-            {visits && (
-              <>
-                {" · "}
-                <VisitCount blogId={blog.id} today={visits.today} total={visits.total} isOwner={isOwner} />
-              </>
-            )}
-          </p>
+    // 넓은 화면: 왼쪽 블로그 정보, 오른쪽 미니룸. 좁은 화면에서는 미니룸이 위로 올라간다
+    <section className="card flex flex-col-reverse overflow-hidden md:flex-row">
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-4 p-5 sm:p-7">
+        <div className="flex items-end gap-4">
+          {card && (
+            <figure className="shrink-0" data-displayed-card={card.id}>
+              <PetCard pet={card} grownAt={card.grownAt} size="sm" />
+              <figcaption className="mt-1 text-center text-[11px] text-ink-soft">🏅 대표 동물</figcaption>
+            </figure>
+          )}
+          <div className="min-w-0 flex-1">
+            <span className="inline-block rounded-full bg-honey px-2.5 py-0.5 text-xs font-bold text-sun-dark">블로그</span>
+            <Link href={`/@${blog.slug}`}>
+              <h1 className="mt-1.5 break-words font-display text-3xl leading-tight sm:text-4xl">{blog.title}</h1>
+            </Link>
+            {blog.description && <p className="mt-1 text-ink-soft">{blog.description}</p>}
+            {/* 375px에서 줄이 넘치면 다음 줄로 내려간다 (NF-06) */}
+            <p className="mt-2 text-sm text-ink-soft">
+              @{blog.slug} · 글 {blog.postCount} · 이웃 {blog.followerCount}
+              {visits && (
+                <>
+                  {" · "}
+                  <VisitCount blogId={blog.id} today={visits.today} total={visits.total} isOwner={isOwner} />
+                </>
+              )}
+            </p>
+          </div>
         </div>
         {/* 좁은 화면에서는 버튼 3개를 한 줄에 같은 너비로 놓고, 글자가 두 줄로 깨지지 않게 한다 (이슈 #5) */}
         <div className={isOwner ? "grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto" : "flex gap-2"}>
@@ -94,6 +90,26 @@ export function BlogHeader({
             </>
           ) : null}
         </div>
+      </div>
+      <div className="relative shrink-0 md:w-[46%]">
+        <MiniRoom
+          characterAsset={blog.characterAsset}
+          backgroundAsset={blog.backgroundAsset}
+          nickname={blog.nickname}
+          furniture={furniture.map((f) => ({ id: f.itemId, assetKey: f.assetKey, x: f.x, y: f.y }))}
+          pet={pet}
+          className="h-56 border-b-2 border-line sm:h-64 md:h-full md:min-h-64 md:border-b-0 md:border-l-2"
+        />
+        {/* 미니룸 가구 배치는 꾸미기 화면 위쪽 미니룸에서 한다 */}
+        {isOwner && (
+          <Link
+            href="/closet"
+            className="btn absolute right-3 top-3 z-30 bg-paper/90 px-3 py-1 text-sm text-ink backdrop-blur-sm"
+            data-miniroom-edit
+          >
+            미니룸 꾸미기 &gt;
+          </Link>
+        )}
       </div>
     </section>
   );

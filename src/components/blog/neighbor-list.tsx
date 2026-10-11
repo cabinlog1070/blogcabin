@@ -6,17 +6,25 @@ import { setFavorite } from "@/app/blog/actions";
 import { CharacterBadge } from "@/components/character";
 import { MAX_FAVORITES } from "@/lib/game";
 
+const PREVIEW_COUNT = 3;
+
 type Neighbor = { ownerId: string; slug: string; title: string; nickname: string; characterAsset: string; favorite: boolean };
 
 /**
  * 내 이웃 목록 (TOWN-08): 내 블로그 홈에서 주인에게만 보인다.
+ * 즐겨찾기한 이웃이 위에 오고(서버 정렬), 접혀 있을 때는 그들만 보인다.
  * ☆을 누르면 ⭐ 즐겨찾기(최대 10명), 다시 누르면 취소. 즐겨찾기한 블로그의 집만 광장에 나타난다 (TOWN-04).
  */
 export function NeighborList({ neighbors }: { neighbors: Neighbor[] }) {
   const [list, setList] = useState(neighbors);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [expanded, setExpanded] = useState(false);
   const favCount = list.filter((n) => n.favorite).length;
+  // 접혀 있을 때는 처음 불러올 때 즐겨찾기였던 이웃만(없으면 앞의 몇 명), "이웃 더보기"를 누르면 전체.
+  // 화면에서 ☆을 눌러도 줄이 사라지거나 끼어들지 않게 처음 개수로 고정한다
+  const [collapsedCount] = useState(() => neighbors.filter((n) => n.favorite).length || Math.min(neighbors.length, PREVIEW_COUNT));
+  const shown = expanded ? list : list.slice(0, collapsedCount);
 
   function toggle(n: Neighbor) {
     const next = !n.favorite;
@@ -53,7 +61,7 @@ export function NeighborList({ neighbors }: { neighbors: Neighbor[] }) {
         <p className="text-sm text-ink-soft">아직 이웃이 없어요. 마을 소식에서 마음에 드는 블로그를 이웃으로 추가해 보세요.</p>
       ) : (
         <ul className="space-y-1">
-          {list.map((n) => (
+          {shown.map((n) => (
             <li key={n.ownerId} className="flex items-center gap-2" data-neighbor={n.slug}>
               <button
                 type="button"
@@ -74,6 +82,16 @@ export function NeighborList({ neighbors }: { neighbors: Neighbor[] }) {
             </li>
           ))}
         </ul>
+      )}
+      {list.length > collapsedCount && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          className="mt-1 w-full rounded-lg px-1 py-1 text-right text-sm font-bold text-ink-soft hover:bg-cream hover:text-ink"
+        >
+          {expanded ? "접기 ⌃" : `이웃 더보기 (${list.length - collapsedCount}) >`}
+        </button>
       )}
       <p role="status" aria-live="polite" className="mt-1 min-h-5 text-sm font-bold text-berry">
         {message}
