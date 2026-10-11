@@ -93,14 +93,14 @@ export function BlogHeader({
         </div>
       </div>
       {/* isolate: 미니룸 안의 z-index(가구·버튼)가 위에 고정된 헤더를 넘어 올라오지 않게 */}
-      <div className="relative isolate shrink-0 md:w-[46%] md:p-3">
+      <div className="relative isolate shrink-0 md:w-[46%] md:self-center md:p-3">
         <MiniRoom
           characterAsset={blog.characterAsset}
           backgroundAsset={blog.backgroundAsset}
           nickname={blog.nickname}
           furniture={furniture.map((f) => ({ id: f.itemId, assetKey: f.assetKey, x: f.x, y: f.y }))}
           pet={pet}
-          className="h-56 border-b-2 border-line sm:h-64 md:h-full md:min-h-64 md:rounded-2xl md:border-2"
+          className="border-b-2 border-line md:rounded-2xl md:border-2"
         />
         {/* 미니룸 가구 배치는 꾸미기 화면 위쪽 미니룸에서 한다 */}
         {isOwner && (

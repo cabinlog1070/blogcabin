@@ -239,7 +239,8 @@ export function ClosetView({
           const item = byId(f.id);
           return item ? { ...dragProps(item, true), title: `${item.name} (끌어서 옮기기, 밖으로 끌어내면 빠져요)` } : {};
         }}
-        className="h-60 rounded-2xl border-2 border-line shadow-[0_4px_0_0_var(--color-line)]"
+        // 블로그 머리 카드의 미니룸과 같은 크기(가로 최대 520px)로 보여 준다
+        className="mx-auto w-full max-w-[520px] rounded-2xl border-2 border-line shadow-[0_4px_0_0_var(--color-line)]"
       />
       <p role="status" aria-live="polite" className={`mt-3 min-h-6 text-center font-bold ${message?.ok ? "text-leaf-dark" : "text-berry"}`}>
         {message?.text}

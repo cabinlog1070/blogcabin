@@ -74,7 +74,9 @@ export function MiniRoom({
   return (
     <div
       // isolate: 가구 z-index(최대 120)가 이 방 안에서만 겨루게 한다. 없으면 body에 뜨는 헤더 메뉴(z-40)를 덮는다
-      className={`relative isolate overflow-hidden bg-cover bg-bottom ${className}`}
+      // 미니룸은 어디서든(블로그·꾸미기, 휴대폰·컴퓨터) 같은 2:1 비율로 그리고, 캐릭터·펫도 방 크기에 비례(cqw)시켜
+      // 화면마다 가구 위치와 캐릭터 크기가 똑같이 보이게 한다
+      className={`relative isolate aspect-[2/1] overflow-hidden bg-cover bg-bottom [container-type:inline-size] ${className}`}
       // 미니룸은 넓은 배너로 쓰이므로 넓게 그린 장면을 쓴다 (확대돼서 흐려지지 않게)
       style={{ backgroundImage: `url("${backgroundDataUri(bgKey, 760)}")` }}
       data-mini-room
@@ -102,16 +104,16 @@ export function MiniRoom({
       <div className="pointer-events-none absolute inset-x-0 bottom-[6%] z-[15] flex flex-col items-center">
         <div className="flex items-end">
           {/* 펫이 있으면 캐릭터가 가운데에 그대로 서 있도록 반대쪽에 같은 폭의 빈 자리를 둔다 */}
-          {pet && <span className="w-10" aria-hidden />}
-          <CharacterArt asset={characterAsset} size={84} className="drop-shadow-md" />
+          {pet && <span className="w-[8cqw]" aria-hidden />}
+          <CharacterArt asset={characterAsset} size={128} className="h-[16.5cqw] w-[16.5cqw] drop-shadow-md" />
           {pet && (
             <span className="-ml-2 mb-1 drop-shadow" data-room-pet={pet.name} title={`${pet.name} (함께 다니는 펫)`}>
-              <PetArt assetKey={pet.assetKey} stage={pet.stage} accessory={pet.accessory} size={48} style={{ transform: "scaleX(-1)" }} />
+              <PetArt assetKey={pet.assetKey} stage={pet.stage} accessory={pet.accessory} size={72} className="h-[9.5cqw] w-[9.5cqw]" style={{ transform: "scaleX(-1)" }} />
             </span>
           )}
         </div>
         {nickname && (
-          <span className="-mt-1 rounded-full bg-white/90 px-3 py-0.5 text-sm font-bold text-ink shadow">{nickname}</span>
+          <span className="-mt-1 rounded-full bg-white/90 px-[2.4cqw] py-0.5 text-[clamp(10px,2.8cqw,14px)] font-bold text-ink shadow">{nickname}</span>
         )}
       </div>
     </div>
