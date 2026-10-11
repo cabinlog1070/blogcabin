@@ -54,7 +54,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
       <BlogHeader blog={blog} furniture={furniture} viewerId={viewerId} following={follow !== null} favorite={follow?.favorite ?? false} pet={pet} card={card} visits={visits} />
 
       <div className="mt-6 grid gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
-        {/* 768px 미만에서는 aside를 풀어(contents) 내 이웃·초대 카드를 글 목록 아래로 보낸다 */}
+        {/* 768px 미만에서는 aside를 풀어(contents) 친구 초대 카드를 글 목록 아래로 보낸다 */}
         <aside className="space-y-4 max-md:contents md:sticky md:top-20 md:self-start">
           {/* 마을 검색은 내 집(내 블로그 홈)에서만 (BLOG-07, spec 002 FR-042) */}
           {isOwner && <SearchBox />}
@@ -78,10 +78,11 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
               ))}
             </ul>
           </nav>
-          {(neighbors || inviteCode) && (
-            <div className="space-y-4 max-md:order-last">
-              {neighbors && <NeighborList neighbors={neighbors} />}
-              {inviteCode && <InviteCard code={inviteCode} />}
+          {/* 휴대폰에서 내 이웃은 카테고리 바로 아래(글 목록 위), 친구 초대만 맨 아래 */}
+          {neighbors && <NeighborList neighbors={neighbors} />}
+          {inviteCode && (
+            <div className="max-md:order-last">
+              <InviteCard code={inviteCode} />
             </div>
           )}
         </aside>
