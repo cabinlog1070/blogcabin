@@ -13,7 +13,7 @@ export type DailyQuest = {
   key: QuestKey;
   label: string;
   emoji: string;
-  hint: string; // 무엇을 하면 되는지 한 줄 안내
+  hint: string; // 어디서 무엇을 누르면 되는지 자세한 안내
   goal: number; // 몇 번 해야 끝나는지
   count: number; // 오늘 한 횟수 (goal을 넘지 않게 자른다)
   done: boolean;
@@ -24,18 +24,46 @@ export type DailyQuest = {
 export const QUEST_POST_MIN_CHARS = 30;
 
 const QUESTS: Omit<DailyQuest, "count" | "done">[] = [
-  { key: "attend", label: "출석 체크하기", emoji: "📮", hint: "출석 체크에서 오늘 출석해요", goal: 1, href: "/attendance" },
+  {
+    key: "attend",
+    label: "출석 체크하기",
+    emoji: "📮",
+    hint: "이 화면 위쪽의 「📮 출석하고 보상 받기」 버튼을 눌러요. 하루에 한 번 할 수 있어요.",
+    goal: 1,
+    href: "/attendance",
+  },
   {
     key: "post",
     label: `${QUEST_POST_MIN_CHARS}자 이상 글 쓰기`,
     emoji: "✏️",
-    hint: `내 블로그에 본문 ${QUEST_POST_MIN_CHARS}자 이상(공백 빼고) 글을 써요`,
+    hint: `글쓰기 화면에서 제목과 본문을 쓰고 「발행하기」를 눌러요. 본문이 띄어쓰기를 빼고 ${QUEST_POST_MIN_CHARS}자 이상이어야 해요.`,
     goal: 1,
     href: "/write",
   },
-  { key: "like", label: "이웃 글에 공감 5개", emoji: "💛", hint: "다른 이웃의 글 5개에 공감을 눌러요", goal: 5, href: "/feed" },
-  { key: "comment", label: "이웃에게 댓글 3개", emoji: "💬", hint: "다른 이웃의 글에 댓글을 3개 남겨요", goal: 3, href: "/feed" },
-  { key: "pet", label: "펫 돌보기", emoji: "🐾", hint: "농장에서 밥을 주거나 쓰다듬어요", goal: 1, href: "/farm" },
+  {
+    key: "like",
+    label: "이웃 글에 공감 5개",
+    emoji: "💛",
+    hint: "📋 마을 소식에서 다른 이웃의 글을 열고, 글 아래 「♡ 공감」을 눌러요. 서로 다른 글 5개에 눌러야 하고, 내 글은 세지 않아요.",
+    goal: 5,
+    href: "/feed",
+  },
+  {
+    key: "comment",
+    label: "이웃에게 댓글 3개",
+    emoji: "💬",
+    hint: "📋 마을 소식에서 다른 이웃의 글을 열고, 글 아래 댓글 칸에 쓴 뒤 「댓글 등록」을 눌러요. 3개를 남겨야 하고, 내 글에 단 댓글은 세지 않아요.",
+    goal: 3,
+    href: "/feed",
+  },
+  {
+    key: "pet",
+    label: "펫 돌보기",
+    emoji: "🐾",
+    hint: "🐮 동물 농장에서 펫을 누르고, 열린 상태창에서 「밥 주기」나 「쓰다듬기」를 눌러요.",
+    goal: 1,
+    href: "/farm",
+  },
 ];
 
 export const DAILY_QUEST_COUNT = QUESTS.length;
