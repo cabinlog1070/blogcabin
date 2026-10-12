@@ -23,30 +23,32 @@ export type HatWear = { draw: (v: View) => string };
 const BEIGE = "#e8d2ae";
 const HEAD = "M144 20C200 20 214 66 207 100C202 126 190 141 144 144C98 141 86 126 81 100C74 66 88 20 144 20Z";
 // 몸 틀 (2026-10-12 정지원 님 시안): 큰 머리 아래 작고 통통한 한 덩어리 몸, 짧고 뭉툭한 팔다리
-/** 머리(얼굴·머리카락·모자)를 1.1배로 키워 정수리(144, 22)를 기준으로 얹는다 */
-const HEAD_T = "matrix(1.1 0 0 1.1 -14.4 -2.2)";
-const TORSO = "M134 148Q122 152 121 166L118 214Q117 236 132 238L156 238Q171 236 170 214L167 166Q166 152 154 148Z";
-const LEGL = "M118 222L119 262Q119 270 127 270L137 270Q142 270 142 264L142 232L143 222Z";
-const ARML = "M124 162Q110 170 100 182Q93 190 97 196Q101 201 107 197Q114 191 122 186Z";
+/** 머리(얼굴·머리카락·모자)를 1.2배로 키운다. 몸 높이 ≈ 머리 높이 × 0.7, 몸 너비 ≈ 머리 너비 × 0.5 (시안 비율) */
+const HEAD_T = "matrix(1.2 0 0 1.2 -28.8 -10)";
+/** 커진 머리와 모자가 그림 밖으로 나가지 않게 주민 전체를 발바닥(144, 270) 기준 0.92배로 */
+const ALL_T = "matrix(.92 0 0 .92 11.52 21.6)";
+const TORSO = "M134 158Q124 162 120 172Q116 180 115 190L109 218Q107 234 124 234L164 234Q181 234 179 218L173 190Q172 180 168 172Q164 162 154 158Z";
+const LEGL = "M107 214L108 262Q108 270 116 270L134 270Q141 270 141 263L141 234L142 214Z";
+const ARML = "M121 175Q108 179 97 186Q89 191 92 197Q95 202 102 198Q110 194 118 193Z";
 /** 좌우 뒤집기 (x → 288 - x). 절대 좌표 M·L·Q·C 명령만 쓰는 모양에 쓴다 */
 const mirror = (d: string) =>
   d.replace(/([MLQC])([^MLQCZ]+)/g, (_, c: string, args: string) => c + args.trim().split(/[\s,]+/).map((v, i) => (i % 2 === 0 ? String(288 - parseFloat(v)) : v)).join(" "));
 const ARMR = mirror(ARML);
 const LEGR = mirror(LEGL);
 
-const SIDE_LEG = (x: number) => `M${x} 222L${x + 1} 260Q${x} 270 ${x + 8} 270H${x + 24}Q${x + 29} 270 ${x + 26} 264L${x + 19} 260L${x + 20} 222Z`;
-const SIDE_TORSO = "M136 148Q126 152 126 166L125 214Q125 238 140 238L150 238Q164 236 163 214L161 166Q160 152 152 148Z";
-const SIDE_ARM = "M138 162q2 10 3 18q1 10 3 16q2 6 8 4q6-2 4-8l-3-14q-1-10-4-16q-6-6-11 0Z";
+const SIDE_LEG = (x: number) => `M${x} 214L${x + 1} 262Q${x} 270 ${x + 8} 270H${x + 30}Q${x + 35} 270 ${x + 32} 264L${x + 25} 260L${x + 26} 214Z`;
+const SIDE_TORSO = "M134 158Q120 162 120 178L118 218Q118 236 134 236L158 236Q172 234 171 218L168 178Q166 162 152 158Z";
+const SIDE_ARM = "M140 174q2 10 3 18q1 8 3 14q2 7 9 5q7-2 5-9l-3-12q-1-10-4-16q-7-6-13 0Z";
 
 type Hair = { c: string; front: string; face: string; under?: boolean; back: string; side: string };
 const HAIRS: Record<"girl" | "boy" | "visitor", Hair> = {
   girl: {
     c: "#7a4a2a",
-    front: "M80 98C72 40 106 18 144 18C182 18 216 40 208 98Q218 150 212 180Q212 190 198 188Q144 182 90 188Q76 190 76 180Q70 150 80 98Z",
+    front: "M80 98C72 40 106 18 144 18C182 18 216 40 208 98Q216 140 212 168Q212 178 198 176Q144 170 90 176Q76 178 76 168Q72 140 80 98Z",
     face: "M80 98Q96 92 104 74Q114 84 128 84Q166 86 188 70Q194 90 208 98C204 126 190 141 144 144C98 141 84 126 80 98Z",
     under: true,
-    back: "M76 104C70 36 106 14 144 14C182 14 218 36 212 104V180Q212 190 202 190H86Q76 190 76 180Z",
-    side: "M144 16C188 16 212 44 208 98Q196 84 184 70Q162 90 140 86Q134 100 136 122L138 182Q138 190 130 190H92Q82 190 82 180L82 104C76 50 104 16 144 16Z",
+    back: "M76 104C70 36 106 14 144 14C182 14 218 36 212 104V168Q212 178 202 178H86Q76 178 76 168Z",
+    side: "M144 16C188 16 212 44 208 98Q196 84 184 70Q162 90 140 86Q134 100 136 122L138 170Q138 178 130 178H92Q82 178 82 168L82 104C76 50 104 16 144 16Z",
   },
   boy: {
     c: "#3a2a22",
@@ -78,14 +80,14 @@ const armFill = (d: string, sy: number, top: string, skin: string) => {
 /** 옆모습 팔: 몸 앞에 오므로 윤곽을 긋되, 어깨 쪽은 서서히 투명해지게 해 몸통에서 자라 나온 것처럼 보이게 한다 */
 const armSide = (d: string, sy: number, top: string, skin: string) => {
   const m = nid("m"), g = nid("g");
-  const mask = `<linearGradient id="${g}" gradientUnits="userSpaceOnUse" x1="0" y1="160" x2="0" y2="168"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient><mask id="${m}" maskUnits="userSpaceOnUse" x="0" y="0" width="288" height="288"><rect width="288" height="288" fill="url(#${g})"/></mask>`;
+  const mask = `<linearGradient id="${g}" gradientUnits="userSpaceOnUse" x1="0" y1="172" x2="0" y2="182"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient><mask id="${m}" maskUnits="userSpaceOnUse" x="0" y="0" width="288" height="288"><rect width="288" height="288" fill="url(#${g})"/></mask>`;
   return `${mask}<g mask="url(#${m})">${armFill(d, sy, top, skin)}${armLine(d)}</g>`;
 };
 /** 다리 + 바지 + 신발 (다리 모양 그대로 잘라 입힌다) */
 const leg = (c: Ctx, d: string, line: string) => {
   const id = nid("l");
-  const pants = c.w.bottom?.skirt ? "" : F(Rc(60, 205, 160, c.w.bottom?.long ? 53 : 43), c.bot);
-  return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, c.skin)}<g clip-path="url(#${id})">${pants}${F(Rc(60, 256, 160, 20), c.shoe)}</g>${L(d, 4.5)}${L(line, 3)}`;
+  const pants = c.w.bottom?.skirt ? "" : F(Rc(40, 205, 210, c.w.bottom?.long ? 55 : 37), c.bot);
+  return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, c.skin)}<g clip-path="url(#${id})">${pants}${F(Rc(40, 260, 210, 20), c.shoe)}</g>${L(d, 4.5)}${L(line, 3)}`;
 };
 /** 몸통 + 아랫단(하의 색). 윤곽(torsoLine)과 색(torsoFill)을 나눠, 그 사이에 팔·다리를 그려 넣으면
  *  몸통 색이 팔·다리 윗부분을 덮어 이음새 없이 이어진다 */
@@ -93,9 +95,9 @@ const torsoLine = (d: string) => L(d, 5);
 const torsoFill = (c: Ctx, d: string) => {
   const band = c.w.bottom?.skirt ? c.w.bottom.color : c.bot;
   // 윗옷·아랫단을 몸통 모양이 아니라 가로선으로 나눠 자른다: 크레용 면의 번진 가장자리가 다리 위에 다른 색으로 남지 않게
-  return clip(Rc(0, 0, 288, 211), F(d, c.top)) + clip(Rc(0, 210, 288, 90), F(d, band));
+  return clip(Rc(0, 0, 288, 213), F(d, c.top)) + clip(Rc(0, 212, 288, 90), F(d, band));
 };
-const sleeveY = (c: Ctx, side: boolean) => (c.w.top?.longSleeve ? (side ? 192 : 190) : side ? 178 : 176);
+const sleeveY = (c: Ctx, side: boolean) => (c.w.top?.longSleeve ? (side ? 206 : 198) : side ? 192 : 185);
 
 // ── 앞·뒤 몸 (좌우 대칭) ──
 function bodyFB(c: Ctx, v: View): string {
@@ -103,20 +105,20 @@ function bodyFB(c: Ctx, v: View): string {
   const liftL = f === 1 ? -7 : 0, liftR = f === 2 ? -7 : 0, swing = f === 1 ? 6 : f === 2 ? -6 : 0;
   const sy = sleeveY(c, false);
   const up = (x: string) => `<g transform="translate(0 ${bob})">${x}</g>`;
-  const armL = (x: string) => `<g transform="rotate(${swing} 122 168)">${x}</g>`, armR = (x: string) => `<g transform="rotate(${-swing} 166 168)">${x}</g>`;
+  const armL = (x: string) => `<g transform="rotate(${swing} 118 184)">${x}</g>`, armR = (x: string) => `<g transform="rotate(${-swing} 170 184)">${x}</g>`;
   // 윤곽(몸통·팔) → 다리 → 팔 색 → 몸통 색 순서: 몸통 색이 팔·다리 뿌리를 덮어 한 몸으로 이어진다
   let s = up(torsoLine(TORSO) + armL(armLine(ARML)) + armR(armLine(ARMR)));
-  s += `<g transform="translate(0 ${liftL})">${leg(c, LEGL, "M119 258h23")}${bootF(c, 117)}</g>`;
-  s += `<g transform="translate(0 ${liftR})">${leg(c, LEGR, "M146 258h23")}${bootF(c, 145)}</g>`;
+  s += `<g transform="translate(0 ${liftL})">${leg(c, LEGL, "M108 260h33")}${bootF(c, 106)}</g>`;
+  s += `<g transform="translate(0 ${liftR})">${leg(c, LEGR, "M147 260h33")}${bootF(c, 146)}</g>`;
   s += `<g transform="translate(0 ${bob})">`;
   s += armL(armFill(ARML, sy, c.top, c.skin)) + armR(armFill(ARMR, sy, c.top, c.skin));
   s += torsoFill(c, TORSO);
-  if (c.w.bottom?.skirt) s += S("M119 206h50l10 32q-35 9-70 0Z", c.w.bottom.color, 4.5) + L("M134 210l-5 26M154 210l5 26", 2.5);
+  if (c.w.bottom?.skirt) s += S("M110 208h68l10 30q-44 9-88 0Z", c.w.bottom.color, 4.5) + L("M128 212l-5 24M160 212l5 24", 2.5);
   s += c.w.top?.deco?.(v) ?? "";
   s += "</g>";
   return s + (c.w.shoes?.deco?.(v) ?? "");
 }
-const bootF = (c: Ctx, x: number) => (c.w.shoes?.boots ? S(Rc(x, 246, 26, 25, 5), c.shoe, 4) : "");
+const bootF = (c: Ctx, x: number) => (c.w.shoes?.boots ? S(Rc(x, 248, 36, 23, 5), c.shoe, 4) : "");
 
 function headFront(c: Ctx): string {
   if (c.kind === "mannequin") return S(HEAD, c.skin, 5.5);
@@ -139,7 +141,7 @@ function headBack(c: Ctx): string {
 
 function front(c: Ctx, v: View): string {
   const bob = c.frame ? -3 : 0;
-  let o = shadow(144, 270, 40, 6);
+  let o = shadow(144, 270, 46, 6);
   const under = c.kind !== "mannequin" && HAIRS[c.kind].under;
   if (v === "front") {
     if (under) o += `<g transform="translate(0 ${bob})"><g transform="${HEAD_T}">${S(HAIRS[c.kind as "girl"].front, HAIRS.girl.c, 5)}</g></g>`;
@@ -156,17 +158,17 @@ function side(c: Ctx): string {
   let o = shadow(144, 270, 36, 6);
   const sideLeg = (x: number, rot: number) => {
     const d = SIDE_LEG(x);
-    const boot = c.w.shoes?.boots ? S(`M${x} 246h26v18q0 6-6 6h-20Z`, c.shoe, 4) : "";
-    return `<g transform="rotate(${rot} 144 226)">${leg(c, d, `M${x + 1} 260h19`)}${boot}</g>`;
+    const boot = c.w.shoes?.boots ? S(`M${x} 248h32v16q0 6-6 6h-26Z`, c.shoe, 4) : "";
+    return `<g transform="rotate(${rot} 146 218)">${leg(c, d, `M${x + 1} 260h25`)}${boot}</g>`;
   };
   const lift = `translate(0 -${c.frame ? 3 : 0})`;
   // 몸통 윤곽 → 다리 → 몸통 색: 다리 뿌리가 몸통 속으로 들어가 이음새가 보이지 않는다
   o += `<g transform="${lift}">${torsoLine(SIDE_TORSO)}</g>`;
-  o += sideLeg(129, -sw) + sideLeg(135, sw);
+  o += sideLeg(122, -sw) + sideLeg(132, sw);
   o += `<g transform="${lift}">`;
   const H = c.kind === "mannequin" ? null : HAIRS[c.kind];
   o += torsoFill(c, SIDE_TORSO);
-  if (c.w.bottom?.skirt) o += S("M126 206h38l12 32q-31 9-62 0Z", c.w.bottom.color, 4.5) + L("M142 210l-4 26", 2.5);
+  if (c.w.bottom?.skirt) o += S("M122 208h48l12 30q-36 9-72 0Z", c.w.bottom.color, 4.5) + L("M146 212l-4 24", 2.5);
   o += c.w.top?.deco?.("side") ?? "";
   // 머리는 앞모습과 같은 동그란 두상을 몸 한가운데 위에 얹고, 머리카락이 뒤통수·정수리를 덮는다
   o += `<g transform="${HEAD_T}">` + S(HEAD, c.skin, 5.5);
@@ -176,7 +178,7 @@ function side(c: Ctx): string {
     if (c.kind === "visitor") o += S(LEAF, "#6fb34f", 3.5);
   }
   o += (c.w.hat?.draw("side") ?? "") + "</g>";
-  o += `<g transform="rotate(${-sw * 2} 144 164)">${armSide(SIDE_ARM, sleeveY(c, true), c.top, c.skin)}</g>`;
+  o += `<g transform="rotate(${-sw * 2} 146 178)">${armSide(SIDE_ARM, sleeveY(c, true), c.top, c.skin)}</g>`;
   o += "</g>";
   return o + (c.w.shoes?.deco?.("side") ?? "");
 }
@@ -192,7 +194,7 @@ export function person(kind: Kind, view: View, frame: Frame, wear: Wear, size: n
     shoe: wear.shoes?.color ?? (mq ? BEIGE : "#7a4a2a"),
   };
   // 광장 그림과 같은 파스텔 크레용 그림체 (2026-10-12)
-  return pastel(() => make(288, 288, () => (view === "side" ? side(c) : front(c, view)), { dw: size, dh: size }));
+  return pastel(() => make(288, 288, () => `<g transform="${ALL_T}">${view === "side" ? side(c) : front(c, view)}</g>`, { dw: size, dh: size }));
 }
 
 // ── 꾸미기 그림 ──
@@ -200,21 +202,21 @@ const recolor = (s: string, c: string) => s.replace(/#262220|#7b5a44/g, c); // �
 const star = (x: number, y: number) => `<path d="M${x} ${y}l3 5l5 1l-5 2l-1 5l-3-4l-5 0l4-4Z" fill="#fff"/>`;
 
 export const WEAR_PIECES = {
-  "avatar.top.stripe": { slot: "top", top: { color: "#ffffff", deco: (v: View) => (v === "side" ? recolor(L("M129 180h30M128 196h32", 3), "#4f8fe0") : recolor(L("M122 180h44M121 196h46", 3), "#4f8fe0")) } },
+  "avatar.top.stripe": { slot: "top", top: { color: "#ffffff", deco: (v: View) => (v === "side" ? recolor(L("M125 190h37M124 204h39", 3), "#4f8fe0") : recolor(L("M116 190h56M113 204h62", 3), "#4f8fe0")) } },
   "avatar.top.hoodie": {
     slot: "top",
     top: {
       color: "#f29a4a", longSleeve: true,
-      deco: (v: View) => (v === "front" ? L("M138 160v14M150 160v14", 2.5) + S("M130 186h28v12h-28Z", "#e0843a", 3.5) : v === "back" ? S("M124 156q20 16 40 0q-3 12-20 16q-17-4-20-16Z", "#e0843a", 3.5) : S("M130 156q-8 12 2 20q8-8 8-20Z", "#e0843a", 3.5)),
+      deco: (v: View) => (v === "front" ? L("M138 172v14M150 172v14", 2.5) + S("M126 194h36v12h-36Z", "#e0843a", 3.5) : v === "back" ? S("M118 168q26 18 52 0q-4 14-26 18q-22-4-26-18Z", "#e0843a", 3.5) : S("M128 168q-8 12 2 20q8-8 8-20Z", "#e0843a", 3.5)),
     },
   },
-  "avatar.top.knit": { slot: "top", top: { color: "#6fb38a", longSleeve: true, deco: (v: View) => (v === "side" ? L("M130 176l7 7l7-7l7 7l7-7", 3) + L("M129 200h30", 3) : L("M123 176l7 7l7-7l7 7l7-7l7 7l7-7", 3) + L("M121 200h46", 3)) } },
+  "avatar.top.knit": { slot: "top", top: { color: "#6fb38a", longSleeve: true, deco: (v: View) => (v === "side" ? L("M126 188l8 8l8-8l8 8l8-8", 3) + L("M123 206h42", 3) : L("M116 188l8 8l8-8l8 8l8-8l8 8l8-8", 3) + L("M112 206h64", 3)) } },
   "avatar.bottom.shorts": { slot: "bottom", bottom: { color: "#4f8fe0" } },
   "avatar.bottom.jeans": { slot: "bottom", bottom: { color: "#3e5f9e", long: true } },
   "avatar.bottom.skirt": { slot: "bottom", bottom: { color: "#e8574b", skirt: true } },
-  "avatar.shoes.sneakers": { slot: "shoes", shoes: { color: "#ffffff", deco: (v: View) => (v === "side" ? "" : recolor(L("M122 265h16M150 265h16", 2.5), "#e8433a")) } },
+  "avatar.shoes.sneakers": { slot: "shoes", shoes: { color: "#ffffff", deco: (v: View) => (v === "side" ? "" : recolor(L("M112 265h24M152 265h24", 2.5), "#e8433a")) } },
   "avatar.shoes.boots": { slot: "shoes", shoes: { color: "#8a5a3a", boots: true } },
-  "avatar.shoes.shiny": { slot: "shoes", shoes: { color: "#f28fa8", deco: (v: View) => (v === "side" ? star(146, 262) : star(126, 262) + star(156, 262)) } },
+  "avatar.shoes.shiny": { slot: "shoes", shoes: { color: "#f28fa8", deco: (v: View) => (v === "side" ? star(150, 262) : star(118, 262) + star(160, 262)) } },
   "avatar.hat.straw": {
     slot: "hat",
     hat: { draw: () => S(E(144, 46, 88, 16), "#f2d27a", 5) + S("M100 46q4-40 44-40q40 0 44 40Z", "#f2d27a", 5) + S("M100 36h88v10h-88Z", "#e8433a", 3.5) },
