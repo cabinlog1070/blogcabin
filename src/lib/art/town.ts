@@ -2,7 +2,7 @@
 // 2026-10-11 크레용 그림체 (crayon.ts). 좌표는 화면 크기의 2배. 그림은 아랫변 가운데를 발 닿는 곳으로 놓는다.
 import { msg, type T } from "@/lib/i18n";
 import { backgroundAccent } from "./backgrounds";
-import { attendance, bench, board, campfireBase, campfireFront, farm, flame, house, lamp, shop, tree } from "./crayon";
+import { attendance, bench, board, campfireBase, campfireFront, farm, flame, house, lamp, pastel, shop, tree } from "./crayon";
 
 // ===== 집 = 둥근 지붕 오두막 (단계별 성장, TOWN-11) =====
 // 1단계: 문 + 창 하나 / 2단계: + 창 두 개(꽃 상자)·굴뚝, 더 크게 / 3단계: + 지붕 다락방 창, 더 크게
@@ -49,27 +49,27 @@ export const TREE_SIZE = { width: 80, height: 100 };
 
 /** 집 (HOUSE_STAGES 크기). roof = 지붕 색 (#rrggbb) */
 export function houseSvg(stage: HouseStage, roof: string): string {
-  return house(stage, roof);
+  return pastel(() => house(stage, roof));
 }
-export const farmSvg = (): string => farm();
+export const farmSvg = (): string => pastel(farm);
 /** 상점·게시판·출석판에는 이름 글자가 들어간다. t를 넘기면 그 언어로 쓴다 (기본 한국어) */
-export const shopSvg = (t?: T): string => shop(t);
-export const boardSvg = (t?: T): string => board(t);
-export const attendanceSvg = (t?: T): string => attendance(t);
+export const shopSvg = (t?: T): string => pastel(() => shop(t));
+export const boardSvg = (t?: T): string => pastel(() => board(t));
+export const attendanceSvg = (t?: T): string => pastel(() => attendance(t));
 
 /** 돌 고리 + 장작 + 숯불 (불꽃 없음). 화면 180×150, 불 중심 = (90, 99)px */
-export const campfireSvg = (): string => campfireBase();
+export const campfireSvg = (): string => pastel(campfireBase);
 /** 불꽃 한 프레임 (0,1,2). 모닥불과 같은 기준점 — 그대로 겹쳐 쓴다 */
-export const flameSvg = (frame: number): string => flame(frame);
+export const flameSvg = (frame: number): string => pastel(() => flame(frame));
 /** 모닥불의 앞쪽 장작·돌만 (불꽃 위에 겹쳐서 불꽃 밑동이 장작 뒤로 들어가 보이게 한다) */
-export const campfireFrontSvg = (): string => campfireFront();
+export const campfireFrontSvg = (): string => pastel(campfireFront);
 
 /** 불가에 놓는 통나무 의자 (BENCH_SIZE) */
-export const benchSvg = (): string => bench();
+export const benchSvg = (): string => pastel(bench);
 /** 랜턴 기둥 (LAMP_SIZE, 불빛 가운데 LAMP_LIGHT) */
-export const lampSvg = (): string => lamp();
+export const lampSvg = (): string => pastel(lamp);
 /** 광장 나무 (TREE_SIZE). bush 는 꽃 덤불을 같은 틀 아래 가운데에 놓는다 */
-export const treeSvg = (kind: "round" | "pine" | "bush" | "blossom"): string => tree(kind);
+export const treeSvg = (kind: "round" | "pine" | "bush" | "blossom"): string => pastel(() => tree(kind));
 
 export function toDataUri(svg: string) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;

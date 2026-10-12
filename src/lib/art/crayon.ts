@@ -9,6 +9,27 @@ export const SKIN = "#fbd9b8";
 
 type P = [number, number];
 
+// 파스텔 크레용 그림체 (2026-10-12 정지원 님 시안): 검은 외곽선 대신 같은 색 계열의 진한 크레용 테두리, 면은 결이 보이게 문지른다.
+// pastel(() => 그림) 안에서 그리면 S·F·L·dot이 이 그림체로 바뀐다. 글자(T)는 읽기 쉽게 그대로 둔다
+let PASTEL = false;
+export function pastel<R>(draw: () => R): R {
+  const before = PASTEL;
+  PASTEL = true;
+  try {
+    return draw();
+  } finally {
+    PASTEL = before;
+  }
+}
+const hex2 = (h: string) => (/^#[0-9a-f]{6}$/i.test(h) ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) : null);
+/** 색 섞기 (t = 0이면 a, 1이면 b). #rrggbb가 아니면 a 그대로 */
+const mixHex = (a: string, b: string, t: number) => {
+  const x = hex2(a), y = hex2(b);
+  if (!x || !y) return a;
+  return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
+};
+const PASTEL_LINE = "#7b5a44";
+
 let seq = 0;
 /** 그림 하나 안에서만 쓰는 id */
 export const nid = (p: string) => `${p}${(seq++).toString(36)}`;
@@ -19,6 +40,7 @@ const defs = (w: number, h: number) =>
   `<defs><filter id="cr" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 3.2 -0.9" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in" result="g"/><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="8" result="w"/><feDisplacementMap in="g" in2="w" scale="2.5"/></filter>` +
   `<filter id="fg" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="12" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.6 0.25" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter>` +
   `<filter id="grain" filterUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}"><feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="2" seed="12" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0.227  0 0 0 0 0.165  0 0 0 0 0.102  0 0 0 0.112 0.0175" result="m"/><feComposite in="m" in2="SourceAlpha" operator="in" result="g"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="g"/></feMerge></filter>` +
+  `<filter id="pz" filterUnits="userSpaceOnUse" x="-20" y="-20" width="${w + 40}" height="${h + 40}"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 2.6 -0.45" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in" result="g"/><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="8" result="w"/><feDisplacementMap in="g" in2="w" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter>` +
   `<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter></defs>`;
 
 /** 완성 SVG (viewBox = 그린 좌표). dw·dh = 그림의 width/height 속성 (기본은 그린 크기 그대로) */
@@ -34,9 +56,15 @@ export function make(w: number, h: number, draw: () => string, opts: Parameters<
 // ───────── 붓 ─────────
 /** 면: 단색 (종이 결은 그림 전체에 한 번에 입힌다 — svg의 grain). op < 1 이면 반투명 덧칠 */
 export const F = (d: string, c: string, op = 1) =>
-  op < 1 ? `<path d="${d}" fill="${c}" opacity="${op}" filter="url(#fg)"/>` : `<path d="${d}" fill="${c}"/>`;
+  PASTEL && op >= 1
+    ? `<path d="${d}" fill="${mixHex(c, "#ffffff", 0.12)}" opacity=".6"/><path d="${d}" fill="${mixHex(c, "#ffffff", 0.12)}" filter="url(#pz)"/>`
+    : op < 1 ? `<path d="${d}" fill="${c}" opacity="${op}" filter="url(#fg)"/>` : `<path d="${d}" fill="${c}"/>`;
 /** 크레용 선: 가는 심(끊기지 않는 선) + 거친 크레용 결 두 번(한 묶음으로 한 번에 거칠게 해 필터 수를 줄인다) */
 export const L = (d: string, w = 5, color = INK) => {
+  if (PASTEL) {
+    const c = color === INK ? PASTEL_LINE : color;
+    return `<path d="${d}" fill="none" stroke="${c}" stroke-width="${+(w * 0.9).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round" opacity=".8" filter="url(#pz)"/>`;
+  }
   const st = (sw: number) => `fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"`;
   return `<path d="${d}" ${st(+(w * 0.45).toFixed(1))}/>` +
     `<g filter="url(#cr)"><path d="${d}" ${st(w)}/><path d="${d}" ${st(+(w * 0.5).toFixed(1))} opacity=".8" transform="translate(.7 .5)"/></g>`;
@@ -46,8 +74,10 @@ export const S = (d: string, c: string, w = 5, shade?: string) => {
   let o = F(d, c);
   if (shade) {
     const id = nid("s");
-    o += `<clipPath id="${id}"><path d="${d}"/></clipPath><g clip-path="url(#${id})">${F(shade, "#000", 0.13)}</g>`;
+    o += `<clipPath id="${id}"><path d="${d}"/></clipPath><g clip-path="url(#${id})">${F(shade, "#000", PASTEL ? 0.07 : 0.13)}</g>`;
   }
+  // 파스텔: 테두리는 면 색을 조금 진하게 한 크레용
+  if (PASTEL) return o + `<path d="${d}" fill="none" stroke="${mixHex(c, "#3a2a1a", 0.28)}" stroke-width="${+(w * 1.5).toFixed(1)}" stroke-linejoin="round" filter="url(#pz)"/>`;
   return o + L(d, w);
 };
 /** 모양 안에만 그리기 */
@@ -61,7 +91,7 @@ export const Rc = (x: number, y: number, w: number, h: number, r = 0) =>
     ? `M${x + r} ${y}h${w - 2 * r}q${r} 0 ${r} ${r}v${h - 2 * r}q0 ${r} ${-r} ${r}h${-(w - 2 * r)}q${-r} 0 ${-r} ${-r}v${-(h - 2 * r)}q0 ${-r} ${r} ${-r}Z`
     : `M${x} ${y}h${w}v${h}h${-w}Z`;
 export const Pg = (pts: (P | [string, string])[]) => "M" + pts.map((p) => p.join(" ")).join(" L") + "Z";
-export const dot = (x: number, y: number, r = 4) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${INK}"/>`;
+export const dot = (x: number, y: number, r = 4) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${PASTEL ? PASTEL_LINE : INK}"/>`;
 export const blush = (x: number, y: number, rx = 7, ry = 4) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#f59a9a" opacity=".85" filter="url(#fg)"/>`;
 // 일본어(가나)가 든 글자는 일본어 글꼴로 그린다. 그림(SVG)은 이미지로 그려져 웹 글꼴을 못 쓰므로 기기 글꼴을 고른다
 const SVG_FONT_KO = "'Apple SD Gothic Neo','Noto Sans KR',sans-serif";
