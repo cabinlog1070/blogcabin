@@ -80,29 +80,53 @@ export default async function AdminMembersPage(props: { searchParams: Promise<{ 
           </span>
         </h2>
         {rows.length ? (
-          <table className="w-full text-left text-sm" data-admin-members>
-            <thead className="text-ink-soft">
-              <tr><th className="py-2">{t("닉네임")}</th><th>{t("아이디 / 로그인 방식")}</th><th>{t("이메일")}</th><th>{t("블로그")}</th><th>{t("글")}</th><th>{t("댓글")}</th><th>{t("권한")}</th><th>{t("가입")}</th></tr>
-            </thead>
-            <tbody className="divide-y-2 divide-line/60">
+          <>
+            {/* 휴대폰·좁은 창: 회원마다 카드 한 장. 표는 칸이 좁아져 글자가 한 자씩 쪼개진다 */}
+            <ul className="divide-y-2 divide-line/60 lg:hidden" data-admin-members-list>
               {rows.map((u) => (
-                <tr key={u.id}>
-                  <td className="py-2">
-                    <Link href={`/admin/members/${u.id}`} className="font-bold text-sky underline">
+                <li key={u.id} className="py-3 text-sm">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <Link href={`/admin/members/${u.id}`} className="min-w-0 truncate text-base font-bold text-sky underline">
                       {u.nickname ?? t("온보딩 전")}
                     </Link>
-                  </td>
-                  <td>{u.username ?? "-"} <span className="text-ink-soft">({u.provider ?? t("없음")})</span></td>
-                  <td className="text-ink-soft">{u.email.endsWith(".invalid") ? "-" : u.email}</td>
-                  <td>{u.slug ? <Link href={`/@${u.slug}`} className="text-sky underline">@{u.slug}</Link> : "-"}</td>
-                  <td>{u.postCount}</td>
-                  <td>{u.commentCount}</td>
-                  <td>{u.role === "admin" ? t("관리자") : t("회원")}</td>
-                  <td className="whitespace-nowrap text-ink-soft">{formatDateTime(u.createdAt, locale)}</td>
-                </tr>
+                    <span className="shrink-0 text-xs text-ink-soft">{formatDateTime(u.createdAt, locale)}</span>
+                  </div>
+                  <p className="mt-1 break-all">
+                    {u.username ?? "-"} <span className="text-ink-soft">({u.provider ?? t("없음")})</span>
+                    {u.role === "admin" && <span className="ml-2 rounded-full bg-honey px-2 py-0.5 text-xs font-bold">{t("관리자")}</span>}
+                  </p>
+                  {!u.email.endsWith(".invalid") && <p className="mt-0.5 break-all text-ink-soft">{u.email}</p>}
+                  <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                    {u.slug ? <Link href={`/@${u.slug}`} className="break-all text-sky underline">@{u.slug}</Link> : <span className="text-ink-soft">-</span>}
+                    <span className="whitespace-nowrap text-ink-soft">{t("글")} {u.postCount} · {t("댓글")} {u.commentCount}</span>
+                  </p>
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+            <table className="hidden w-full min-w-[52rem] text-left text-sm lg:table" data-admin-members>
+              <thead className="whitespace-nowrap text-ink-soft">
+                <tr><th className="py-2 pr-3">{t("닉네임")}</th><th className="pr-3">{t("아이디 / 로그인 방식")}</th><th className="pr-3">{t("이메일")}</th><th className="pr-3">{t("블로그")}</th><th className="pr-3 text-right">{t("글")}</th><th className="pr-3 text-right">{t("댓글")}</th><th className="pr-3">{t("권한")}</th><th>{t("가입")}</th></tr>
+              </thead>
+              <tbody className="divide-y-2 divide-line/60">
+                {rows.map((u) => (
+                  <tr key={u.id}>
+                    <td className="py-2 pr-3">
+                      <Link href={`/admin/members/${u.id}`} className="font-bold text-sky underline">
+                        {u.nickname ?? t("온보딩 전")}
+                      </Link>
+                    </td>
+                    <td className="pr-3">{u.username ?? "-"} <span className="text-ink-soft">({u.provider ?? t("없음")})</span></td>
+                    <td className="break-all pr-3 text-ink-soft">{u.email.endsWith(".invalid") ? "-" : u.email}</td>
+                    <td className="pr-3">{u.slug ? <Link href={`/@${u.slug}`} className="text-sky underline">@{u.slug}</Link> : "-"}</td>
+                    <td className="pr-3 text-right tabular-nums">{u.postCount}</td>
+                    <td className="pr-3 text-right tabular-nums">{u.commentCount}</td>
+                    <td className="whitespace-nowrap pr-3">{u.role === "admin" ? t("관리자") : t("회원")}</td>
+                    <td className="whitespace-nowrap text-ink-soft">{formatDateTime(u.createdAt, locale)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         ) : (
           <p className="text-ink-soft">{t("찾는 회원이 없어요")}</p>
         )}
