@@ -1,6 +1,7 @@
 import { FeedView } from "@/components/blog/feed-view";
 import { parsePage } from "@/components/pagination";
 import { getAllTags, listFeed } from "@/server/blog";
+import { feedFrom } from "@/lib/feed-from";
 import { getT } from "@/server/i18n";
 
 export async function generateMetadata(props: PageProps<"/tags/[name]">) {
@@ -23,6 +24,7 @@ export default async function TagPage(props: PageProps<"/tags/[name]">) {
       tags={tags}
       showFollowingTab={false}
       hrefFor={(n) => `/tags/${encodeURIComponent(tag)}?page=${n}`}
+      from={feedFrom({ tag })}
       empty={<>{t("이 태그가 달린 글이 없어요.")}</>}
     />
   );

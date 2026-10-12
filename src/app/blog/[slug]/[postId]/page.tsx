@@ -14,6 +14,7 @@ import {
   canSeePrivatePosts,
   getAdjacentPosts,
   getBlogBySlug,
+  getFeedAdjacentPosts,
   getComments,
   getLikeState,
   getPost,
@@ -23,6 +24,7 @@ import { getViewer } from "@/server/dal";
 import { relaxNbsp } from "@/server/sanitize";
 import { getLocale, getT } from "@/server/i18n";
 import { categoryLabel } from "@/lib/i18n";
+import { feedFrom, parseFeedFrom } from "@/lib/feed-from";
 
 async function load(props: PageProps<"/blog/[slug]/[postId]">) {
   const { slug, postId } = await props.params;
@@ -57,12 +59,22 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
   const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인, 서로 이웃, 관리자만
   if (post.visibility === "private" && !includePrivate) notFound();
 
-  const [tagNames, like, comments, adjacent] = await Promise.all([
+  // 마을 소식에서 열었으면 이전·다음 글도 그 목록(마을 전체·💛 이웃 새 글·태그) 순서로 넘긴다.
+  // 💛 이웃 새 글은 회원만 볼 수 있는 목록이라 비회원이면 블로그 안의 이전·다음 글로 둔다
+  const source = parseFeedFrom(sp);
+  const feed =
+    source && ("tag" in source ? { tag: source.tag } : source.tab === "all" ? {} : viewerId ? { followerId: viewerId } : null);
+  const [tagNames, like, comments, feedAdjacent] = await Promise.all([
     getPostTags(post.id),
     getLikeState(post.id, viewerId),
     getComments(post.id),
-    getAdjacentPosts(blog.id, post, includePrivate),
+    feed ? getFeedAdjacentPosts(post.id, feed) : null,
   ]);
+  // 지금 글이 그 목록에 없으면(비공개 글 등) 블로그 안의 이전·다음 글
+  const adjacent = feedAdjacent
+    ? { ...feedAdjacent, query: `?${feedFrom(source!)}` }
+    : { ...(await getAdjacentPosts(blog.id, post, includePrivate)), query: "" };
+  const hrefOf = (p: { id: number; blogSlug?: string }) => `/@${p.blogSlug ?? blog.slug}/${p.id}${adjacent.query}`;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -165,7 +177,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
 
       <nav className="mt-6 grid gap-3 sm:grid-cols-2" aria-label={t("이전 글, 다음 글")}>
         {adjacent.prev ? (
-          <Link href={`/@${blog.slug}/${adjacent.prev.id}`} className="card p-4 hover:-translate-y-0.5">
+          <Link href={hrefOf(adjacent.prev)} className="card p-4 hover:-translate-y-0.5">
             <span className="text-xs text-ink-soft">{t("← 이전 글")}</span>
             <span className="block truncate font-bold">{adjacent.prev.title}</span>
           </Link>
@@ -173,7 +185,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
           <span />
         )}
         {adjacent.next && (
-          <Link href={`/@${blog.slug}/${adjacent.next.id}`} className="card p-4 text-right hover:-translate-y-0.5">
+          <Link href={hrefOf(adjacent.next)} className="card p-4 text-right hover:-translate-y-0.5">
             <span className="text-xs text-ink-soft">{t("다음 글 →")}</span>
             <span className="block truncate font-bold">{adjacent.next.title}</span>
           </Link>

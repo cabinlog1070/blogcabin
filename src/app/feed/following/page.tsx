@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FeedView } from "@/components/blog/feed-view";
 import { parsePage } from "@/components/pagination";
 import { getAllTags, listFeed } from "@/server/blog";
+import { feedFrom } from "@/lib/feed-from";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
 
@@ -26,6 +27,7 @@ export default async function FollowingFeedPage(props: PageProps<"/feed/followin
       showFollowingTab
       myBlogHref={`/@${viewer.profile.blogSlug}`}
       hrefFor={(n) => `/feed/following?page=${n}`}
+      from={feedFrom({ tab: "following" })}
       empty={
         <>
           {t("아직 이웃이 없거나 이웃의 새 글이 없어요.")}

@@ -14,6 +14,7 @@ export async function FeedView({
   showFollowingTab,
   myBlogHref,
   hrefFor,
+  from,
   empty,
 }: {
   title: React.ReactNode;
@@ -24,6 +25,8 @@ export async function FeedView({
   /** 회원이면 내 블로그 주소 (/@slug). 탭 오른쪽에 "내 블로그로 가기"를 보여 준다 */
   myBlogHref?: string;
   hrefFor: (n: number) => string;
+  /** 글 주소에 붙일 목록 표시. 글 화면의 이전·다음 글이 이 목록 순서를 따른다 (feedFrom) */
+  from: string;
   empty: React.ReactNode;
 }) {
   const t = await getT();
@@ -57,7 +60,7 @@ export async function FeedView({
           </div>
         )}
         <div className="mt-5 grid gap-4">
-          {list.items.length ? list.items.map((p) => <PostCard key={p.id} post={p} showAuthor />) : <div className="card p-10 text-center text-ink-soft">{empty}</div>}
+          {list.items.length ? list.items.map((p) => <PostCard key={p.id} post={p} showAuthor from={from} />) : <div className="card p-10 text-center text-ink-soft">{empty}</div>}
         </div>
         <Pagination page={list.page} pageCount={list.pageCount} hrefFor={hrefFor} />
       </section>
