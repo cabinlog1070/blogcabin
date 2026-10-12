@@ -142,6 +142,8 @@ function baseList(where: SQL | undefined, orderFirst: SQL[] = [], order: SQL[] =
       blogTitle: blogs.title,
       nickname: profiles.nickname,
       characterAsset: lookSql(characterItem.assetKey, profiles.userId),
+      // 관리자(공지사항 블로그) 글: 여러 블로그 글이 섞인 목록에서 진한 카드로 구분한다
+      isNotice: sql<boolean>`EXISTS (SELECT 1 FROM ${users} WHERE ${users.id} = ${blogs.ownerId} AND ${users.role} = 'admin')`,
     })
     .from(posts)
     .innerJoin(blogs, eq(blogs.id, posts.blogId))
