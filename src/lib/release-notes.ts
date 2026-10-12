@@ -34,6 +34,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       { kind: "new", text: msg("내 정보 메뉴의 문의하기 아래에 릴리스 노트가 생겼어요. 업데이트될 때마다 여기에 소식을 올려요.") },
       { kind: "new", text: msg("환경 설정의 기본 정보에서 닉네임을 바꿀 수 있어요. 2~12자이고, 다른 주민이 쓰는 닉네임은 쓸 수 없어요.") },
       { kind: "fixed", text: msg("아이폰(사파리)에서 크레용 그림이 뭉개져 보이던 문제를 고쳤어요.") },
+      { kind: "fixed", text: msg("일본어 화면에서 광장 게시판 간판 글씨가 칸 밖으로 넘치던 문제를 고쳤어요.") },
       { kind: "improved", text: msg("비공개 글도 언제나 볼 수 있어요."), admin: true },
     ],
   },
