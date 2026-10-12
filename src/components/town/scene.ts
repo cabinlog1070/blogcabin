@@ -54,8 +54,6 @@ import {
   flowersSvg,
   GRASS_SIZE,
   grassSvg,
-  LAUNDRY_SIZE,
-  laundrySvg,
   MAILBOX_SIZE,
   mailboxSvg,
   PLANTER_SIZE,
@@ -136,7 +134,6 @@ const CAMPFIRE_POS = { x: CENTER.x, y: CENTER.y + CAMPFIRE_SIZE.height / 2 };
 // ===== 꾸밈 소품 (2026-10-08 디자인 시안 지도 느낌). 건물 자리·길·광장 입구는 그대로 두고 빈 풀밭에만 놓는다 =====
 const PROP_ART = {
   mailbox: { draw: mailboxSvg, size: MAILBOX_SIZE },
-  laundry: { draw: laundrySvg, size: LAUNDRY_SIZE },
   crate: { draw: crateSvg, size: CRATE_SIZE },
   barrel: { draw: barrelSvg, size: BARREL_SIZE },
   planter: { draw: planterSvg, size: PLANTER_SIZE },
@@ -150,10 +147,9 @@ const PROP_ART = {
 type PropKind = keyof typeof PROP_ART;
 /** 자리를 정해 둔 소품: (x, y) = 아랫변 가운데, s = 크기 배율, solid = 부딪히는 영역(없으면 지나갈 수 있다) */
 type PropSpot = { kind: PropKind; x: number; y: number; s?: number; solid?: { w: number; h: number } };
-// 빨래대: 왼쪽 위 이웃 집 두 채 사이 뒤쪽
-const LAUNDRY_POS = { x: 290, y: 178 };
+// 하늘: 예전 빨래대 자리(y 178) 뒤쪽부터는 숲 대신 하늘이 열린다 (2026-10-12 정지원 님). 걸을 수 있는 곳도 이 아래까지
+const HORIZON = 150;
 const FIXED_PROPS: PropSpot[] = [
-  { kind: "laundry", ...LAUNDRY_POS, s: 0.9, solid: { w: 58, h: 8 } },
   // 이정표: 위쪽 길에서 내려온 가운데 길이 광장으로 들어오는 갈림목 (오른쪽 가장자리, 출석 체크 이름표 아래)
   { kind: "signpost", x: CENTER.x + 84, y: CENTER.y - 188, s: 0.8, solid: { w: 12, h: 8 } },
   // 상점 옆: 오른쪽에 상자·통, 왼쪽 앞에 꽃 화분
@@ -376,7 +372,7 @@ export function createTownScene(
     create() {
       for (const [key, canvas] of images) if (!this.textures.exists(key)) this.textures.addCanvas(key, canvas);
 
-      this.physics.world.setBounds(0, 0, WORLD.width, WORLD.height);
+      this.physics.world.setBounds(0, HORIZON + 20, WORLD.width, WORLD.height - HORIZON - 20);
       this.drawGround();
 
       const walls = this.physics.add.staticGroup();
@@ -924,6 +920,40 @@ export function createTownScene(
         .tileSprite(-FOREST, -FOREST, WORLD.width + FOREST * 2, WORLD.height + FOREST * 2, "forest-floor")
         .setOrigin(0)
         .setDepth(GROUND_DEPTH - 1);
+      this.drawHorizonSky();
+    }
+
+    /** 위쪽 하늘: 파스텔 하늘색 + 구름 + 멀리 보이는 언덕. 그림 한 장으로 구워서 밤에는 다른 그림처럼 어두워진다(tint) */
+    private drawHorizonSky() {
+      const W = WORLD.width + FOREST * 2, H = HORIZON + FOREST + 24;
+      if (!this.textures.exists("horizon-sky")) {
+        const g = this.add.graphics();
+        const top = [0xb4dcf2, 0xe9f6fb] as const, BANDS = 24;
+        for (let i = 0; i < BANDS; i++) {
+          const k = i / (BANDS - 1);
+          const c = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(top[0]), Phaser.Display.Color.ValueToColor(top[1]), 100, k * 100);
+          g.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b)).fillRect(0, (H * i) / BANDS, W, H / BANDS + 1);
+        }
+        const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-sky"]);
+        // 몽글몽글한 구름
+        for (let x = 120; x < W; x += rng.between(300, 460)) {
+          const y = rng.between(H * 0.2, H * 0.62), s = rng.realInRange(0.8, 1.3);
+          g.fillStyle(0xffffff, 0.92);
+          for (const [dx, dy, r] of [[-46, 6, 26], [-16, -8, 34], [22, -4, 30], [52, 8, 22], [0, 12, 28]]) g.fillCircle(x + dx * s, y + dy * s, r * s);
+        }
+        // 멀리 보이는 언덕 두 겹 (뒤는 옅게), 맨 아래는 풀밭 색으로 이어진다
+        const hills = (base: number, color: number, min: number, max: number) => {
+          g.fillStyle(color);
+          for (let x = -40; x < W + 80; x += rng.between(90, 150)) g.fillEllipse(x, base, rng.between(min, max) * 2, rng.between(40, 70));
+          g.fillRect(0, base, W, H - base);
+        };
+        hills(H - 40, 0xb7d99a, 90, 140);
+        hills(H - 20, 0x9fcb79, 70, 120);
+        g.fillStyle(GRASS).fillRect(0, H - 8, W, 8);
+        g.generateTexture("horizon-sky", W, H);
+        g.destroy();
+      }
+      this.add.image(-FOREST, -FOREST, "horizon-sky").setOrigin(0).setDepth(GROUND_DEPTH + 2);
     }
 
     /**
@@ -943,7 +973,7 @@ export function createTownScene(
           const tx = x + (row % 2 ? GAP.x / 2 : 0) + rng.between(-20, 20);
           const ty = y + rng.between(-14, 14);
           const inside = tx > -EDGE && tx < WORLD.width + EDGE && ty > 12 && ty < WORLD.height + 60;
-          if (inside) continue;
+          if (inside || ty < HORIZON + 30) continue; // 하늘 쪽에는 심지 않는다
           // 광장에서 떨어진 거리: 가까운 두 줄은 촘촘히, 그 바깥은 절반쯤 비워 풀밭이 보이게
           const out = Math.max(-tx, tx - WORLD.width, -ty, ty - WORLD.height - 60, 0);
           const skip = out < 110 ? 0.05 : out < 260 ? 0.35 : 0.55;
@@ -975,13 +1005,13 @@ export function createTownScene(
       const blocked = [
         { ...BOARD_POS, r: 190 }, { ...SHOP_POS, r: 170 }, { ...FARM_POS, r: 190 }, { ...MY_HOUSE_POS, r: 150 },
         ...NEIGHBOR_SLOTS.map((p) => ({ ...p, r: 160 })),
-        // 자리를 정해 둔 소품(빨래대 등)과 겹치지 않게
+        // 자리를 정해 둔 소품(이정표·상자 등)과 겹치지 않게
         ...FIXED_PROPS.map((p) => ({ x: p.x, y: p.y, r: (PROP_ART[p.kind].size.width * (p.s ?? 1)) / 2 + 40 })),
       ];
       let planted = 0;
       for (let i = 0; i < 400 && planted < 46; i++) {
         const x = rng.between(40, WORLD.width - 40);
-        const y = rng.between(90, WORLD.height - 20);
+        const y = rng.between(HORIZON + 110, WORLD.height - 20);
         if (Phaser.Math.Distance.Between(x, y, CENTER.x, CENTER.y) < PLAZA_RADIUS + 110) continue;
         if (Math.abs(x - CENTER.x) < 95 || Math.abs(y - CENTER.y) < 95) continue;
         if (y > 380 && y < 490) continue;
@@ -1010,7 +1040,7 @@ export function createTownScene(
           const s = rng.realInRange(s0, s1);
           const w = width * s, h = height * s;
           const x = rng.between(30, WORLD.width - 30);
-          const y = rng.between(110, WORLD.height - 10);
+          const y = rng.between(HORIZON + 50, WORLD.height - 10);
           if (Phaser.Math.Distance.Between(x, y, CENTER.x, CENTER.y) < PLAZA_RADIUS + 60) continue;
           // 길(가장자리 여유 12px), 건물·나무·이름표·다른 소품 자리는 피한다
           if (ROADS.some(([rx, ry, rw, rh]) => hits(x, y, w, h, { x: rx, y: ry, w: rw, h: rh }, 12))) continue;
