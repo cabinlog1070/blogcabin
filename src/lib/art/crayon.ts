@@ -264,23 +264,47 @@ export function farm(): string {
   });
 }
 
-/** 상점 420×360 */
+/** 상점 420×360 (2026-10-12 정지원 님 시안: 둥근 간판, 빨강·흰 줄무늬 차양, 큰 창문 두 개, 가운데 문과 계단, 양옆 덤불) */
 export function shop(t: T_ = (k) => k): string {
   return make(420, 360, () => {
-    const g = 350;
-    let o = shadow(210, g, 180, 12);
-    o += S(Rc(60, 150, 300, g - 150), "#f6e2b8", 5, Rc(310, 150, 50, g - 150));
-    o += S(Pg([[40, 152], [100, 60], [320, 60], [380, 152]]), "#7fb26a", 5.5) + scallops(80, 340, 104, 7, 8, 3.2);
-    let aw = "";
-    for (let i = 0; i < 8; i++) {
-      const x = 56 + i * 38.5;
-      aw += F(`M${x} 160h38.5v34q-19 16-38.5 0Z`, i % 2 ? "#ffffff" : "#e8574b");
+    const WALL = "#f4c070", RED = "#e0573f", CREAM = "#f6e6c8", GLASS = "#86aec0", FRAME = "#b8603e";
+    // 덤불 (가게 뒤에서 양옆으로 삐져나온다)
+    const bush = (x: number, w: number) => S(`M${x} 334C${x - 6} 310 ${x + 4} 290 ${x + w * 0.3} 288C${x + w * 0.36} 268 ${x + w * 0.7} 266 ${x + w * 0.78} 286C${x + w + 4} 288 ${x + w + 8} 316 ${x + w} 334Z`, "#6fb24a", 4);
+    let o = bush(18, 66) + bush(336, 66);
+    // 벽 + 바닥 받침
+    o += S("M62 140H358L362 324H58Z", WALL, 5, "M330 130h40v200h-40Z");
+    o += S("M48 322Q210 316 372 322L374 340Q210 346 46 340Z", CREAM, 4);
+    // 창문: 크림색 틀 + 푸른 유리 + 갈색 창살 + 빛 빗금
+    const win = (x: number) => {
+      const glass = `M${x + 8} 196H${x + 90}V296H${x + 8}Z`;
+      return S(`M${x} 188Q${x + 49} 184 ${x + 98} 188V304H${x}Z`, CREAM, 4) + S(glass, GLASS, 3) +
+        clip(glass, L(`M${x + 20} 290l30-90M${x + 36} 290l30-90M${x + 64} 270l18-56`, 4, "#d6eaf2")) +
+        L(`M${x + 49} 196V296M${x + 8} 226H${x + 90}`, 3.5, FRAME);
+    };
+    o += win(76) + win(246);
+    // 가운데 문: 위에 유리, 걸린 작은 팻말, 손잡이
+    o += S("M178 324V178Q210 172 242 178V324Z", CREAM, 4) + S("M186 324V186H234V324Z", "#c9563f", 4);
+    o += S("M194 196H226V250H194Z", GLASS, 3) + clip("M194 196H226V250H194Z", L("M200 244l14-44M210 244l12-36", 3, "#d6eaf2"));
+    o += L("M200 214L210 202L220 214", 2, "#7b5a44") + S("M196 214H224V230H196Z", CREAM, 2.5) + L("M202 222h16", 2.5, "#c9563f");
+    o += S("M194 264H226V310H194Z", "#b44a36", 2.5) + dot(229, 272, 3.5);
+    // 계단 두 칸
+    o += S("M172 336H248L252 348H168Z", "#ecd7ae", 3.5) + S("M182 324H238L242 336H178Z", "#f3e2bf", 3.5);
+    // 차양: 위가 좁고 아래가 넓은 줄무늬 + 둥글게 늘어진 끝
+    const n = 9, top = [72, 348], bot = [38, 382];
+    let stripes = "", scal = "";
+    for (let i = 0; i < n; i++) {
+      const t0 = i / n, t1 = (i + 1) / n;
+      const tx0 = top[0] + (top[1] - top[0]) * t0, tx1 = top[0] + (top[1] - top[0]) * t1;
+      const bx0 = bot[0] + (bot[1] - bot[0]) * t0, bx1 = bot[0] + (bot[1] - bot[0]) * t1;
+      const c = i % 2 ? "#fbf3ea" : RED;
+      stripes += F(`M${tx0.toFixed(1)} 98L${tx1.toFixed(1)} 98L${bx1.toFixed(1)} 144L${bx0.toFixed(1)} 144Z`, c);
+      scal += S(`M${bx0.toFixed(1)} 142L${bx1.toFixed(1)} 142V160Q${((bx0 + bx1) / 2).toFixed(1)} 182 ${bx0.toFixed(1)} 160Z`, c, 3);
     }
-    o += aw + L("M56 160h308", 5) + L(Array.from({ length: 8 }, (_, i) => `M${56 + i * 38.5} 194q19 16 38.5 0`).join(""), 4.5);
-    o += S(Rc(130, 58, 160, 44, 10), "#fff6dc", 5) + T(210, 92, 30, t("상점"));
-    o += S(Rc(90, 220, 110, 90), "#8ccfe8", 5) + L("M145 220v90", 3.5) + flowers(102, 300, ["#f2c230", "#e8433a", "#7fb26a"], 7);
-    o += S(`M240 ${g}V232a40 40 0 0 1 80 0V${g}Z`, "#a0683d", 5) + dot(304, 290, 4.5);
-    return o;
+    o += stripes + L(`M${top[0]} 98L${top[1]} 98L${bot[1]} 144L${bot[0]} 144Z`, 4, "#b5443c") + scal;
+    // 노란 띠 + 위가 둥근 간판
+    o += S("M64 80H356V100H64Z", "#f2b84b", 4);
+    o += S("M80 82V50Q80 40 96 40H150Q160 12 210 10Q260 12 270 40H324Q340 40 340 50V82Z", "#c8644a", 5);
+    return o + T(210, 72, 34, t("상점"), "#fff8ec");
   });
 }
 

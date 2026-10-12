@@ -239,7 +239,7 @@ function layout(data: TownData, t: T) {
   // 상점
   structures.push({ texture: "shop", ...SHOP_POS, w: SHOP_SIZE.width, h: SHOP_SIZE.height, solid: { w: SHOP_SIZE.width * 0.86, h: 60 }, label: t("상점"), sub: t("꾸미기·가구·배경") });
   entrances.push({
-    label: t("상점"), emoji: "🏪", x: SHOP_POS.x + 40, y: SHOP_POS.y + 24, target: need("/shop"),
+    label: t("상점"), emoji: "🏪", x: SHOP_POS.x, y: SHOP_POS.y + 24, target: need("/shop"),
     area: { x: SHOP_POS.x - SHOP_SIZE.width / 2, y: SHOP_POS.y - SHOP_SIZE.height, w: SHOP_SIZE.width, h: SHOP_SIZE.height },
     promptY: SHOP_POS.y - SHOP_SIZE.height - 6,
   });
