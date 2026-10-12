@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useT } from "@/components/i18n";
 
 type Option = { value: string; label: string };
 
 /** 블로그 홈 글 목록 오른쪽 위: 정렬(최신순 등)과 목록형/바둑판형 보기. 둘 다 주소(?sort, ?view)에 남는다. 컴퓨터 화면에서만 */
 export function PostListToolbar({ sort, sorts, view }: { sort: string; sorts: Option[]; view: "list" | "grid" }) {
+  const t = useT();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -37,7 +39,7 @@ export function PostListToolbar({ sort, sorts, view }: { sort: string; sorts: Op
   return (
     <div className="flex items-center gap-2 max-md:hidden" data-post-toolbar>
       <label className="sr-only" htmlFor="post-sort">
-        정렬
+        {t("정렬")}
       </label>
       <select
         id="post-sort"
@@ -47,13 +49,13 @@ export function PostListToolbar({ sort, sorts, view }: { sort: string; sorts: Op
       >
         {sorts.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {t(o.label)}
           </option>
         ))}
       </select>
-      <div className="flex rounded-xl border-2 border-line bg-paper p-0.5" role="group" aria-label="보기 방식">
-        {viewBtn("list", "목록형으로 보기", "☰")}
-        {viewBtn("grid", "바둑판형으로 보기", "▦")}
+      <div className="flex rounded-xl border-2 border-line bg-paper p-0.5" role="group" aria-label={t("보기 방식")}>
+        {viewBtn("list", t("목록형으로 보기"), "☰")}
+        {viewBtn("grid", t("바둑판형으로 보기"), "▦")}
       </div>
     </div>
   );

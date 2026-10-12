@@ -7,18 +7,20 @@ import { z } from "zod";
 import { db } from "@/db";
 import { attachments, categories, posts, postTags, tags } from "@/db/schema";
 import { POST_REWARD_MIN_LENGTH } from "@/lib/game";
+import { msg } from "@/lib/i18n";
 import { parseId } from "@/lib/ids";
 import { requireMember } from "@/server/dal";
 import { growForPost } from "@/server/farm";
+import { getT } from "@/server/i18n";
 import { grantInviteReward, grantReward, lockUser } from "@/server/points";
 import { attachmentKeysIn, htmlToText, sanitizePostHtml, type KnownAttachments } from "@/server/sanitize";
 
 const schema = z.object({
   postId: z.coerce.number().int().positive().optional(),
-  title: z.string().trim().min(1, "제목을 적어 주세요").max(100, "제목은 100자까지예요"),
-  contentHtml: z.string().max(200_000, "글이 너무 길어요"),
+  title: z.string().trim().min(1, msg("제목을 적어 주세요")).max(100, msg("제목은 100자까지예요")),
+  contentHtml: z.string().max(200_000, msg("글이 너무 길어요")),
   categoryId: z.coerce.number().int().positive().optional(),
-  tags: z.string().max(300, "태그는 모두 합쳐 300자까지예요"),
+  tags: z.string().max(300, msg("태그는 모두 합쳐 300자까지예요")),
   visibility: z.enum(["public", "private"]),
 });
 
@@ -38,6 +40,7 @@ function parseTags(raw: string) {
 
 export async function savePost(_prev: SavePostState, formData: FormData): Promise<SavePostState> {
   const viewer = await requireMember();
+  const t = await getT();
   const values = {
     title: String(formData.get("title") ?? ""),
     categoryId: String(formData.get("categoryId") ?? ""),
@@ -51,11 +54,11 @@ export async function savePost(_prev: SavePostState, formData: FormData): Promis
     tags: formData.get("tags") ?? "",
     visibility: formData.get("visibility") ?? "public",
   });
-  if (!parsed.success) return { error: parsed.error.issues[0].message, values };
+  if (!parsed.success) return { error: t(parsed.error.issues[0].message), values };
   const input = parsed.data;
   // 글·카테고리 ID가 DB integer 범위 밖이면 쿼리 오류(500)가 나므로 먼저 막는다 (#21)
   if ((input.postId && parseId(input.postId) === null) || (input.categoryId && parseId(input.categoryId) === null)) {
-    return { error: "잘못된 요청이에요", values };
+    return { error: t("잘못된 요청이에요"), values };
   }
 
   // 본문의 사진·파일은 실제로 올라간 첨부만 남기고, 파일 카드 이름·크기는 DB 값으로 맞춘다 (POST-07, POST-09)
@@ -71,7 +74,7 @@ export async function savePost(_prev: SavePostState, formData: FormData): Promis
   );
   const contentHtml = sanitizePostHtml(input.contentHtml, known);
   const contentText = htmlToText(contentHtml);
-  if (!contentText) return { error: "본문을 적어 주세요", values };
+  if (!contentText) return { error: t("본문을 적어 주세요"), values };
 
   const blogId = viewer.profile.blogId;
   const tagNames = parseTags(input.tags);
@@ -124,7 +127,7 @@ export async function savePost(_prev: SavePostState, formData: FormData): Promis
     const tagRows = tagNames.length
       ? await tx.select({ id: tags.id }).from(tags).where(inArray(tags.name, tagNames))
       : [];
-    const tagIds = tagRows.map((t) => t.id);
+    const tagIds = tagRows.map((row) => row.id);
     await tx
       .delete(postTags)
       .where(and(eq(postTags.postId, id), tagIds.length ? notInArray(postTags.tagId, tagIds) : undefined));

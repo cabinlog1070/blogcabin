@@ -99,6 +99,13 @@
       "when": 1791699966637,
       "tag": "0013_social_link_rewards",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791763581870,
+      "tag": "0014_user_locale",
+      "breakpoints": true
     }
   ]
 }

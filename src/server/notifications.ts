@@ -4,9 +4,11 @@ import "server-only";
 import { and, asc, desc, eq, gte, isNull, lte, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
-import { blogs, items, notifications, pointLedger, posts, profiles, userAnimals } from "@/db/schema";
-import { subject } from "@/lib/farm";
+import { animalSpecies, blogs, items, notifications, pointLedger, posts, profiles, userAnimals } from "@/db/schema";
+import { petDisplayName, withJosa } from "@/lib/farm";
 import { houseStageForLevel, levelFromExp } from "@/lib/game";
+import type { Locale, T } from "@/lib/i18n";
+import { getLocale, getT } from "@/server/i18n";
 import type { Tx } from "@/server/points";
 
 export const NOTIFICATION_PAGE_SIZE = 20;
@@ -87,8 +89,8 @@ export type NotificationView = {
 
 const clip = (s: string, n = 20) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
-/** 화면에 보일 문구와 누르면 갈 곳 (GAME-08 알림 종류 표) */
-function present(r: {
+/** 화면에 보일 문구와 누르면 갈 곳 (GAME-08 알림 종류 표). 문구는 화면 언어로, 회원 이름·글 제목은 그대로 */
+function present(t: T, locale: Locale, r: {
   id: number;
   kind: NotificationView["kind"];
   level: number | null;
@@ -97,24 +99,32 @@ function present(r: {
   blogSlug: string | null;
   postId: number | null;
   petName: string | null;
+  speciesName: string | null;
   createdAt: Date;
   readAt: Date | null;
 }): NotificationView {
-  const who = r.actorName ?? "알 수 없는 회원";
+  const who = r.actorName ?? t("알 수 없는 회원");
   const postHref = r.blogSlug && r.postId ? `/@${r.blogSlug}/${r.postId}` : "/notifications";
-  const title = `「${clip(r.postTitle ?? "삭제된 글")}」`;
+  const title = `「${clip(r.postTitle ?? t("삭제된 글"))}」`;
   const base = { id: r.id, kind: r.kind, createdAt: r.createdAt, read: r.readAt !== null };
   switch (r.kind) {
     case "level_up":
-      return { ...base, text: r.level === 99 ? "🎉 최고 레벨 Lv.99가 되었어요!" : `🎉 Lv.${r.level}이 되었어요!`, href: "/shop" };
+      return { ...base, text: r.level === 99 ? t("🎉 최고 레벨 Lv.99가 되었어요!") : t("🎉 Lv.{level}이 되었어요!", { level: String(r.level) }), href: "/shop" };
     case "pet_level_up":
-      return { ...base, text: `🐣 ${subject(r.petName ?? "내 동물")} Lv.${r.level}이 되었어요!`, href: "/farm" };
+      return {
+        ...base,
+        text: t("🐣 {subject} Lv.{level}이 되었어요!", {
+          subject: withJosa(locale, r.petName ? petDisplayName(t, r.petName, r.speciesName) : t("내 동물"), "이", "가"),
+          level: String(r.level),
+        }),
+        href: "/farm",
+      };
     case "like":
-      return { ...base, text: `❤️ ${who}님이 ${title}에 공감했어요`, href: postHref };
+      return { ...base, text: t("❤️ {who}님이 {title}에 공감했어요", { who, title }), href: postHref };
     case "comment":
-      return { ...base, text: `💬 ${who}님이 ${title}에 댓글을 달았어요`, href: `${postHref}#comments` };
+      return { ...base, text: t("💬 {who}님이 {title}에 댓글을 달았어요", { who, title }), href: `${postHref}#comments` };
     case "reply":
-      return { ...base, text: `💬 ${who}님이 내 댓글에 답글을 달았어요`, href: `${postHref}#comments` };
+      return { ...base, text: t("💬 {who}님이 내 댓글에 답글을 달았어요", { who }), href: `${postHref}#comments` };
   }
 }
 
@@ -134,6 +144,7 @@ export async function listNotifications(userId: string, page = 1, size = NOTIFIC
       blogSlug: blogs.slug,
       postId: notifications.postId,
       petName: userAnimals.name,
+      speciesName: animalSpecies.name,
       createdAt: notifications.createdAt,
       readAt: notifications.readAt,
     })
@@ -141,13 +152,15 @@ export async function listNotifications(userId: string, page = 1, size = NOTIFIC
     .leftJoin(actorProfile, eq(actorProfile.userId, notifications.actorId))
     // 동물 레벨업: ref_id = 동물 ID (지금 이름으로 보여준다)
     .leftJoin(userAnimals, and(eq(notifications.kind, "pet_level_up"), sql`${userAnimals.id}::text = ${notifications.refId}`))
+    .leftJoin(animalSpecies, eq(animalSpecies.id, userAnimals.speciesId))
     .leftJoin(posts, eq(posts.id, notifications.postId))
     .leftJoin(blogs, eq(blogs.id, posts.blogId))
     .where(eq(notifications.userId, userId))
     .orderBy(desc(notifications.createdAt), desc(notifications.id))
     .limit(size)
     .offset((page - 1) * size);
-  return { rows: rows.map(present), total, page, pageCount: Math.max(1, Math.ceil(total / size)) };
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  return { rows: rows.map((r) => present(t, locale, r)), total, page, pageCount: Math.max(1, Math.ceil(total / size)) };
 }
 
 export async function markNotificationRead(userId: string, id: number) {

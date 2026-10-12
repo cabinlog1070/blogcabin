@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useT } from "@/components/i18n";
 import { PetArt } from "@/components/pet-art";
 import { eggSvg, toAnimalDataUri } from "@/lib/art/animals";
 import { barnSvg, FENCE_H_TILE, FENCE_V_TILE, GRASS_TILE, haySvg, nestSvg, svgUri } from "@/lib/art/farm";
@@ -47,6 +48,8 @@ export function FarmField({
   onEgg: (id: number) => void;
   onDecorate: () => void;
 }) {
+  const t = useT();
+  const [quietBefore, quietAfter = ""] = t("아직 농장이 조용해요. 아래 {link}에서 첫 알을 받아 보세요!").split("{link}");
   const fieldRef = useRef<HTMLDivElement>(null);
   const petRefs = useRef(new Map<number, HTMLButtonElement>());
   const walkers = useRef(new Map<number, Walker>());
@@ -123,7 +126,7 @@ export function FarmField({
       className="relative isolate h-[clamp(380px,64dvh,620px)] w-full select-none overflow-hidden bg-[#9ed58b]"
       style={{ backgroundImage: `radial-gradient(ellipse at 50% 60%, #b3e29c 0%, transparent 70%), ${GRASS_TILE}` }}
       data-farm-field
-      aria-label="동물 농장 풀밭. 펫을 누르면 상태창이 열려요"
+      aria-label={t("동물 농장 풀밭. 펫을 누르면 상태창이 열려요")}
       role="group"
     >
       {/* 울타리: 위·아래·왼쪽·오른쪽 */}
@@ -148,14 +151,14 @@ export function FarmField({
               data-egg-id={e.id}
               onClick={() => onEgg(e.id)}
               className="transition-transform hover:-translate-y-1 focus-visible:-translate-y-1"
-              aria-label="알 살펴보기"
+              aria-label={t("알 살펴보기")}
             >
               <img src={toAnimalDataUri(eggSvg(96))} alt="" width={54} height={54} className="pointer-events-none max-sm:h-11 max-sm:w-11" />
             </button>
           ))}
         </div>
         <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/85 px-2 text-xs font-bold text-ink-soft">
-          🥚 알 둥지 {eggs.length > 0 ? eggs.length : ""}
+          🥚 {t("알 둥지")} {eggs.length > 0 ? eggs.length : ""}
         </span>
       </div>
       {/* eslint-enable @next/next/no-img-element */}
@@ -176,7 +179,7 @@ export function FarmField({
             onClick={() => onPet(p.id)}
             className="group absolute flex -translate-x-1/2 -translate-y-full flex-col items-center outline-none"
             style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, zIndex: 10 + Math.round(s.y * 100) }}
-            aria-label={`${p.name} 상태 보기`}
+            aria-label={t("{name} 상태 보기", { name: p.name })}
           >
             <span className="pet-body block">
               <span data-pet-img className="block transition-transform duration-150">
@@ -192,7 +195,9 @@ export function FarmField({
 
       {pets.length === 0 && eggs.length === 0 && !walkingPet && (
         <p className="absolute inset-x-6 top-1/2 z-[5] mx-auto max-w-sm -translate-y-1/2 rounded-2xl bg-white/85 p-4 text-center text-sm text-ink-soft">
-          아직 농장이 조용해요. 아래 <b>알 받기</b>에서 첫 알을 받아 보세요!
+          {quietBefore}
+          <b>{t("알 받기")}</b>
+          {quietAfter}
         </p>
       )}
 
@@ -205,7 +210,7 @@ export function FarmField({
           className="absolute left-[6%] top-[46%] z-[6] flex items-center gap-1 rounded-full bg-white/90 py-0.5 pl-1 pr-3 text-xs font-bold shadow max-sm:top-[30%]"
         >
           <PetArt assetKey={walkingPet.assetKey} stage={walkingPet.stage} accessory={walkingPet.accessory} size={30} />
-          🐾 {walkingPet.name} 산책 중
+          🐾 {t("{name} 산책 중", { name: walkingPet.name })}
         </button>
       )}
 
@@ -215,7 +220,7 @@ export function FarmField({
         onClick={onDecorate}
         className="btn absolute bottom-3 left-1/2 z-[210] -translate-x-1/2 whitespace-nowrap bg-[#ff8fb0] text-white"
       >
-        🎀 펫 꾸미기
+        🎀 {t("펫 꾸미기")}
       </button>
     </div>
   );

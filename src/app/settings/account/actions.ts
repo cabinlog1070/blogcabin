@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { accounts } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { requireSignedIn } from "@/server/dal";
+import { getT } from "@/server/i18n";
 import { deleteMember } from "@/server/withdraw";
 
 export type WithdrawState = { error?: string };
@@ -27,9 +28,10 @@ export async function withdraw(_prev: WithdrawState, formData: FormData): Promis
     .from(accounts)
     .where(and(eq(accounts.userId, viewer.userId), eq(accounts.providerId, "credential")));
   if (credential?.password) {
+    const t = await getT();
     const password = String(formData.get("password") ?? "");
-    if (!password) return { error: "비밀번호를 적어 주세요" };
-    if (!(await verifyPassword({ hash: credential.password, password }))) return { error: "비밀번호가 맞지 않아요" };
+    if (!password) return { error: t("비밀번호를 적어 주세요") };
+    if (!(await verifyPassword({ hash: credential.password, password }))) return { error: t("비밀번호가 맞지 않아요") };
   }
 
   await deleteMember(viewer.userId);

@@ -68,6 +68,7 @@ erDiagram
         text image
         text username UK "사이트 자체 로그인 아이디"
         user_role role "user / admin"
+        text locale "화면 언어 ko / ja (NULL = 안 고름)"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -312,6 +313,7 @@ erDiagram
 - 소셜 로그인은 같은 `accounts` 테이블에 `provider_id = 'kakao'` 같은 행으로 저장된다.
 - 그래서 "회원 1명 ── 로그인 수단 N개" 구조가 된다. 비밀번호 원문은 어디에도 저장하지 않는다.
 - 관리자는 `users.role = 'admin'`. 가입 요청으로는 바꿀 수 없고 관리자 생성 스크립트로만 정한다.
+- 화면 언어(NF-27)는 `users.locale`(`ko`·`ja`, CHECK 제약)에 둔다. 온보딩 전 회원도 고를 수 있어야 해서 `profiles`가 아니라 `users`에 있다. NULL이면 브라우저 쿠키 `lang` → 한국어 순서로 정한다.
 
 ### 3.2 회원 한 명당 블로그 하나 (1:1)
 

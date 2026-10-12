@@ -3,14 +3,19 @@ import { CharacterNotice } from "@/components/character-notice";
 import { houseStageForLevel } from "@/lib/game";
 import { getBlogByOwner } from "@/server/blog";
 import { requireMember } from "@/server/dal";
+import { getT } from "@/server/i18n";
 import { getEquipped, listItemsWithOwnership } from "@/server/inventory";
 import { getWallet } from "@/server/points";
 import { ClosetView } from "./closet-view";
 
-export const metadata = { title: "꾸미기" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("꾸미기") };
+}
 
 export default async function ClosetPage() {
   const viewer = await requireMember();
+  const t = await getT();
   const [all, equipped, wallet, blog] = await Promise.all([
     listItemsWithOwnership(viewer.userId),
     getEquipped(viewer.userId),
@@ -18,13 +23,14 @@ export default async function ClosetPage() {
     getBlogByOwner(viewer.userId),
   ]);
   const owned = all.filter((i) => i.owned);
+  const [moreBefore, moreAfter = ""] = t("더 많은 옷과 가구, 배경은 {link}에서 만날 수 있어요.").split("{link}");
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl">🎨 꾸미기</h1>
-          <p className="mt-1 text-ink-soft">고르면 바로 내 블로그 미니룸과 광장 캐릭터에 적용돼요.</p>
+          <h1 className="font-display text-3xl">🎨 {t("꾸미기")}</h1>
+          <p className="mt-1 text-ink-soft">{t("고르면 바로 내 블로그 미니룸과 광장 캐릭터에 적용돼요.")}</p>
           <CharacterNotice className="mt-2" />
         </div>
         <div className="card w-full p-3 sm:w-72">
@@ -34,11 +40,11 @@ export default async function ClosetPage() {
               {wallet.isMax ? "MAX" : `${wallet.current} / ${wallet.needed} EXP`}
             </span>
           </div>
-          <div className="mt-1.5 h-3 overflow-hidden rounded-full bg-cream" role="progressbar" aria-valuenow={wallet.isMax ? 1 : wallet.current} aria-valuemax={wallet.isMax ? 1 : wallet.needed} aria-label="다음 레벨까지">
+          <div className="mt-1.5 h-3 overflow-hidden rounded-full bg-cream" role="progressbar" aria-valuenow={wallet.isMax ? 1 : wallet.current} aria-valuemax={wallet.isMax ? 1 : wallet.needed} aria-label={t("다음 레벨까지")}>
             <div className="h-full rounded-full bg-leaf" style={{ width: `${Math.round(wallet.ratio * 100)}%` }} />
           </div>
           <Link href="/wallet" className="mt-1.5 inline-block text-xs text-ink-soft underline hover:text-ink">
-            경험치·코인 내역 보기
+            {t("경험치·코인 내역 보기")}
           </Link>
         </div>
       </div>
@@ -52,7 +58,11 @@ export default async function ClosetPage() {
       />
 
       <p className="mt-10 text-center text-ink-soft">
-        더 많은 옷과 가구, 배경은 <Link href="/shop" className="font-bold text-leaf-dark underline">상점</Link>에서 만날 수 있어요.
+        {moreBefore}
+        <Link href="/shop" className="font-bold text-leaf-dark underline">
+          {t("상점")}
+        </Link>
+        {moreAfter}
       </p>
     </div>
   );

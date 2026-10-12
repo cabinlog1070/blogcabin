@@ -2,7 +2,9 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { savePost, type SavePostState } from "@/app/write/actions";
+import { useLocale, useT } from "@/components/i18n";
 import { POST_REWARD_MIN_LENGTH, REWARD_RULES } from "@/lib/game";
+import { categoryLabel, type Locale, LOCALE_TAGS } from "@/lib/i18n";
 import { postTextLength } from "@/lib/text-length";
 import { RichEditor } from "./rich-editor";
 
@@ -41,14 +43,15 @@ function readDraft(key: string): Draft | null {
 }
 /** 제목(앞뒤 공백 제거)도 본문 글자도 없으면 비어 있다 → 저장하지도, 불러올지 묻지도 않는다 */
 const isEmptyDraft = (d: Pick<Draft, "title" | "contentHtml">) => !d.title.trim() && postTextLength(d.contentHtml) === 0;
-const hhmm = (iso: string) =>
-  new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+const hhmm = (iso: string, locale: Locale) =>
+  new Intl.DateTimeFormat(LOCALE_TAGS[locale], { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 
 /**
  * 글쓰기 폼. draftKey가 있으면(새 글) 처음 열 때 임시 글을 불러올지 한 번 묻고,
  * 불러오면 그 값으로 폼을 새로 그린다 (에디터·입력칸이 처음 값을 만들 때만 쓰기 때문에 key로 다시 만든다)
  */
 export function PostForm({ categories, initial, draftKey }: { categories: Category[]; initial: PostFormValues; draftKey?: string }) {
+  const t = useT();
   const [seed, setSeed] = useState({ values: initial, key: "initial" });
   const asked = useRef(false);
 
@@ -57,7 +60,7 @@ export function PostForm({ categories, initial, draftKey }: { categories: Catego
     asked.current = true; // 개발 모드에서 효과가 두 번 돌아도 한 번만 묻는다
     const draft = readDraft(draftKey);
     if (!draft || isEmptyDraft(draft)) return;
-    if (!window.confirm("작성 중이던 글이 있어요. 불러올까요?")) return; // 아니면 빈 화면, 임시 글은 다음 저장 때 덮어쓴다
+    if (!window.confirm(t("작성 중이던 글이 있어요. 불러올까요?"))) return; // 아니면 빈 화면, 임시 글은 다음 저장 때 덮어쓴다
     const categoryId = Number(draft.categoryId);
     // 그 사이 지워진 카테고리면 `카테고리 없음` (서버도 내 블로그에 없는 카테고리는 저장하지 않는다)
     const known = categories.some((c) => c.id === categoryId);
@@ -72,12 +75,14 @@ export function PostForm({ categories, initial, draftKey }: { categories: Catego
         visibility: draft.visibility,
       },
     });
-  }, [draftKey, categories]);
+  }, [draftKey, categories, t]);
 
   return <PostFormFields key={seed.key} categories={categories} initial={seed.values} draftKey={draftKey} />;
 }
 
 function PostFormFields({ categories, initial, draftKey }: { categories: Category[]; initial: PostFormValues; draftKey?: string }) {
+  const t = useT();
+  const locale = useLocale();
   const [state, action, pending] = useActionState<SavePostState, FormData>(savePost, {});
   const [html, setHtml] = useState(initial.contentHtml);
   const [length, setLength] = useState(0);
@@ -132,7 +137,7 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
           setFields((f) => ({ ...f, title: value }));
         }}
         defaultValue={v?.title ?? initial.title}
-        placeholder="제목"
+        placeholder={t("제목")}
         maxLength={100}
         required
         className="w-full border-b-2 border-line bg-transparent px-1 py-3 font-display text-3xl outline-none focus:border-sun"
@@ -149,17 +154,17 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
           }}
           defaultValue={v?.categoryId ?? initial.categoryId ?? ""}
           className="rounded-xl border-2 border-line bg-paper px-3 py-2"
-          aria-label="카테고리"
+          aria-label={t("카테고리")}
         >
-          <option value="">카테고리 없음</option>
+          <option value="">{t("카테고리 없음")}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name}
+              {categoryLabel(t, c.name)}
             </option>
           ))}
         </select>
 
-        <div className="flex rounded-xl border-2 border-line bg-paper p-0.5" role="radiogroup" aria-label="공개 설정">
+        <div className="flex rounded-xl border-2 border-line bg-paper p-0.5" role="radiogroup" aria-label={t("공개 설정")}>
           {(["public", "private"] as const).map((v) => (
             <button
               key={v}
@@ -167,10 +172,10 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
               role="radio"
               aria-checked={visibility === v}
               onClick={() => setVisibility(v)}
-              title={v === "public" ? "누구나 볼 수 있어요" : "나와 서로 이웃(서로 이웃 추가한 사이)만 볼 수 있어요"}
+              title={v === "public" ? t("누구나 볼 수 있어요") : t("나와 서로 이웃(서로 이웃 추가한 사이)만 볼 수 있어요")}
               className={`rounded-lg px-3 py-1.5 text-sm font-bold ${visibility === v ? "bg-ink text-cream" : "text-ink-soft"}`}
             >
-              {v === "public" ? "🌍 공개" : "🔒 서로 이웃만"}
+              {v === "public" ? t("🌍 공개") : t("🔒 서로 이웃만")}
             </button>
           ))}
         </div>
@@ -192,38 +197,42 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
           setFields((f) => ({ ...f, tags: value }));
         }}
         defaultValue={v?.tags ?? initial.tags.join(", ")}
-        placeholder="태그 (쉼표로 구분, 최대 10개)  예: git, 회고"
+        placeholder={t("태그 (쉼표로 구분, 최대 10개)  예: git, 회고")}
         className="w-full rounded-xl border-2 border-line bg-paper px-3 py-2.5"
-        aria-label="태그"
+        aria-label={t("태그")}
         maxLength={300}
       />
 
       <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
         <p className="text-sm text-ink-soft">
-          {length.toLocaleString()}자 ·{" "}
+          {t("{n}자", { n: length.toLocaleString(LOCALE_TAGS[locale]) })} ·{" "}
           {isNew ? (
             rewardable ? (
               <span className="font-bold text-leaf-dark">
-                저장하면 ✨ 경험치 {REWARD_RULES.post.exp} · 🪙 {REWARD_RULES.post.coins} 보상 (하루 {REWARD_RULES.post.dailyLimit}번까지)
+                {t("저장하면 ✨ 경험치 {exp} · 🪙 {coins} 보상 (하루 {limit}번까지)", {
+                  exp: REWARD_RULES.post.exp,
+                  coins: REWARD_RULES.post.coins,
+                  limit: REWARD_RULES.post.dailyLimit,
+                })}
               </span>
             ) : visibility === "private" ? (
-              "서로 이웃만 보는 비공개 글은 보상이 없어요"
+              t("서로 이웃만 보는 비공개 글은 보상이 없어요")
             ) : (
-              `${POST_REWARD_MIN_LENGTH}자 이상 쓰면 보상을 받아요`
+              t("{n}자 이상 쓰면 보상을 받아요", { n: POST_REWARD_MIN_LENGTH })
             )
           ) : (
-            "글을 고치고 있어요"
+            t("글을 고치고 있어요")
           )}
           {draftKey && (
             <span className="mt-0.5 block text-xs" data-draft-status>
-              {savedAt ? `임시 저장됨 ${hhmm(savedAt)}` : "작성 중인 글은 이 브라우저에 자동 저장돼요."}
+              {savedAt ? t("임시 저장됨 {time}", { time: hhmm(savedAt, locale) }) : t("작성 중인 글은 이 브라우저에 자동 저장돼요.")}
             </span>
           )}
         </p>
         <div className="flex items-center gap-3">
           {state.error && <span className="text-sm font-bold text-berry">{state.error}</span>}
           <button type="submit" disabled={pending || uploading} className="btn bg-leaf text-white">
-            {uploading ? "첨부를 올리는 중..." : pending ? "저장하는 중..." : isNew ? "발행하기" : "수정 완료"}
+            {uploading ? t("첨부를 올리는 중...") : pending ? t("저장하는 중...") : isNew ? t("발행하기") : t("수정 완료")}
           </button>
         </div>
       </div>

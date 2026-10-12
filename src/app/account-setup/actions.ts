@@ -11,6 +11,7 @@ import { auth, LOGIN_LOCKED_CODE, LOGIN_LOCKED_MESSAGE } from "@/lib/auth";
 import { authErrorCode, newLoginSchema, USERNAME_RULE_MESSAGE } from "@/lib/login-rules";
 import { MergeRefused, mergeSocialOnlyUser } from "@/server/account-merge";
 import { needsAccountSetup, requireSignedIn } from "@/server/dal";
+import { getT } from "@/server/i18n";
 import { grantSocialLinkReward, grantSocialLinkRewardsFor } from "@/server/points";
 
 export type SetupState = { error?: string; values?: { username: string } };
@@ -28,13 +29,14 @@ async function setupViewer() {
  */
 export async function createLogin(_prev: SetupState, formData: FormData): Promise<SetupState> {
   const viewer = await setupViewer();
+  const t = await getT();
   const raw = {
     username: String(formData.get("username") ?? ""),
     password: String(formData.get("password") ?? ""),
     passwordConfirm: String(formData.get("passwordConfirm") ?? ""),
   };
   const parsed = newLoginSchema.safeParse(raw);
-  if (!parsed.success) return { error: parsed.error.issues[0].message, values: { username: raw.username } };
+  if (!parsed.success) return { error: t(parsed.error.issues[0].message), values: { username: raw.username } };
   const { username, password } = parsed.data;
   const values = { username: raw.username };
   const h = await headers();
@@ -44,8 +46,8 @@ export async function createLogin(_prev: SetupState, formData: FormData): Promis
     await auth.api.updateUser({ body: { username, displayUsername: username }, headers: h });
   } catch (err) {
     const code = err instanceof APIError ? authErrorCode(err) : undefined;
-    if (code === "USERNAME_IS_ALREADY_TAKEN") return { error: "이미 있는 아이디예요", values };
-    if (code === "INVALID_USERNAME" || code === "USERNAME_TOO_SHORT" || code === "USERNAME_TOO_LONG") return { error: USERNAME_RULE_MESSAGE, values };
+    if (code === "USERNAME_IS_ALREADY_TAKEN") return { error: t("이미 있는 아이디예요"), values };
+    if (code === "INVALID_USERNAME" || code === "USERNAME_TOO_SHORT" || code === "USERNAME_TOO_LONG") return { error: t(USERNAME_RULE_MESSAGE), values };
     throw err;
   }
   await auth.api.setPassword({ body: { newPassword: password }, headers: h });
@@ -66,23 +68,24 @@ export async function createLogin(_prev: SetupState, formData: FormData): Promis
  */
 export async function linkExisting(_prev: SetupState, formData: FormData): Promise<SetupState> {
   const viewer = await setupViewer();
+  const t = await getT();
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const values = { username };
-  if (!username || !password) return { error: "아이디와 비밀번호를 적어 주세요", values };
+  if (!username || !password) return { error: t("아이디와 비밀번호를 적어 주세요"), values };
   if (viewer.profile) {
     // 이미 주민 등록을 마친 회원은 집·글이 있어서 다른 아이디와 합치지 않는다
-    return { error: "이미 주민 등록을 마쳐서 다른 아이디와 합칠 수 없어요. [새로 시작해요]에서 아이디를 만들어 주세요", values };
+    return { error: t("이미 주민 등록을 마쳐서 다른 아이디와 합칠 수 없어요. [새로 시작해요]에서 아이디를 만들어 주세요"), values };
   }
 
   let existingId: string;
   try {
     const result = await auth.api.signInUsername({ body: { username, password }, headers: await headers() });
-    if (!result) return { error: "아이디 또는 비밀번호가 맞지 않아요", values };
+    if (!result) return { error: t("아이디 또는 비밀번호가 맞지 않아요"), values };
     existingId = result.user.id;
   } catch (err) {
-    if (err instanceof APIError && authErrorCode(err) === LOGIN_LOCKED_CODE) return { error: LOGIN_LOCKED_MESSAGE, values };
-    if (err instanceof APIError) return { error: "아이디 또는 비밀번호가 맞지 않아요", values };
+    if (err instanceof APIError && authErrorCode(err) === LOGIN_LOCKED_CODE) return { error: t(LOGIN_LOCKED_MESSAGE), values };
+    if (err instanceof APIError) return { error: t("아이디 또는 비밀번호가 맞지 않아요"), values };
     throw err;
   }
 

@@ -6,6 +6,8 @@ import { cache } from "react";
 import { db } from "@/db";
 import { animalCares, attendances, blogs, comments, postLikes, posts, userAnimals } from "@/db/schema";
 import { todayKST } from "@/lib/game";
+import { msg } from "@/lib/i18n";
+import { getT } from "@/server/i18n";
 
 export type QuestKey = "attend" | "post" | "like" | "comment" | "pet";
 
@@ -26,41 +28,41 @@ export const QUEST_POST_MIN_CHARS = 30;
 const QUESTS: Omit<DailyQuest, "count" | "done">[] = [
   {
     key: "attend",
-    label: "출석 체크하기",
+    label: msg("출석 체크하기"),
     emoji: "📮",
-    hint: "이 화면 위쪽의 「📮 출석하고 보상 받기」 버튼을 눌러요. 하루에 한 번 할 수 있어요.",
+    hint: msg("이 화면 위쪽의 「📮 출석하고 보상 받기」 버튼을 눌러요. 하루에 한 번 할 수 있어요."),
     goal: 1,
     href: "/attendance",
   },
   {
     key: "post",
-    label: `${QUEST_POST_MIN_CHARS}자 이상 글 쓰기`,
+    label: msg("{n}자 이상 글 쓰기"),
     emoji: "✏️",
-    hint: `글쓰기 화면에서 제목과 본문을 쓰고 「발행하기」를 눌러요. 본문이 띄어쓰기를 빼고 ${QUEST_POST_MIN_CHARS}자 이상이어야 해요.`,
+    hint: msg("글쓰기 화면에서 제목과 본문을 쓰고 「발행하기」를 눌러요. 본문이 띄어쓰기를 빼고 {n}자 이상이어야 해요."),
     goal: 1,
     href: "/write",
   },
   {
     key: "like",
-    label: "이웃 글에 공감 5개",
+    label: msg("이웃 글에 공감 5개"),
     emoji: "💛",
-    hint: "📋 마을 소식에서 다른 이웃의 글을 열고, 글 아래 「♡ 공감」을 눌러요. 서로 다른 글 5개에 눌러야 하고, 내 글은 세지 않아요.",
+    hint: msg("📋 마을 소식에서 다른 이웃의 글을 열고, 글 아래 「♡ 공감」을 눌러요. 서로 다른 글 5개에 눌러야 하고, 내 글은 세지 않아요."),
     goal: 5,
     href: "/feed",
   },
   {
     key: "comment",
-    label: "이웃에게 댓글 3개",
+    label: msg("이웃에게 댓글 3개"),
     emoji: "💬",
-    hint: "📋 마을 소식에서 다른 이웃의 글을 열고, 글 아래 댓글 칸에 쓴 뒤 「댓글 등록」을 눌러요. 3개를 남겨야 하고, 내 글에 단 댓글은 세지 않아요.",
+    hint: msg("📋 마을 소식에서 다른 이웃의 글을 열고, 글 아래 댓글 칸에 쓴 뒤 「댓글 등록」을 눌러요. 3개를 남겨야 하고, 내 글에 단 댓글은 세지 않아요."),
     goal: 3,
     href: "/feed",
   },
   {
     key: "pet",
-    label: "펫 돌보기",
+    label: msg("펫 돌보기"),
     emoji: "🐾",
-    hint: "🐮 동물 농장에서 펫을 누르고, 열린 상태창에서 「밥 주기」나 「쓰다듬기」를 눌러요.",
+    hint: msg("🐮 동물 농장에서 펫을 누르고, 열린 상태창에서 「밥 주기」나 「쓰다듬기」를 눌러요."),
     goal: 1,
     href: "/farm",
   },
@@ -70,7 +72,7 @@ export const DAILY_QUEST_COUNT = QUESTS.length;
 
 /**
  * 오늘의 퀘스트 5개와 진행 횟수. today는 한국 시간 날짜(YYYY-MM-DD).
- * 한 요청 안에서 여러 곳(헤더·화면)이 불러도 한 번만 조회한다.
+ * 한 요청 안에서 여러 곳(헤더·화면)이 불러도 한 번만 조회한다. label·hint는 화면 언어로 바꿔서 돌려준다.
  */
 export const getDailyQuests = cache(async (userId: string, today: string = todayKST()): Promise<DailyQuest[]> => {
   // 한국 시간 오늘 0시 (timestamptz). created_at 열과 비교한다
@@ -105,9 +107,11 @@ export const getDailyQuests = cache(async (userId: string, today: string = today
       ) AS pet
   `);
   const row = rows[0];
+  const t = await getT();
+  const vars = { n: QUEST_POST_MIN_CHARS };
   return QUESTS.map((q) => {
     const count = Math.min(Number(row?.[q.key] ?? 0), q.goal);
-    return { ...q, count, done: count >= q.goal };
+    return { ...q, label: t(q.label, vars), hint: t(q.hint, vars), count, done: count >= q.goal };
   });
 });
 

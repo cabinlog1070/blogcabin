@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useTransition, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { FurnitureArt, MiniRoom, type RoomFurniture } from "@/components/character";
+import { useT } from "@/components/i18n";
 import { IconEmoji } from "@/components/icon-emoji";
 import { ItemArt } from "@/components/item-art";
 import { canWear, composeLook, furnitureInfo, MANNEQUIN, SLOT_LABEL, SLOT_ORDER, type AvatarSlot } from "@/lib/assets";
 import { HOUSE_STAGES, houseSvg, ROOF_COLORS, roofHex, type HouseStage, type RoofColor } from "@/lib/art/town";
+import { msg } from "@/lib/i18n";
 import { clampPct, MAX_FURNITURE, type ItemType } from "@/lib/shop";
 import { equipItem, placeFurniture, removeFurniture, setAvatarWear, setRoofColor } from "./actions";
 
@@ -28,8 +30,8 @@ type Drag = {
   height: number;
 };
 
-const FAIL = "장착하지 못했어요. 잠시 뒤 다시 시도해 주세요";
-const FAIL_PLACE = "가구를 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요";
+const FAIL = msg("장착하지 못했어요. 잠시 뒤 다시 시도해 주세요");
+const FAIL_PLACE = msg("가구를 저장하지 못했어요. 잠시 뒤 다시 시도해 주세요");
 
 export function ClosetView({
   items,
@@ -49,6 +51,7 @@ export function ClosetView({
   roofColor: string | null; // 고른 지붕 색 (TOWN-07). null = 배경 색 따라가기
   houseStage: HouseStage; // 내 레벨로 정한 집 단계 (TOWN-11), 미리 보기도 같은 단계로
 }) {
+  const t = useT();
   const [current, setCurrent] = useState({ characterItemId: equipped.characterItemId, backgroundItemId: equipped.backgroundItemId });
   const [worn, setWorn] = useState<Worn>(() => Object.fromEntries(equipped.worn.map((w) => [w.slot, w.itemId])));
   const [placed, setPlaced] = useState<RoomFurniture[]>(() =>
@@ -62,8 +65,8 @@ export function ClosetView({
   // "저장했어요"는 2초 뒤에 사라진다
   useEffect(() => {
     if (!message?.ok) return;
-    const t = setTimeout(() => setMessage(null), 2000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setMessage(null), 2000);
+    return () => clearTimeout(timer);
   }, [message]);
 
   const byId = (id: number | undefined) => items.find((i) => i.id === id);
@@ -77,7 +80,7 @@ export function ClosetView({
   const wearer = character && canWear(character.assetKey) ? character.assetKey : MANNEQUIN;
 
   /** 미리 화면을 바꾸고 저장한다. 실패하면 되돌린다 (SHOP-04와 같은 방식) */
-  function save(undo: () => void, call: () => Promise<{ ok: boolean; error?: string }>, okText: string, failText = FAIL) {
+  function save(undo: () => void, call: () => Promise<{ ok: boolean; error?: string }>, okText: string, failText: string = FAIL) {
     setMessage(null);
     start(async () => {
       try {
@@ -87,11 +90,11 @@ export function ClosetView({
           return;
         }
         undo();
-        setMessage({ ok: false, text: r.error ?? failText });
+        setMessage({ ok: false, text: r.error ?? t(failText) });
       } catch {
         // 서버 오류(네트워크, DB 등)도 오류 화면 대신 되돌리고 알려준다
         undo();
-        setMessage({ ok: false, text: failText });
+        setMessage({ ok: false, text: t(failText) });
       }
     });
   }
@@ -100,7 +103,7 @@ export function ClosetView({
     const key = item.type === "character" ? "characterItemId" : "backgroundItemId";
     const before = current;
     setCurrent({ ...current, [key]: item.id });
-    save(() => setCurrent(before), () => equipItem(item.id), `${item.name} 장착을 저장했어요 ✓`);
+    save(() => setCurrent(before), () => equipItem(item.id), t("{name} 장착을 저장했어요 ✓", { name: t(item.name) }));
   }
 
   // 부위마다 하나. 입은 것을 다시 누르면 벗는다 (SHOP-06)
@@ -113,7 +116,7 @@ export function ClosetView({
     save(
       () => setWorn(before),
       () => setAvatarWear(item.id, !on),
-      on ? `${item.name}을(를) 벗었어요 ✓` : `${item.name} 장착을 저장했어요 ✓`,
+      on ? t("{name}을(를) 벗었어요 ✓", { name: t(item.name) }) : t("{name} 장착을 저장했어요 ✓", { name: t(item.name) }),
     );
   }
 
@@ -124,7 +127,7 @@ export function ClosetView({
     save(
       () => setRoof(before),
       () => setRoofColor(color),
-      color ? `지붕 색을 ${ROOF_COLORS[color].name}(으)로 바꿨어요 ✓` : "지붕 색이 배경 색을 따라가요 ✓",
+      color ? t("지붕 색을 {color}(으)로 바꿨어요 ✓", { color: t(ROOF_COLORS[color].name) }) : t("지붕 색이 배경 색을 따라가요 ✓"),
     );
   }
 
@@ -133,18 +136,18 @@ export function ClosetView({
     const before = placed;
     const already = placed.some((f) => f.id === item.id);
     if (!already && placed.length >= MAX_FURNITURE) {
-      setMessage({ ok: false, text: `가구는 ${MAX_FURNITURE}개까지 놓을 수 있어요` });
+      setMessage({ ok: false, text: t("가구는 {max}개까지 놓을 수 있어요", { max: MAX_FURNITURE }) });
       return;
     }
     const spot = { id: item.id, assetKey: item.assetKey, x: clampPct(x), y: clampPct(y) };
     setPlaced(already ? placed.map((f) => (f.id === item.id ? spot : f)) : [...placed, spot]);
-    save(() => setPlaced(before), () => placeFurniture(item.id, spot.x, spot.y), `${item.name} 배치를 저장했어요 ✓`, FAIL_PLACE);
+    save(() => setPlaced(before), () => placeFurniture(item.id, spot.x, spot.y), t("{name} 배치를 저장했어요 ✓", { name: t(item.name) }), FAIL_PLACE);
   }
 
   function remove(item: OwnedItem) {
     const before = placed;
     setPlaced(placed.filter((f) => f.id !== item.id));
-    save(() => setPlaced(before), () => removeFurniture(item.id), `${item.name}을(를) 미니룸에서 뺐어요 ✓`, FAIL_PLACE);
+    save(() => setPlaced(before), () => removeFurniture(item.id), t("{name}을(를) 미니룸에서 뺐어요 ✓", { name: t(item.name) }), FAIL_PLACE);
   }
 
   /** 카드를 누르면(끌지 않고) 빈 자리에 놓거나, 놓여 있으면 뺀다. 키보드로도 쓸 수 있다 */
@@ -215,7 +218,7 @@ export function ClosetView({
       <ItemArt type={item.type} assetKey={item.assetKey} className="pointer-events-none h-20" characterSize={70} wearer={wearer} />
       <span className="mt-1 block text-sm font-bold">
         {on && "✓ "}
-        {item.name}
+        {t(item.name)}
       </span>
       {sub && <span className="block text-xs text-ink-soft">{sub}</span>}
     </button>
@@ -237,7 +240,7 @@ export function ClosetView({
         hiddenFurnitureId={drag?.fromRoom && drag.moved ? drag.item.id : null}
         furnitureProps={(f) => {
           const item = byId(f.id);
-          return item ? { ...dragProps(item, true), title: `${item.name} (끌어서 옮기기, 밖으로 끌어내면 빠져요)` } : {};
+          return item ? { ...dragProps(item, true), title: t("{name} (끌어서 옮기기, 밖으로 끌어내면 빠져요)", { name: t(item.name) }) } : {};
         }}
         // 블로그 머리 카드의 미니룸과 같은 크기(가로 최대 520px)로 보여 준다
         className="mx-auto w-full max-w-[520px] rounded-2xl border-2 border-line shadow-[0_4px_0_0_var(--color-line)]"
@@ -259,18 +262,18 @@ export function ClosetView({
       <section className="mt-6">
         {/* 구역 제목: 화면에는 그린 아이콘, 글자로는 예전 이모지 그대로 (e2e가 "👕 아바타 꾸미기"로 찾는다) */}
         <h2 className="mb-3 font-display text-2xl">
-          <IconEmoji name="clothes" emoji="👕" size={30} className="-mt-1" /> 아바타 꾸미기
+          <IconEmoji name="clothes" emoji="👕" size={30} className="-mt-1" /> {t("아바타 꾸미기")}
         </h2>
         {grid(
           avatars,
-          (item) => card(item, worn[item.slot!] === item.id, () => wear(item), {}, SLOT_LABEL[item.slot!]),
-          "아직 꾸미기 아이템이 없어요. 상점에서 옷과 모자를 사 보세요.",
+          (item) => card(item, worn[item.slot!] === item.id, () => wear(item), {}, t(SLOT_LABEL[item.slot!])),
+          t("아직 꾸미기 아이템이 없어요. 상점에서 옷과 모자를 사 보세요."),
         )}
       </section>
 
       <section className="mt-8">
         <h2 className="mb-3 font-display text-2xl">
-          <IconEmoji name="background" emoji="🖼" size={30} className="-mt-1" /> 내 배경
+          <IconEmoji name="background" emoji="🖼" size={30} className="-mt-1" /> {t("내 배경")}
         </h2>
         {grid(
           items.filter((i) => i.type === "background"),
@@ -281,10 +284,10 @@ export function ClosetView({
 
       <section className="mt-8">
         <h2 className="mb-1 font-display text-2xl">
-          <IconEmoji name="furniture" emoji="🪑" size={30} className="-mt-1" /> 가구
+          <IconEmoji name="furniture" emoji="🪑" size={30} className="-mt-1" /> {t("가구")}
         </h2>
         <p className="mb-3 text-sm text-ink-soft">
-          가구를 위 미니룸으로 끌어다 놓으세요. 미니룸 밖으로 끌어내면 빠져요. (최대 {MAX_FURNITURE}개, 지금 {placed.length}개)
+          {t("가구를 위 미니룸으로 끌어다 놓으세요. 미니룸 밖으로 끌어내면 빠져요. (최대 {max}개, 지금 {n}개)", { max: MAX_FURNITURE, n: placed.length })}
         </p>
         {grid(
           furniture,
@@ -292,36 +295,36 @@ export function ClosetView({
             const on = placed.some((f) => f.id === item.id);
             // 마우스·터치는 dragProps의 onPointerUp이 처리하고, onClick은 키보드(Enter·Space, detail 0)만 처리한다
             const onKey = (e?: { detail: number }) => e?.detail === 0 && toggleFurniture(item);
-            return card(item, on, onKey, dragProps(item, false), on ? "미니룸에 있음" : undefined);
+            return card(item, on, onKey, dragProps(item, false), on ? t("미니룸에 있음") : undefined);
           },
-          "아직 가구가 없어요. 상점에서 가구를 사 보세요.",
+          t("아직 가구가 없어요. 상점에서 가구를 사 보세요."),
         )}
       </section>
 
       {/* 광장 내 집 지붕 색 (TOWN-07): 무료, 배경과 상관없이. 미리 보기는 내 레벨의 집 단계로 (TOWN-11) */}
       <section className="mt-8" data-roof-section>
         <h2 className="mb-1 font-display text-2xl">
-          <IconEmoji name="home" emoji="🏠" size={30} className="-mt-1" /> 지붕 색
+          <IconEmoji name="home" emoji="🏠" size={30} className="-mt-1" /> {t("지붕 색")}
         </h2>
-        <p className="mb-3 text-sm text-ink-soft">광장의 내 집 지붕 색을 골라요. 무료이고 언제든 바꿀 수 있어요.</p>
+        <p className="mb-3 text-sm text-ink-soft">{t("광장의 내 집 지붕 색을 골라요. 무료이고 언제든 바꿀 수 있어요.")}</p>
         <div className="card flex flex-wrap items-center gap-4 p-4">
           {/* eslint-disable-next-line @next/next/no-img-element -- 코드로 그린 SVG */}
           <img
             src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(houseSvg(houseStage, roofHex(roof, background?.assetKey ?? "")))}`}
-            alt={`내 집 미리 보기 (${HOUSE_STAGES[houseStage].name})`}
+            alt={t("내 집 미리 보기 ({stage})", { stage: t(HOUSE_STAGES[houseStage].name) })}
             data-roof-preview={roofHex(roof, background?.assetKey ?? "")}
             className="h-28 w-auto"
           />
           <div className="flex-1">
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="지붕 색">
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("지붕 색")}>
               {(Object.keys(ROOF_COLORS) as RoofColor[]).map((key) => (
                 <button
                   key={key}
                   type="button"
                   role="radio"
                   aria-checked={roof === key}
-                  aria-label={ROOF_COLORS[key].name}
-                  title={ROOF_COLORS[key].name}
+                  aria-label={t(ROOF_COLORS[key].name)}
+                  title={t(ROOF_COLORS[key].name)}
                   disabled={pending}
                   onClick={() => pickRoof(key)}
                   className={`h-10 w-10 rounded-full border-4 transition hover:-translate-y-0.5 ${roof === key ? "border-ink" : "border-white shadow-[0_0_0_2px_var(--color-line)]"}`}
@@ -336,7 +339,7 @@ export function ClosetView({
               aria-pressed={roof === null}
               className="btn mt-3 bg-paper py-1.5 text-sm text-ink"
             >
-              배경 색 따라가기
+              {t("배경 색 따라가기")}
             </button>
           </div>
         </div>
@@ -346,7 +349,7 @@ export function ClosetView({
       {characters.length > 1 && (
         <section className="mt-8">
           <h2 className="mb-3 font-display text-2xl">
-            <IconEmoji name="pet" emoji="🐾" size={30} className="-mt-1" /> 내 캐릭터
+            <IconEmoji name="pet" emoji="🐾" size={30} className="-mt-1" /> {t("내 캐릭터")}
           </h2>
           {grid(characters, (item) => card(item, item.id === current.characterItemId, () => equip(item)), "")}
         </section>

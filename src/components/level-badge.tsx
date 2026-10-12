@@ -3,12 +3,14 @@
 // 헤더 레벨 배지 (GAME-02). 누르면 이번 레벨 경험치와 다음 레벨까지 남은 경험치를 작은 창으로 보여준다
 import Link from "next/link";
 import { PopoverPanel, useHeaderPopover } from "@/components/header-popover";
+import { useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 
 /** getWallet()의 레벨 부분 (levelProgress) + 누적 경험치 */
 export type LevelInfo = { level: number; exp: number; current: number; needed: number; ratio: number; isMax: boolean };
 
 export function LevelBadge({ level, exp, current, needed, ratio, isMax }: LevelInfo) {
+  const t = useT();
   const { open, box, setAnchor, setPanel, toggle, close } = useHeaderPopover(256); // 16rem
   const pct = Math.round(Math.min(1, Math.max(0, ratio)) * 100);
 
@@ -20,7 +22,7 @@ export function LevelBadge({ level, exp, current, needed, ratio, isMax }: LevelI
         onClick={toggle}
         aria-expanded={open}
         aria-haspopup="dialog"
-        title="레벨"
+        title={t("레벨")}
         data-level-button
         // 좁은 화면에서도 레벨이 보이게 글씨와 여백만 줄인다 (GAME-02, 이슈 #5)
         className="whitespace-nowrap rounded-full border border-line bg-paper px-1.5 py-1 text-xs font-bold shadow-sm hover:text-leaf-dark sm:px-2.5 sm:text-sm"
@@ -28,22 +30,22 @@ export function LevelBadge({ level, exp, current, needed, ratio, isMax }: LevelI
         Lv.{level}
       </button>
 
-      <PopoverPanel open={open} box={box} panelRef={setPanel} label="경험치" className="p-4" data-level-popover>
+      <PopoverPanel open={open} box={box} panelRef={setPanel} label={t("경험치")} className="p-4" data-level-popover>
         <div className="flex items-center justify-between gap-2">
           <p className="font-display text-2xl">Lv.{level}</p>
           {isMax ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-sun px-2.5 py-0.5 text-xs font-bold text-ink">
               <Icon name="level" size={16} />
-              최고 레벨
+              {t("최고 레벨")}
             </span>
           ) : (
-            <span className="text-xs text-ink-soft">다음은 Lv.{level + 1}</span>
+            <span className="text-xs text-ink-soft">{t("다음은 Lv.{level}", { level: level + 1 })}</span>
           )}
         </div>
         <div
           className="mt-2 h-3 overflow-hidden rounded-full bg-cream"
           role="progressbar"
-          aria-label={isMax ? "최고 레벨" : "다음 레벨까지"}
+          aria-label={isMax ? t("최고 레벨") : t("다음 레벨까지")}
           aria-valuemin={0}
           aria-valuemax={isMax ? 1 : needed}
           aria-valuenow={isMax ? 1 : current}
@@ -51,21 +53,21 @@ export function LevelBadge({ level, exp, current, needed, ratio, isMax }: LevelI
           <div className="h-full rounded-full bg-leaf" style={{ width: `${pct}%` }} />
         </div>
         {isMax ? (
-          <p className="mt-2 break-keep text-sm font-bold">최고 레벨이에요! 경험치는 계속 쌓여요</p>
+          <p className="mt-2 break-keep text-sm font-bold">{t("최고 레벨이에요! 경험치는 계속 쌓여요")}</p>
         ) : (
           <>
             <p className="mt-2 text-sm font-bold" data-level-exp>
               {current.toLocaleString()} / {needed.toLocaleString()} EXP
             </p>
-            <p className="text-xs text-ink-soft">다음 레벨까지 {(needed - current).toLocaleString()} EXP 남았어요</p>
+            <p className="text-xs text-ink-soft">{t("다음 레벨까지 {n} EXP 남았어요", { n: (needed - current).toLocaleString() })}</p>
           </>
         )}
         <div className="mt-3 flex items-center justify-between gap-2 border-t-2 border-line pt-2 text-xs">
           <span className="inline-flex items-center gap-1 text-ink-soft">
-            누적 경험치 <Icon name="exp" size={16} /> {exp.toLocaleString()}
+            {t("누적 경험치")} <Icon name="exp" size={16} /> {exp.toLocaleString()}
           </span>
           <Link href="/wallet" onClick={close} className="font-bold text-leaf-dark hover:underline">
-            내역 보기 →
+            {t("내역 보기 →")}
           </Link>
         </div>
       </PopoverPanel>

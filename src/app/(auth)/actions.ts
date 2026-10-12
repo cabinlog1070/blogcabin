@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, LOGIN_LOCKED_CODE, LOGIN_LOCKED_MESSAGE } from "@/lib/auth";
 import { authErrorCode, newLoginSchema, USERNAME_RULE_MESSAGE } from "@/lib/login-rules";
+import { getT } from "@/server/i18n";
 
 export type AuthFormState = { error?: string; values?: { username: string } };
 
@@ -14,13 +15,14 @@ function errorCode(err: unknown): string | undefined {
 }
 
 export async function signUp(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const t = await getT();
   const raw = {
     username: String(formData.get("username") ?? ""),
     password: String(formData.get("password") ?? ""),
     passwordConfirm: String(formData.get("passwordConfirm") ?? ""),
   };
   const parsed = newLoginSchema.safeParse(raw);
-  if (!parsed.success) return { error: parsed.error.issues[0].message, values: { username: raw.username } };
+  if (!parsed.success) return { error: t(parsed.error.issues[0].message), values: { username: raw.username } };
   const { username, password } = parsed.data;
 
   try {
@@ -37,10 +39,10 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
   } catch (err) {
     const code = errorCode(err);
     if (code === "USERNAME_IS_ALREADY_TAKEN" || code?.startsWith("USER_ALREADY_EXISTS")) {
-      return { error: "이미 있는 아이디예요", values: { username: raw.username } };
+      return { error: t("이미 있는 아이디예요"), values: { username: raw.username } };
     }
     if (code === "INVALID_USERNAME" || code === "USERNAME_TOO_SHORT" || code === "USERNAME_TOO_LONG") {
-      return { error: USERNAME_RULE_MESSAGE, values: { username: raw.username } };
+      return { error: t(USERNAME_RULE_MESSAGE), values: { username: raw.username } };
     }
     throw err;
   }
@@ -50,16 +52,17 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
 }
 
 export async function signIn(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const t = await getT();
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (!username || !password) return { error: "아이디와 비밀번호를 적어 주세요", values: { username } };
+  if (!username || !password) return { error: t("아이디와 비밀번호를 적어 주세요"), values: { username } };
 
   try {
     await auth.api.signInUsername({ body: { username, password }, headers: await headers() });
   } catch (err) {
     // 같은 아이디로 5번 연속 실패하면 5분 동안 막힌다 (NF-10, src/lib/auth.ts 로그인 훅)
-    if (errorCode(err) === LOGIN_LOCKED_CODE) return { error: LOGIN_LOCKED_MESSAGE, values: { username } };
-    if (err instanceof APIError) return { error: "아이디 또는 비밀번호가 맞지 않아요", values: { username } };
+    if (errorCode(err) === LOGIN_LOCKED_CODE) return { error: t(LOGIN_LOCKED_MESSAGE), values: { username } };
+    if (err instanceof APIError) return { error: t("아이디 또는 비밀번호가 맞지 않아요"), values: { username } };
     throw err;
   }
 

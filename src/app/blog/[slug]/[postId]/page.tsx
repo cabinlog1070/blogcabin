@@ -19,6 +19,8 @@ import {
   getPostTags,
 } from "@/server/blog";
 import { getViewer } from "@/server/dal";
+import { getLocale, getT } from "@/server/i18n";
+import { categoryLabel } from "@/lib/i18n";
 
 async function load(props: PageProps<"/blog/[slug]/[postId]">) {
   const { slug, postId } = await props.params;
@@ -33,7 +35,10 @@ async function load(props: PageProps<"/blog/[slug]/[postId]">) {
 
 export async function generateMetadata(props: PageProps<"/blog/[slug]/[postId]">) {
   const data = await load(props);
-  if (!data || data.post.visibility === "private") return { title: "글" };
+  if (!data || data.post.visibility === "private") {
+    const t = await getT();
+    return { title: t("글") };
+  }
   return { title: data.post.title, description: data.post.contentText.slice(0, 120) };
 }
 
@@ -44,6 +49,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
   const sp = await props.searchParams;
 
   const viewer = await getViewer();
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
   const viewerId = viewer?.profile ? viewer.userId : null;
   const isOwner = viewerId === blog.ownerId;
   const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인, 서로 이웃, 관리자만
@@ -62,13 +68,15 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
       {sp.new && isOwner && viewerId && <ClearDraft userId={viewerId} />}
       {sp.new && (
         <div className="card mb-6 border-sun bg-honey p-4 text-center">
-          🎉 글을 발행했어요!{" "}
+          {t("🎉 글을 발행했어요!")}{" "}
           {sp.new === "reward" ? (
             <b>
-              ✨ 경험치 {REWARD_RULES.post.exp} · 🪙 {REWARD_RULES.post.coins} 코인을 받았어요
+              {t("✨ 경험치 {exp} · 🪙 {coins} 코인을 받았어요", { exp: REWARD_RULES.post.exp, coins: REWARD_RULES.post.coins })}
             </b>
           ) : (
-            <span className="text-ink-soft">(비공개 글, 짧은 글, 또는 오늘 글쓰기 보상 {REWARD_RULES.post.dailyLimit}번을 다 받아서 보상은 없어요)</span>
+            <span className="text-ink-soft">
+              {t("(비공개 글, 짧은 글, 또는 오늘 글쓰기 보상 {n}번을 다 받아서 보상은 없어요)", { n: REWARD_RULES.post.dailyLimit })}
+            </span>
           )}
         </div>
       )}
@@ -84,18 +92,18 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
           <div className="mb-2 flex flex-wrap gap-2 text-xs font-bold">
             {post.categoryName && (
               <Link href={`/@${blog.slug}?category=${post.categoryId}`} className="rounded-full bg-honey px-2 py-0.5 text-sun-dark">
-                {post.categoryName}
+                {categoryLabel(t, post.categoryName)}
               </Link>
             )}
-            {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">🔒 서로 이웃 공개</span>}
+            {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">{t("🔒 서로 이웃 공개")}</span>}
           </div>
           <h1 className="font-display text-3xl leading-snug sm:text-4xl">{post.title}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
-            <span>{formatDateTime(post.createdAt)}</span>
+            <span>{formatDateTime(post.createdAt, locale)}</span>
             <ViewCount postId={post.id} initial={post.viewCount} isOwner={isOwner} />
             {isOwner && (
               <span className="ml-auto flex gap-3">
-                <Link href={`/write/${post.id}`} className="hover:text-ink">수정</Link>
+                <Link href={`/write/${post.id}`} className="hover:text-ink">{t("수정")}</Link>
                 <DeletePostButton postId={post.id} />
               </span>
             )}
@@ -107,10 +115,10 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
 
         {tagNames.length > 0 && (
           <ul className="mt-8 flex flex-wrap gap-2">
-            {tagNames.map((t) => (
-              <li key={t}>
-                <Link href={`/tags/${encodeURIComponent(t)}`} className="rounded-full bg-cream px-3 py-1 text-sm text-ink-soft hover:text-ink">
-                  #{t}
+            {tagNames.map((tag) => (
+              <li key={tag}>
+                <Link href={`/tags/${encodeURIComponent(tag)}`} className="rounded-full bg-cream px-3 py-1 text-sm text-ink-soft hover:text-ink">
+                  #{tag}
                 </Link>
               </li>
             ))}
@@ -133,7 +141,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
                   parentId: c.parentId,
                   deleted: false,
                   content: c.content,
-                  createdAtText: formatDateTime(c.createdAt),
+                  createdAtText: formatDateTime(c.createdAt, locale),
                   authorId: c.authorId,
                   nickname: c.nickname,
                   characterAsset: c.characterAsset,
@@ -143,10 +151,10 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
         />
       </article>
 
-      <nav className="mt-6 grid gap-3 sm:grid-cols-2" aria-label="이전 글, 다음 글">
+      <nav className="mt-6 grid gap-3 sm:grid-cols-2" aria-label={t("이전 글, 다음 글")}>
         {adjacent.prev ? (
           <Link href={`/@${blog.slug}/${adjacent.prev.id}`} className="card p-4 hover:-translate-y-0.5">
-            <span className="text-xs text-ink-soft">← 이전 글</span>
+            <span className="text-xs text-ink-soft">{t("← 이전 글")}</span>
             <span className="block truncate font-bold">{adjacent.prev.title}</span>
           </Link>
         ) : (
@@ -154,7 +162,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
         )}
         {adjacent.next && (
           <Link href={`/@${blog.slug}/${adjacent.next.id}`} className="card p-4 text-right hover:-translate-y-0.5">
-            <span className="text-xs text-ink-soft">다음 글 →</span>
+            <span className="text-xs text-ink-soft">{t("다음 글 →")}</span>
             <span className="block truncate font-bold">{adjacent.next.title}</span>
           </Link>
         )}

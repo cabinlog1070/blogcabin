@@ -12,12 +12,14 @@ import { getRoomFurniture } from "@/server/look";
 import { canSeePrivatePosts, getBlogBySlug, getCategories, getFollow, getInviteCode, listBlogPosts, POST_SORTS, type PostSort, listMyNeighbors } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { getCarriedPet, getDisplayedCard } from "@/server/farm";
+import { getT } from "@/server/i18n";
 import { getBlogVisitStats } from "@/server/visits";
+import { categoryLabel } from "@/lib/i18n";
 
 export async function generateMetadata(props: PageProps<"/blog/[slug]">) {
   const { slug } = await props.params;
-  const blog = await getBlogBySlug(slug);
-  return { title: blog ? blog.title : "블로그를 찾을 수 없어요" };
+  const [blog, t] = await Promise.all([getBlogBySlug(slug), getT()]);
+  return { title: blog ? blog.title : t("블로그를 찾을 수 없어요") };
 }
 
 export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
@@ -27,6 +29,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
   if (!blog) notFound();
 
   const viewer = await getViewer();
+  const t = await getT();
   const viewerId = viewer?.profile ? viewer.userId : null;
   const isOwner = viewerId === blog.ownerId;
   const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인, 서로 이웃, 관리자만
@@ -62,12 +65,12 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
               <SearchBox />
             </div>
           )}
-          <nav className="card p-4 max-md:order-3" aria-label="카테고리">
-            <h2 className="mb-2 font-display text-lg">카테고리</h2>
+          <nav className="card p-4 max-md:order-3" aria-label={t("카테고리")}>
+            <h2 className="mb-2 font-display text-lg">{t("카테고리")}</h2>
             <ul className="space-y-0.5 text-sm">
               <li>
                 <Link href={base} className={`block rounded-lg px-2 py-1 ${!categoryId ? "bg-honey font-bold" : "hover:bg-cream"}`}>
-                  전체 글 <span className="text-ink-soft">({blog.postCount})</span>
+                  {t("전체 글")} <span className="text-ink-soft">({blog.postCount})</span>
                 </Link>
               </li>
               {cats.map((c) => (
@@ -76,7 +79,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
                     href={`${base}?category=${c.id}`}
                     className={`block rounded-lg px-2 py-1 ${c.id === categoryId ? "bg-honey font-bold" : "hover:bg-cream"}`}
                   >
-                    └ {c.name} <span className="text-ink-soft">({c.postCount})</span>
+                    └ {categoryLabel(t, c.name)} <span className="text-ink-soft">({c.postCount})</span>
                   </Link>
                 </li>
               ))}
@@ -98,7 +101,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
         <section className="max-md:order-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-display text-xl">
-              {currentCat ? currentCat.name : "전체 글"} <span className="text-base text-ink-soft">{list.total}개</span>
+              {currentCat ? categoryLabel(t, currentCat.name) : t("전체 글")} <span className="text-base text-ink-soft">{t("{n}개", { n: list.total })}</span>
             </h2>
             <PostListToolbar sort={sort} view={view} sorts={Object.entries(POST_SORTS).map(([value, label]) => ({ value, label }))} />
           </div>
@@ -111,10 +114,10 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
           ) : (
             <div className="card p-10 text-center text-ink-soft">
               <p className="text-4xl">🌱</p>
-              <p className="mt-2">아직 글이 없어요.</p>
+              <p className="mt-2">{t("아직 글이 없어요.")}</p>
               {isOwner && (
                 <Link href="/write" className="btn mt-4 bg-leaf text-white">
-                  첫 글 쓰기
+                  {t("첫 글 쓰기")}
                 </Link>
               )}
             </div>

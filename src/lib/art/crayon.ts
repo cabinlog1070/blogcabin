@@ -2,6 +2,8 @@
 // 모든 그림은 "내보낼 크기"(화면 크기의 2배) 좌표로 그린다. 그림은 data URI <img>·Phaser 텍스처로 쓰여 각자 따로 그려진다.
 // 서버·브라우저가 같은 문자열을 만들어야 하므로(hydration) 그림 안 id는 그림마다 0부터 다시 센다 (make).
 
+import type { T as T_ } from "@/lib/i18n";
+
 export const INK = "#262220";
 export const SKIN = "#fbd9b8";
 
@@ -61,8 +63,11 @@ export const Rc = (x: number, y: number, w: number, h: number, r = 0) =>
 export const Pg = (pts: (P | [string, string])[]) => "M" + pts.map((p) => p.join(" ")).join(" L") + "Z";
 export const dot = (x: number, y: number, r = 4) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${INK}"/>`;
 export const blush = (x: number, y: number, rx = 7, ry = 4) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#f59a9a" opacity=".85" filter="url(#fg)"/>`;
+// 일본어(가나)가 든 글자는 일본어 글꼴로 그린다. 그림(SVG)은 이미지로 그려져 웹 글꼴을 못 쓰므로 기기 글꼴을 고른다
+const SVG_FONT_KO = "'Apple SD Gothic Neo','Noto Sans KR',sans-serif";
+const SVG_FONT_JA = "'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP','Noto Sans CJK JP','Yu Gothic','Meiryo',sans-serif";
 export const T = (x: number, y: number, s: number, txt: string, c = INK) =>
-  `<text x="${x}" y="${y}" font-size="${s}" font-weight="900" text-anchor="middle" fill="${c}" font-family="'Apple SD Gothic Neo','Noto Sans KR',sans-serif">${txt}</text>`;
+  `<text x="${x}" y="${y}" font-size="${s}" font-weight="900" text-anchor="middle" fill="${c}" font-family="${/[\u3040-\u30ff]/.test(txt) ? SVG_FONT_JA : SVG_FONT_KO}">${txt}</text>`;
 export const shadow = (cx: number, cy: number, rx: number, ry = rx * 0.18) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#3b2a1a" opacity=".15"/>`;
 const scallops = (x0: number, x1: number, y: number, n: number, h = 10, w = 3.5) => {
   const st = (x1 - x0) / n;
@@ -155,7 +160,7 @@ const barnBody = (dx: number, dy: number) => {
 };
 
 /** 상점 420×360 */
-export function shop(): string {
+export function shop(t: T_ = (k) => k): string {
   return make(420, 360, () => {
     const g = 350;
     let o = shadow(210, g, 180, 12);
@@ -167,7 +172,7 @@ export function shop(): string {
       aw += F(`M${x} 160h38.5v34q-19 16-38.5 0Z`, i % 2 ? "#ffffff" : "#e8574b");
     }
     o += aw + L("M56 160h308", 5) + L(Array.from({ length: 8 }, (_, i) => `M${56 + i * 38.5} 194q19 16 38.5 0`).join(""), 4.5);
-    o += S(Rc(130, 58, 160, 44, 10), "#fff6dc", 5) + T(210, 92, 30, "상점");
+    o += S(Rc(130, 58, 160, 44, 10), "#fff6dc", 5) + T(210, 92, 30, t("상점"));
     o += S(Rc(90, 220, 110, 90), "#8ccfe8", 5) + L("M145 220v90", 3.5) + flowers(102, 300, ["#f2c230", "#e8433a", "#7fb26a"], 7);
     o += S(`M240 ${g}V232a40 40 0 0 1 80 0V${g}Z`, "#a0683d", 5) + dot(304, 290, 4.5);
     return o;
@@ -175,7 +180,7 @@ export function shop(): string {
 }
 
 /** 마을 소식 게시판 340×340 */
-export function board(): string {
+export function board(t: T_ = (k) => k): string {
   return make(340, 340, () => {
     const g = 330;
     let o = shadow(170, g, 140, 10);
@@ -184,12 +189,12 @@ export function board(): string {
     o += S(Pg([[20, 116], [170, 40], [320, 116]]), "#8a5a3a", 5.5);
     const notes: [number, number, string][] = [[62, 138, "#fff8e8"], [150, 146, "#ffe0e6"], [226, 134, "#e3f2ff"], [96, 196, "#eaf7da"], [196, 198, "#fff8e8"]];
     for (const [x, y, c] of notes) o += S(Rc(x, y, 62, 48, 3), c, 3.5) + L(`M${x + 10} ${y + 18}h40M${x + 10} ${y + 30}h30`, 2.5) + `<circle cx="${x + 31}" cy="${y + 5}" r="5" fill="#e8433a"/>`;
-    return o + S(Rc(118, 62, 104, 36, 8), "#fff6dc", 4.5) + T(170, 88, 22, "마을 소식");
+    return o + S(Rc(118, 62, 104, 36, 8), "#fff6dc", 4.5) + T(170, 88, 22, t("마을 소식"));
   });
 }
 
 /** 출석판 220×300 */
-export function attendance(): string {
+export function attendance(t: T_ = (k) => k): string {
   return make(220, 300, () => {
     const g = 290;
     let o = shadow(110, g, 70, 8);
@@ -202,7 +207,7 @@ export function attendance(): string {
         if (r * 5 + c < 8) o += `<circle cx="${x + 11}" cy="${y + 12}" r="8" fill="#e8433a" opacity=".85" filter="url(#fg)"/>` + L(E(x + 11, y + 12, 8), 2);
       }
     o += S(Pg([[14, 66], [110, 16], [206, 66]]), "#d9534a", 5.5);
-    return o + S(Rc(64, 196, 92, 30, 8), "#fff6dc", 4) + T(110, 218, 18, "출석");
+    return o + S(Rc(64, 196, 92, 30, 8), "#fff6dc", 4) + T(110, 218, 18, t("출석"));
   });
 }
 

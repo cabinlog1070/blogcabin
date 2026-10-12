@@ -6,9 +6,11 @@ import { z } from "zod";
 import { db } from "@/db";
 import { blogs, comments, follows, pointLedger, postLikes, posts } from "@/db/schema";
 import { MAX_FAVORITES } from "@/lib/game";
+import { msg } from "@/lib/i18n";
 import { MAX_DB_INT, parseId } from "@/lib/ids";
 import { canSeePrivatePosts } from "@/server/blog";
 import { requireMember } from "@/server/dal";
+import { getT } from "@/server/i18n";
 import { hasLikeNotification, notifySocial } from "@/server/notifications";
 import { grantReward, lockUser } from "@/server/points";
 import { addBlogVisit, addPostView, currentViewerKey, getBlogVisitStats } from "@/server/visits";
@@ -60,25 +62,26 @@ export async function toggleLike(postId: number) {
 
 // ===== 댓글 =====
 const commentSchema = z.object({
-  postId: z.coerce.number().int().positive().max(MAX_DB_INT, "잘못된 요청이에요"),
-  parentId: z.coerce.number().int().positive().max(MAX_DB_INT, "잘못된 요청이에요").optional(),
-  content: z.string().trim().min(1, "댓글을 적어 주세요").max(1000, "댓글은 1000자까지예요"),
+  postId: z.coerce.number().int().positive().max(MAX_DB_INT, msg("잘못된 요청이에요")),
+  parentId: z.coerce.number().int().positive().max(MAX_DB_INT, msg("잘못된 요청이에요")).optional(),
+  content: z.string().trim().min(1, msg("댓글을 적어 주세요")).max(1000, msg("댓글은 1000자까지예요")),
 });
 
 export type CommentState = { error?: string; ok?: number };
 
 export async function addComment(_prev: CommentState, formData: FormData): Promise<CommentState> {
   const viewer = await requireMember();
+  const t = await getT();
   const parsed = commentSchema.safeParse({
     postId: formData.get("postId"),
     parentId: formData.get("parentId") || undefined,
     content: formData.get("content") ?? "",
   });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: t(parsed.error.issues[0].message) };
   const { postId, parentId, content } = parsed.data;
 
   const post = await findVisiblePost(postId, viewer.userId);
-  if (!post) return { error: "글을 찾을 수 없어요" };
+  if (!post) return { error: t("글을 찾을 수 없어요") };
 
   await db.transaction(async (tx) => {
     // 답글은 같은 글의 원댓글에만 (답글의 답글은 원댓글에 붙인다)
@@ -171,20 +174,21 @@ export type FavoriteResult = { ok: boolean; favorite?: boolean; error?: string }
 export async function setFavorite(followeeId: string, favorite: boolean): Promise<FavoriteResult> {
   const viewer = await requireMember();
   if (typeof followeeId !== "string" || typeof favorite !== "boolean") return { ok: false };
+  const t = await getT();
 
   const result = await db.transaction(async (tx): Promise<FavoriteResult> => {
     // 같은 회원의 즐겨찾기 요청이 동시에 와도 10명을 넘지 않게 한 줄로 세운다
     await lockUser(tx, viewer.userId);
     const mine = and(eq(follows.followerId, viewer.userId), eq(follows.followeeId, followeeId));
     const [row] = await tx.select({ isFavorite: follows.isFavorite }).from(follows).where(mine);
-    if (!row) return { ok: false, error: "이웃으로 추가한 블로그만 즐겨찾기할 수 있어요" };
+    if (!row) return { ok: false, error: t("이웃으로 추가한 블로그만 즐겨찾기할 수 있어요") };
     if (row.isFavorite === favorite) return { ok: true, favorite };
     if (favorite) {
       const [{ n }] = await tx
         .select({ n: count() })
         .from(follows)
         .where(and(eq(follows.followerId, viewer.userId), eq(follows.isFavorite, true)));
-      if (n >= MAX_FAVORITES) return { ok: false, favorite: false, error: `즐겨찾기할 이웃은 최대 ${MAX_FAVORITES}명이에요` };
+      if (n >= MAX_FAVORITES) return { ok: false, favorite: false, error: t("즐겨찾기할 이웃은 최대 {n}명이에요", { n: MAX_FAVORITES }) };
     }
     await tx.update(follows).set({ isFavorite: favorite }).where(mine);
     return { ok: true, favorite };

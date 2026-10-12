@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CharacterArt } from "@/components/character";
+import { useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 import { IconEmoji } from "@/components/icon-emoji";
 import { canWear, composeLook, MANNEQUIN, SLOT_LABEL, SLOT_ORDER, type AvatarSlot } from "@/lib/assets";
@@ -22,6 +23,7 @@ export function ShopView({
   character: string;
   wornAssets: string[];
 }) {
+  const t = useT();
   const [sort, setSort] = useState<SortKey>("level");
   const of = (type: ItemType) => sortItems(items.filter((i) => i.type === type), sort);
 
@@ -29,11 +31,11 @@ export function ShopView({
     <>
       <div className="mt-6 flex justify-end">
         <label className="flex items-center gap-2 text-sm">
-          <span className="font-bold">정렬</span>
+          <span className="font-bold">{t("정렬")}</span>
           <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className="rounded-lg border-2 border-line bg-paper px-2 py-1">
             {SORTS.map((s) => (
               <option key={s.key} value={s.key}>
-                {s.label}
+                {t(s.label)}
               </option>
             ))}
           </select>
@@ -43,19 +45,19 @@ export function ShopView({
       {/* 구역 제목: 화면에는 그린 아이콘, 글자로는 예전 이모지 그대로 (e2e가 "👕 아바타 꾸미기"로 찾는다) */}
       <section aria-labelledby="shop-avatar">
         <h2 id="shop-avatar" className="mb-3 mt-4 font-display text-2xl">
-          <IconEmoji name="clothes" emoji="👕" size={30} className="-mt-1" /> 아바타 꾸미기
+          <IconEmoji name="clothes" emoji="👕" size={30} className="-mt-1" /> {t("아바타 꾸미기")}
         </h2>
         <AvatarSection items={of("avatar")} level={level} coins={coins} character={character} wornAssets={wornAssets} />
       </section>
       <section aria-labelledby="shop-furniture">
         <h2 id="shop-furniture" className="mb-3 mt-10 font-display text-2xl">
-          <IconEmoji name="furniture" emoji="🪑" size={30} className="-mt-1" /> 가구
+          <IconEmoji name="furniture" emoji="🪑" size={30} className="-mt-1" /> {t("가구")}
         </h2>
         <ShopGrid items={of("furniture")} level={level} coins={coins} />
       </section>
       <section aria-labelledby="shop-background">
         <h2 id="shop-background" className="mb-3 mt-10 font-display text-2xl">
-          <IconEmoji name="background" emoji="🖼" size={30} className="-mt-1" /> 배경
+          <IconEmoji name="background" emoji="🖼" size={30} className="-mt-1" /> {t("배경")}
         </h2>
         <ShopGrid items={of("background")} level={level} coins={coins} />
       </section>
@@ -78,6 +80,7 @@ function AvatarSection({
   wornAssets: string[];
 }) {
   // 남자·여자 주민이 아니면(예전에 산 캐릭터) 마네킹에 입혀 본다
+  const t = useT();
   const wearer = canWear(character) ? character : MANNEQUIN;
   const [tried, setTried] = useState<Partial<Record<AvatarSlot, ShopItem>>>({});
 
@@ -91,7 +94,7 @@ function AvatarSection({
   function tryOn(item: ShopItem) {
     if (!item.slot) return;
     const slot = item.slot;
-    setTried((t) => ({ ...t, [slot]: t[slot]?.id === item.id ? undefined : item }));
+    setTried((prev) => ({ ...prev, [slot]: prev[slot]?.id === item.id ? undefined : item }));
   }
 
   return (
@@ -101,20 +104,20 @@ function AvatarSection({
           <CharacterArt asset={composeLook(wearer, looks)} size={128} />
         </div>
         <div className="min-w-[10rem] flex-1">
-          <h3 className="font-display text-lg">미리 입어 보기</h3>
+          <h3 className="font-display text-lg">{t("미리 입어 보기")}</h3>
           {triedList.length ? (
             <p className="text-sm">
-              입어 보는 중: <b>{triedList.map((i) => `${SLOT_LABEL[i.slot!]} ${i.name}`).join(", ")}</b>
+              {t("입어 보는 중:")} <b>{triedList.map((i) => `${t(SLOT_LABEL[i.slot!])} ${t(i.name)}`).join(", ")}</b>
             </p>
           ) : (
-            <p className="text-sm text-ink-soft">아이템 그림을 누르면 사기 전에 내 캐릭터에 입혀 볼 수 있어요.</p>
+            <p className="text-sm text-ink-soft">{t("아이템 그림을 누르면 사기 전에 내 캐릭터에 입혀 볼 수 있어요.")}</p>
           )}
           <p className="mt-1 text-xs text-ink-soft">
-            <Icon name="lock" size={14} /> 잠긴 옷은 그 레벨이 되어야 사고 입을 수 있어요.
+            <Icon name="lock" size={14} /> {t("잠긴 옷은 그 레벨이 되어야 사고 입을 수 있어요.")}
           </p>
         </div>
         <button type="button" onClick={() => setTried({})} disabled={!triedList.length} className="btn bg-paper text-sm text-ink">
-          원래대로
+          {t("원래대로")}
         </button>
       </div>
       <ShopGrid items={items} level={level} coins={coins} onTry={tryOn} triedIds={triedList.map((i) => i.id)} />
