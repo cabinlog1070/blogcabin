@@ -167,6 +167,17 @@ export async function toggleFollow(followeeId: string) {
   revalidatePath("/", "layout");
 }
 
+/** 나를 이웃한 사람 목록의 "+ 이웃 추가": 끊지 않고 추가만 한다 (두 번 눌려도 이웃이 풀리지 않게) */
+export async function addNeighbor(followeeId: string): Promise<boolean> {
+  const viewer = await requireMember();
+  if (typeof followeeId !== "string" || followeeId === viewer.userId) return false;
+  const [target] = await db.select({ id: blogs.id }).from(blogs).where(eq(blogs.ownerId, followeeId));
+  if (!target) return false;
+  await db.insert(follows).values({ followerId: viewer.userId, followeeId }).onConflictDoNothing();
+  revalidatePath("/", "layout");
+  return true;
+}
+
 // ===== 즐겨찾는 이웃 (TOWN-08) =====
 export type FavoriteResult = { ok: boolean; favorite?: boolean; error?: string };
 
