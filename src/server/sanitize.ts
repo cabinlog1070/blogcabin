@@ -8,7 +8,7 @@ export type KnownAttachments = Map<string, { kind: "image" | "file"; name: strin
 // 에디터의 정렬·줄 간격·글자 크기·글자색·배경색만 style로 남긴다. 값 모양을 좁게 잡아 url(), expression() 같은 것은 들어올 수 없다
 const COLOR_RE = [/^#[0-9a-f]{3}([0-9a-f]{3})?$/i, /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\)$/i];
 // 줄 간격은 에디터 목록(src/components/editor/line-height.ts)의 값만
-const ALIGN_STYLE = { "text-align": [/^(left|center|right)$/], "line-height": [/^(1\.4|1\.6|1\.8|2\.2|2\.6)$/] };
+const ALIGN_STYLE = { "text-align": [/^(left|center|right)$/], "line-height": [/^(1(\.0)?|1\.2|1\.4|1\.6|1\.8|2\.2|2\.6)$/] };
 const SPAN_STYLE = { "font-size": [/^([89]|[1-6]\d|7[0-2])px$/], color: COLOR_RE, "background-color": COLOR_RE };
 
 const attachmentKey = (url: string | undefined) => ATTACHMENT_URL_RE.exec(url ?? "")?.[1] ?? null;
@@ -74,7 +74,16 @@ function options(known?: KnownAttachments): sanitizeHtml.IOptions {
  * known 없이 부르면 주소 형식만 확인한다
  */
 export function sanitizePostHtml(html: string, known?: KnownAttachments): string {
-  return sanitizeHtml(html, options(known));
+  return relaxNbsp(sanitizeHtml(html, options(known)));
+}
+
+/**
+ * 낱말 사이 줄이 안 바뀌는 공백(nbsp)을 보통 띄어쓰기로 바꾼다.
+ * 한글 입력기나 붙여 넣기로 들어온 nbsp는 그 앞뒤 낱말을 한 덩어리로 묶어, 읽는 화면(keep-all)에서 줄이 안 바뀌고 칸 밖으로 넘친다.
+ * 공백이 둘 이상 이어진 곳(일부러 띄운 칸)과 태그 바로 앞뒤는 그대로 둔다. 저장할 때와 예전 글을 보여 줄 때 모두 쓴다
+ */
+export function relaxNbsp(html: string): string {
+  return html.replace(/(?<=[^\s<>;])(?:\u00a0|&nbsp;|&#160;|&#xa0;)(?=[^\s<>&])/gi, " ");
 }
 
 /** HTML 안의 첨부 키 (/files/키) */
