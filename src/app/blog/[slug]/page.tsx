@@ -9,7 +9,7 @@ import { PostListToolbar } from "@/components/blog/post-list-toolbar";
 import { Pagination, parsePage } from "@/components/pagination";
 import { parseId } from "@/lib/ids";
 import { getRoomFurniture } from "@/server/look";
-import { canSeePrivatePosts, getBlogBySlug, getCategories, getFollow, getInviteCode, listBlogPosts, POST_SORTS, type PostSort, listMyNeighbors } from "@/server/blog";
+import { canSeePrivatePosts, getBlogBySlug, getCategories, getFollow, getInviteCode, listBlogPosts, POST_SORTS, type PostSort, listMyFollowers, listMyNeighbors } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { getCarriedPet, getDisplayedCard } from "@/server/farm";
 import { getT } from "@/server/i18n";
@@ -38,7 +38,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
   const sort: PostSort = typeof sp.sort === "string" && sp.sort in POST_SORTS ? (sp.sort as PostSort) : "latest";
   const view = sp.view === "grid" ? "grid" : "list";
 
-  const [cats, list, follow, furniture, pet, card, visits, neighbors, inviteCode] = await Promise.all([
+  const [cats, list, follow, furniture, pet, card, visits, neighbors, followers, inviteCode] = await Promise.all([
     getCategories(blog.id, includePrivate),
     listBlogPosts({ blogId: blog.id, includePrivate, categoryId, page, sort }),
     viewerId && !isOwner ? getFollow(viewerId, blog.ownerId) : null,
@@ -47,6 +47,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
     getDisplayedCard(blog.ownerId), // 프로필 전시 카드 (TOWN-09)
     getBlogVisitStats(blog.id), // 방문자 수 (BLOG-06)
     isOwner ? listMyNeighbors(blog.ownerId) : null, // 내 이웃 목록 (TOWN-08, 주인에게만)
+    isOwner ? listMyFollowers(blog.ownerId) : null, // 나를 이웃한 사람 (주인에게만)
     isOwner ? getInviteCode(blog.ownerId) : null, // 친구 초대 (GAME-09, 주인에게만)
   ]);
   const currentCat = cats.find((c) => c.id === categoryId);
@@ -86,9 +87,9 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
             </ul>
           </nav>
           {/* 휴대폰 순서: 마을 검색 → 내 이웃 → 카테고리 → 글 목록 → 친구 초대 (컴퓨터는 적힌 순서 그대로) */}
-          {neighbors && (
+          {neighbors && followers && (
             <div className="max-md:order-2">
-              <NeighborList neighbors={neighbors} />
+              <NeighborList neighbors={neighbors} followers={followers} />
             </div>
           )}
           {inviteCode && (

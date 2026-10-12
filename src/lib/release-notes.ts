@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.12.0",
+        title: msg("서로 이웃과 나를 이웃한 사람 보기"),
+        changes: [
+          { kind: "new", text: msg("내 블로그 홈의 이웃 칸이 내 이웃 · 서로 이웃 · 나를 이웃한 사람 세 탭으로 나뉘었어요. 나를 이웃한 사람 옆의 「+ 이웃」을 누르면 바로 서로 이웃이 돼요.") },
+        ],
+      },
+      {
         version: "1.11.1",
         title: msg("마을 소식에서 이전 글·다음 글"),
         changes: [

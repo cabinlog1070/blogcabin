@@ -361,7 +361,7 @@ export async function getAllTags(limit = 30) {
 }
 
 // ===== 내 이웃 목록 (TOWN-08) · 초대 코드 (GAME-09) =====
-/** 내가 이웃 추가한 블로그 (내 블로그 홈, 주인에게만). 즐겨찾기 먼저, 그다음 최근 공개 글 순 */
+/** 내가 이웃 추가한 블로그 (내 블로그 홈, 주인에게만). 즐겨찾기 먼저, 그다음 최근 공개 글 순. mutual: 그 사람도 나를 이웃 추가했다(서로 이웃) */
 export async function listMyNeighbors(userId: string) {
   const lastPublicPostAt = sql`(SELECT MAX(${posts.createdAt}) FROM ${posts} WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public')`;
   return db
@@ -372,6 +372,7 @@ export async function listMyNeighbors(userId: string) {
       nickname: profiles.nickname,
       characterAsset: lookSql(characterItem.assetKey, profiles.userId),
       favorite: follows.isFavorite,
+      mutual: sql<boolean>`EXISTS (SELECT 1 FROM ${follows} AS back WHERE back.follower_id = ${follows.followeeId} AND back.followee_id = ${userId})`,
     })
     .from(follows)
     .innerJoin(blogs, eq(blogs.ownerId, follows.followeeId))
@@ -379,6 +380,25 @@ export async function listMyNeighbors(userId: string) {
     .innerJoin(characterItem, eq(characterItem.id, profiles.characterItemId))
     .where(eq(follows.followerId, userId))
     .orderBy(desc(follows.isFavorite), sql`${lastPublicPostAt} DESC NULLS LAST`, desc(follows.createdAt));
+}
+
+/** 나를 이웃 추가한 사람 (내 블로그 홈의 "나를 이웃한 사람", 주인에게만). 최근에 추가한 순. mutual: 나도 그 사람을 이웃 추가했다 */
+export async function listMyFollowers(userId: string) {
+  return db
+    .select({
+      ownerId: blogs.ownerId,
+      slug: blogs.slug,
+      title: blogs.title,
+      nickname: profiles.nickname,
+      characterAsset: lookSql(characterItem.assetKey, profiles.userId),
+      mutual: sql<boolean>`EXISTS (SELECT 1 FROM ${follows} AS back WHERE back.follower_id = ${userId} AND back.followee_id = ${follows.followerId})`,
+    })
+    .from(follows)
+    .innerJoin(blogs, eq(blogs.ownerId, follows.followerId))
+    .innerJoin(profiles, eq(profiles.userId, follows.followerId))
+    .innerJoin(characterItem, eq(characterItem.id, profiles.characterItemId))
+    .where(eq(follows.followeeId, userId))
+    .orderBy(desc(follows.createdAt));
 }
 
 export async function getInviteCode(userId: string) {
