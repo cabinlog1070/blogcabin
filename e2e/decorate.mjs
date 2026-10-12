@@ -71,10 +71,10 @@ try {
   const previewSrc = () => preview.locator("img").first().getAttribute("src");
   const plain = await previewSrc();
   await page.getByRole("button", { name: "밀짚모자 입어 보기" }).click();
-  check("미리 입어 보기: 누르면 내 캐릭터가 입음", (await previewSrc()).includes("%23f2d27a") && plain !== (await previewSrc()));
+  check("미리 입어 보기: 누르면 내 캐릭터가 입음", (await previewSrc()).includes("%23f4d78a") && plain !== (await previewSrc()));
   check("미리 입어 보기: 입어 보는 중 표시", (await preview.innerText()).includes("모자 밀짚모자"));
   await page.getByRole("button", { name: "털모자 입어 보기" }).click();
-  check("미리 입어 보기: 같은 부위는 바뀜 (잠긴 옷도 입어 볼 수 있음)", !(await previewSrc()).includes("%23f2d27a") && (await previewSrc()).includes("%238f6ad6"));
+  check("미리 입어 보기: 같은 부위는 바뀜 (잠긴 옷도 입어 볼 수 있음)", !(await previewSrc()).includes("%23f4d78a") && (await previewSrc()).includes("%239c7cdb"));
   await page.screenshot({ path: `${outDir}/a1-shop-try-on.png`, fullPage: true });
   await page.getByRole("button", { name: "원래대로" }).click();
   check("미리 입어 보기: [원래대로]로 돌아옴", (await previewSrc()) === plain);
@@ -108,9 +108,9 @@ try {
   const btn = (name) => page.getByRole("button", { name: new RegExp(`${name}`) });
   await btn("밀짚모자").click();
   await page.getByRole("status").filter({ hasText: "밀짚모자 장착을 저장했어요 ✓" }).waitFor();
-  check("SHOP-06 누르면 미니룸 캐릭터가 바로 밀짚모자를 씀", (await roomChar()).includes("%23f2d27a"));
+  check("SHOP-06 누르면 미니룸 캐릭터가 바로 밀짚모자를 씀", (await roomChar()).includes("%23f4d78a"));
   await page.reload();
-  check("SHOP-06 새로고침해도 그대로", (await roomChar()).includes("%23f2d27a") && (await btn("밀짚모자").getAttribute("aria-pressed")) === "true");
+  check("SHOP-06 새로고침해도 그대로", (await roomChar()).includes("%23f4d78a") && (await btn("밀짚모자").getAttribute("aria-pressed")) === "true");
   await btn("털모자").click();
   await page.getByRole("status").filter({ hasText: "털모자 장착을 저장했어요" }).waitFor();
   const hats = await db.query("SELECT i.name FROM avatar_equips ae JOIN items i ON i.id = ae.item_id WHERE ae.user_id = $1 AND ae.slot = 'hat'", [uid]);
@@ -199,7 +199,7 @@ try {
   check("SHOP-06 블로그 미니룸에 같은 모습", (await blogRoom.locator("img").last().getAttribute("src")) === look);
   check("SHOP-05 블로그 미니룸에 가구 5개", (await blogRoom.locator("[data-furniture]").count()) === 5);
   const headerFace = await page.getByRole("banner").locator("img").last().getAttribute("src");
-  check("SHOP-06 헤더 캐릭터 얼굴도 밀짚모자", headerFace.includes("%23f2d27a"));
+  check("SHOP-06 헤더 캐릭터 얼굴도 밀짚모자", headerFace.includes("%23f4d78a"));
   await page.screenshot({ path: `${outDir}/a4-blog-miniroom.png` });
   await page.goto(`${BASE}/town`);
   // (2026-10-08 휴대폰 광장 아래 메뉴를 없애서 광장 메뉴 캐릭터 확인은 뺐다)
