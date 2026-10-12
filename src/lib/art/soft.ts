@@ -140,3 +140,34 @@ export function softBush(): string {
     return o + pinkBloom(54, 166, 13, "#f58fb0", "#ef7ea2", 3) + blueBloom(84, 150, 6.5, 6) + pinkBloom(110, 170, 11, "#f7a9c0", "#f294b2", 9);
   });
 }
+
+/** 크레용 해: 동그라미 테두리 + 비스듬히 문지른 속 + 짧은 햇살 12개 (200×200, 정지원 님 시안) */
+export function softSun(): string {
+  return make(200, 200, () => {
+    const C = "#f5b014";
+    let rays = "";
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 + 0.12;
+      const r0 = 62 + (i % 2) * 3, r1 = 86 + (i % 3) * 3;
+      rays += `M${(100 + Math.cos(a) * r0).toFixed(1)} ${(100 + Math.sin(a) * r0).toFixed(1)}L${(100 + Math.cos(a) * r1).toFixed(1)} ${(100 + Math.sin(a) * r1).toFixed(1)}`;
+    }
+    let o = pastel(`<path d="${rays}" stroke="${C}" stroke-width="12" stroke-linecap="round" fill="none"/>`, 4, 21);
+    o += `<circle cx="100" cy="100" r="46" fill="${C}" opacity=".15"/>`;
+    // 속: 비스듬한 빗금으로 문지르고 군데군데 비운다
+    const hatch = [-34, -24, -14, -4, 6, 16, 26].map((d) => `M${100 - 40} ${100 + d + 14}L${100 + 40} ${100 + d - 14}`).join("");
+    o += pastel(`<clipPath id="sunc"><circle cx="100" cy="100" r="44"/></clipPath><g clip-path="url(#sunc)"><path d="${hatch}" stroke="${C}" stroke-width="7" stroke-linecap="round" fill="none"/></g>`, 4, 23);
+    o += pastel(`<circle cx="100" cy="100" r="46" fill="none" stroke="${C}" stroke-width="9"/>`, 4, 25);
+    return o;
+  });
+}
+
+/** 크레용 파란 구름 (240×130, 정지원 님 시안): 봉우리 네 개, 위쪽 테두리는 옅게 빛난다 */
+export function softCloud(): string {
+  return make(240, 130, () => {
+    const d = "M30 104C10 100 8 70 30 62C34 44 52 40 66 46C70 20 104 12 120 36C132 18 166 22 172 48C190 46 200 60 196 70C218 70 230 92 214 106C200 118 176 112 166 108C150 122 120 120 110 108C92 118 54 116 30 104Z";
+    let o = blob(d, "#8ec0ee", "#78b0e8", 7, 31);
+    o += pastel(`<path d="M44 58C48 48 60 46 68 52M78 40C88 26 108 24 116 40M136 36C148 28 164 32 168 46M188 72C196 70 206 76 208 84" fill="none" stroke="#c4e0fa" stroke-width="7" stroke-linecap="round" opacity=".8"/>`, 3, 33);
+    o += streaks([[60, 96, 14], [84, 80, 12], [120, 94, 14], [150, 78, 12], [182, 96, 12], [104, 60, 10]]);
+    return o;
+  });
+}

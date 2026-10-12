@@ -65,7 +65,7 @@ import {
   STUMP_SIZE,
   stumpSvg,
 } from "@/lib/art/props";
-import { softBush, softFlowerBlue, softFlowerPink, softTree } from "@/lib/art/soft";
+import { softBush, softCloud, softFlowerBlue, softFlowerPink, softSun, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
@@ -203,6 +203,8 @@ export function townTextures(data: TownData, t: T) {
   // 둘레 숲: 파스텔 크레용 그림체 (2026-10-12 정지원 님 시안)
   for (const kind of ["green", "lime", "blossom"] as const) list.set(`soft:${kind}`, toDataUri(softTree(kind)));
   list.set("soft:flower-blue", toDataUri(softFlowerBlue()));
+  list.set("soft:sun", toDataUri(softSun()));
+  list.set("soft:cloud", toDataUri(softCloud()));
   list.set("soft:flower-pink", toDataUri(softFlowerPink()));
   for (const [kind, art] of Object.entries(PROP_ART)) list.set(propKey(kind as PropKind), toDataUri(art.draw()));
   return [...list].map(([key, uri]) => ({ key, uri }));
@@ -928,19 +930,13 @@ export function createTownScene(
       const W = WORLD.width + FOREST * 2, H = HORIZON + FOREST + 24;
       if (!this.textures.exists("horizon-sky")) {
         const g = this.add.graphics();
-        const top = [0xb4dcf2, 0xe9f6fb] as const, BANDS = 24;
+        const top = [0xd3ecf9, 0xf3faf7] as const, BANDS = 24;
         for (let i = 0; i < BANDS; i++) {
           const k = i / (BANDS - 1);
           const c = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(top[0]), Phaser.Display.Color.ValueToColor(top[1]), 100, k * 100);
           g.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b)).fillRect(0, (H * i) / BANDS, W, H / BANDS + 1);
         }
         const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-sky"]);
-        // 몽글몽글한 구름
-        for (let x = 120; x < W; x += rng.between(300, 460)) {
-          const y = rng.between(H * 0.2, H * 0.62), s = rng.realInRange(0.8, 1.3);
-          g.fillStyle(0xffffff, 0.92);
-          for (const [dx, dy, r] of [[-46, 6, 26], [-16, -8, 34], [22, -4, 30], [52, 8, 22], [0, 12, 28]]) g.fillCircle(x + dx * s, y + dy * s, r * s);
-        }
         // 멀리 보이는 언덕 두 겹 (뒤는 옅게), 맨 아래는 풀밭 색으로 이어진다
         const hills = (base: number, color: number, min: number, max: number) => {
           g.fillStyle(color);
@@ -954,6 +950,11 @@ export function createTownScene(
         g.destroy();
       }
       this.add.image(-FOREST, -FOREST, "horizon-sky").setOrigin(0).setDepth(GROUND_DEPTH + 2);
+      // 크레용 해와 파란 구름 (정지원 님 시안). 하늘이 보이는 언덕 위 띠에 띄운다
+      this.add.image(WORLD.width - 330, HORIZON - 84, "soft:sun").setDisplaySize(118, 118).setDepth(GROUND_DEPTH + 3);
+      for (const [x, y, w] of [[-420, -150, 130], [120, -110, 120], [560, -40, 110], [1080, -120, 128], [1820, -30, 104], [2240, -130, 124]] as const) {
+        this.add.image(x, HORIZON + y, "soft:cloud").setDisplaySize(w, (w * 130) / 240).setDepth(GROUND_DEPTH + 3);
+      }
     }
 
     /**
