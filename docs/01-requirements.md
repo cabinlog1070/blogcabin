@@ -660,7 +660,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 | 검증 | 주소를 정할 때(AUTH-02): 브라우저 `maxLength={20}`, `required` / 서버 zod `trim()` → `toLowerCase()` → 정규식, 이어서 `RESERVED_SLUGS` (`src/app/onboarding/actions.ts`) / DB CHECK `blogs_slug_check` + UNIQUE `blogs_slug_unique` |
 | 변경 불가 | 블로그 관리의 `updateBlogInfo` (`src/app/settings/blog/actions.ts`)는 `title`, `description`만 받는다. 주소를 바꾸는 Server Action은 없다 |
 | 링크 | 사이트 안 링크는 모두 `` `/@${slug}` ``로 만든다 (`src/components/site-header.tsx`, `src/components/blog/post-card.tsx`, `src/components/blog/comment-section.tsx`, `src/app/town/page.tsx`, `src/components/town/scene.ts` 등). `/blog/주소`로 거는 링크는 없다 |
-| 갱신 | `savePost` 발행 뒤 `/@주소/글ID?new=reward`(보상 받음) 또는 `?new=1`, 수정 뒤 `/@주소/글ID`, `deletePost` 삭제 뒤 `/@주소` (`src/app/write/actions.ts`) |
+| 갱신 | `savePost` 발행 뒤 `/@주소/글ID?new=reward`(보상 받음) 또는 못 받은 이유 `?new=private`·`short`·`limit`, 수정 뒤 `/@주소/글ID`, `deletePost` 삭제 뒤 `/@주소` (`src/app/write/actions.ts`) |
 | 글 ID 검사 | `parseId`(`src/lib/ids.ts`)는 문자열이 `^[1-9][0-9]{0,9}$`이고 2147483647(`MAX_DB_INT`) 이하일 때만 숫자로 바꾸고, 아니면 `null` → 404. `posts.id`가 `integer`라서 그보다 큰 수를 DB에 넘기면 `out of range` 오류(500)가 나던 것을 막는다 (#21, `npm run test:ids`) |
 
 **수용 기준**
@@ -1207,7 +1207,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 3. 아래 상자에 글자 수와 보상 안내가 실시간으로 바뀐다 (GAME-05).
 4. [발행하기]를 누르면 저장되고 그 글 상세 화면(`/@주소/글ID`)으로 이동해 맨 위에 안내를 보여준다.
    - 보상을 받았으면: `🎉 글을 발행했어요! ✨ 경험치 30 · 🪙 30 코인을 받았어요`
-   - 못 받았으면: `🎉 글을 발행했어요! (비공개 글, 짧은 글, 또는 오늘 글쓰기 보상 3번을 다 받아서 보상은 없어요)`
+   - 못 받았으면 실제 이유 하나만: `(서로 이웃만 보는 비공개 글이라 보상은 없어요)` / `(본문이 100자보다 짧아서 보상은 없어요. 지금 N자예요)` / `(오늘 받을 수 있는 글쓰기 보상 3번을 이미 다 받아서 보상은 없어요)`
 
 **기본 흐름 (수정)**
 1. 내 글 상세 화면의 [수정] → `/write/글ID`. 저장된 내용(제목·카테고리·공개 설정·본문·태그)이 채워진 같은 화면이 열린다.
@@ -1279,7 +1279,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 | 데이터 | `posts.content_html`(정화된 HTML), `posts.content_text`(요약·검색·글자 수용). 수정하면 `updated_at`이 바뀐다(Drizzle `$onUpdate`). 화면에는 쓰지 않는다 |
 | 무결성 | 삭제는 `deletePost`: `DELETE WHERE id AND blog_id = 내 블로그`. 댓글·공감·태그 연결은 `ON DELETE CASCADE`로 함께 지워진다. 받은 보상은 회수하지 않는다 (`point_ledger.ref_id`는 FK가 아님). 수정할 글이 내 것이 아니면 `throw new Error("NOT_FOUND")`로 트랜잭션 전체 취소 |
 | 검증 | 브라우저 `maxLength`(제목 100·태그 300)·`required`(제목만) / 서버 zod(제목 1\~100자, 본문 HTML 200,000자, 태그 칸 300자, 공개 설정 enum) + 정화 / DB CHECK `posts_title_check`(제목 1\~100자) |
-| 갱신 | `revalidatePath("/", "layout")` 후 `/@주소/글ID?new=reward` (보상 받음) 또는 `?new=1` 로 이동. 수정이면 쿼리 없이 `/@주소/글ID`, 삭제면 `/@주소` |
+| 갱신 | `revalidatePath("/", "layout")` 후 `/@주소/글ID?new=reward` (보상 받음) 또는 못 받은 이유 `?new=private`·`short`·`limit` 로 이동. 수정이면 쿼리 없이 `/@주소/글ID`, 삭제면 `/@주소` |
 | 에디터 | 사진 `Image`(`@tiptap/extension-image`, `/files/키` 주소만, POST-07) + 파일 카드 `FileCard`(POST-09) + `StarterKit`(제목은 H2·H3만, 링크 `openOnClick: false`·`autolink: true`) + `Placeholder`. 내용이 바뀔 때마다(처음 그릴 때도) HTML과 글자 수 `postTextLength(editor.getHTML())`를 `PostForm`으로 올린다. HTML은 숨은 칸 `contentHtml`에 담는다. 버튼이 포커스를 가져가 커서를 잃지 않도록 `onMouseDown`에서 `preventDefault` |
 | 글자 수 | `postTextLength` (`src/lib/text-length.ts`): 서버의 `htmlToText(sanitizePostHtml(html)).length`와 같은 값이 나오도록 같은 규칙을 문자열 처리로 옮겼다 (서버의 `sanitize-html`은 브라우저에서 쓸 수 없다). `p`·`h1`·`h2`·`h3`·`li`·`blockquote`·`pre`가 끝날 때마다 줄바꿈 1자, `<br>`·`<hr>`은 0자, 이어진 띄어쓰기는 1자로 합치고, 엔티티(`&amp;` 등)는 서버와 같은 순서로 푼다. 규칙을 바꾸면 `src/server/sanitize.ts`의 `htmlToText`와 `scripts/test-text-length.ts`를 함께 고친다 (#18) |
 
@@ -1302,7 +1302,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 - 실수로 페이지를 벗어날 때 "작성 중인 글이 사라져요" 경고를 띄울까? (POST-08 임시 저장과 함께)
 - 삭제한 글의 보상을 회수할까? (GAME-05 열린 질문과 같음)
 - 남의 글 수정을 조작해 보냈을 때 BlogCabin 오류 화면(`잠깐 문제가 생겼어요`) 대신 안내 문구를 보여줄까? (제안) 문구는 `내가 쓴 글만 고칠 수 있어요` (my-blog가 남의 글 수정 화면에 보여주는 문구)
-- 발행 안내는 주소의 `?new=`만 보고 띄운다. 그래서 새로고침하거나 다른 사람이 같은 주소를 열어도 다시 보인다. 주인에게만, 한 번만 보여줄까? (`e2e/blog.mjs`도 주소에서 `?new=1`만 지운다. 그래서 보상을 받은 글이면 다른 회원이 `?new=reward`가 붙은 주소로 들어간다)
+- 발행 안내는 주소의 `?new=`만 보고 띄운다. 그래서 새로고침하거나 다른 사람이 같은 주소를 열어도 다시 보인다. 주인에게만, 한 번만 보여줄까? (`e2e/blog.mjs`는 주소에서 `?new=…`를 지우고 다른 회원으로 들어간다)
 - 본문이 아주 길어 요청이 1MB를 넘으면(한글만 쓰면 약 35만 자) `글이 너무 길어요`가 나오기 전에 Next.js가 요청을 거절한다 (Server Action 기본 한도 1MB, `next.config.ts`에 `bodySizeLimit` 설정 없음). 화면에서 20만 자를 미리 막을까?
 - (제안) 제목 최대 100자 → 200자로? (my-blog는 200자가 넘으면 잘라서 저장한다) 바꾸려면 zod·`maxLength`와 함께 DB CHECK `posts_title_check`도 마이그레이션으로 바꿔야 한다.
 - (제안) 도구 모음에 글자 속 코드(`` ` ``) 버튼을 더할까? 지금은 `` `글자` ``로 입력하거나 `Ctrl/⌘+E`로만 된다. (my-blog는 글자 속 코드 버튼과 코드 블록 버튼이 따로 있다)
@@ -1369,7 +1369,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 **수용 기준**
 - [x] 비공개 글은 다른 회원·방문자의 어느 목록에도 나오지 않는다. (코드 확인)
 - [x] 다른 사람이 비공개 글 주소로 직접 들어가면 404다. (코드 확인)
-- [x] 비공개 글에는 보상이 없다. (본문 100자 이상 새 비공개 글을 발행해도 `?new=1` 안내가 나오고 `point_ledger`에 `post` 기록이 생기지 않는다) (코드 확인)
+- [x] 비공개 글에는 보상이 없다. (본문 100자 이상 새 비공개 글을 발행해도 `?new=private` 안내가 나오고 `point_ledger`에 `post` 기록이 생기지 않는다) (코드 확인)
 - [x] 새 글쓰기 화면을 열면 [🌍 공개]가 골라져 있고, 수정 화면을 열면 저장된 값이 골라져 있다. (코드 확인)
 - [x] 공개 글을 수정 화면에서 비공개로 바꿔 저장하면 다른 회원의 마을 소식·블로그 홈에서 사라진다. 다시 공개로 바꿔도 글 보상은 들어오지 않는다. (코드 확인)
 - [x] 주인은 자기 블로그 홈 목록에서 비공개 글을 `🔒 비공개` 표시와 함께 보고, 이전/다음 글에도 비공개 글이 나온다. (코드 확인)
@@ -1867,7 +1867,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 | 화면 | `src/app/write/page.tsx`가 `viewer.userId`를 `PostForm`에 넘긴다 (지금 `PostForm`은 `categories`, `initial`만 받는다). 저장·불러오기는 `PostForm`(클라이언트, `src/components/editor/post-form.tsx`)에서 하고, 새 글일 때(`isNew` = `!initial.postId`)만 동작 |
 | 저장 | 키 `blogcabin:draft:{userId}`, 값 JSON `{ title, categoryId, visibility, contentHtml, tags, savedAt }`. 입력이 생길 때마다 타이머를 다시 걸어 2초 뒤 `localStorage.setItem` (debounce). 읽기·쓰기는 모두 `try/catch`로 감싼다. `RichEditor`는 에디터를 처음 만들 때도 `onChange`를 부르므로(`onCreate`) "비어 있음"이면 저장을 건너뛴다. `PostForm`이 사라질 때(발행 뒤 이동 등) 타이머를 취소한다. 안 그러면 상세 화면에서 지운 임시 글을 남은 타이머가 다시 저장한다 |
 | 불러오기 | `localStorage`는 브라우저에만 있으므로 화면이 열린 뒤(`useEffect`) 읽는다. `RichEditor`는 `initialHtml`을 에디터를 만들 때 한 번만 쓰고(`useEditor`의 `content`), 제목·태그·카테고리 칸은 `defaultValue`(비제어)다. 그래서 불러온 값을 초기값으로 해서 폼을 `key`를 바꿔 다시 그린다 (에디터도 새로 만들어진다) |
-| 지우기 | `savePost`는 새 글이면 `/@주소/글ID?new=reward` 또는 `?new=1`로 보낸다. 글 상세(`src/app/blog/[slug]/[postId]/page.tsx`)가 `?new=`일 때 발행 안내를 보여주는 자리에서, 주인이면(`isOwner`) 작은 클라이언트 컴포넌트로 임시 글을 지운다. [발행하기]를 누를 때 바로 지우면 발행이 실패했을 때 잃는다 |
+| 지우기 | `savePost`는 새 글이면 `/@주소/글ID?new=reward` 또는 `?new=private`·`short`·`limit`로 보낸다. 글 상세(`src/app/blog/[slug]/[postId]/page.tsx`)가 `?new=`일 때 발행 안내를 보여주는 자리에서, 주인이면(`isOwner`) 작은 클라이언트 컴포넌트로 임시 글을 지운다. [발행하기]를 누를 때 바로 지우면 발행이 실패했을 때 잃는다 |
 | 데이터 | DB 변경 없음 (ERD 수정 없음) |
 | 무결성 | 해당 없음 (DB에 쓰지 않는다). 한 회원에 키 1개라 새로 저장하면 덮어쓰고, 탭 두 개면 마지막 저장만 남는다 (예외 흐름) |
 | 검증 | 임시 저장할 때는 "비어 있음"만 확인하고 길이는 검사하지 않는다 (입력 규칙). 불러온 값도 [발행하기] 때 `savePost`가 서버에서 POST-01 규칙(zod·정화)으로 다시 검사한다 |

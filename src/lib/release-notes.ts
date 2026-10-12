@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.9.3",
+        title: msg("보상 못 받은 이유 알려 주기"),
+        changes: [
+          { kind: "improved", text: msg("글을 발행했는데 보상을 못 받았으면, 비공개 글인지·본문이 짧은지·오늘 보상을 다 받았는지 중 실제 이유 하나만 알려 줘요.") },
+        ],
+      },
+      {
         version: "1.9.2",
         title: msg("릴리스 노트를 버전별로"),
         changes: [
