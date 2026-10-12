@@ -12,6 +12,7 @@ import { useT } from "@/components/i18n";
 import { attachmentPath, FILE_TYPES, IMAGE_TYPES } from "@/lib/attachments";
 import { msg, type T } from "@/lib/i18n";
 import { FileCard } from "./file-card";
+import { DEFAULT_LINE_HEIGHT, LINE_HEIGHTS, LineHeight } from "./line-height";
 import { filesFrom, useAttachmentUpload } from "./use-attachment-upload";
 
 const IMAGE_ACCEPT = Object.keys(IMAGE_TYPES).map((e) => `.${e}`).join(",");
@@ -42,7 +43,7 @@ type ToolButton = {
 type Group = "font" | "align" | "block";
 const GROUPS: { value: Group; title: string }[] = [
   { value: "font", title: msg("글자 꾸미기") },
-  { value: "align", title: msg("문단 정렬") },
+  { value: "align", title: msg("정렬·줄 간격") },
   { value: "block", title: msg("목록·인용·링크") },
 ];
 
@@ -105,8 +106,9 @@ function AlignIcon({ align }: { align: Align }) {
   );
 }
 
-// "colors" 자리에 글자색·배경색 버튼이 들어간다. 컴퓨터는 "row"에서 줄을 바꿔 두 줄 (글꼴·정렬 / 목록부터)
-const TOOLS: (ToolButton | "sep" | "colors" | "row")[] = [
+// "colors" 자리에 글자색·배경색 버튼, "lineHeight" 자리에 줄 간격 고르기가 들어간다.
+// 컴퓨터는 "row"에서 줄을 바꿔 두 줄 (글꼴·정렬 / 줄 간격·목록부터)
+const TOOLS: (ToolButton | "sep" | "colors" | "row" | "lineHeight")[] = [
   { label: "B", title: msg("굵게"), group: "font", className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
   { label: "I", title: msg("기울임"), group: "font", className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
   { label: "U", title: msg("밑줄"), group: "font", className: "underline underline-offset-2", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
@@ -124,6 +126,8 @@ const TOOLS: (ToolButton | "sep" | "colors" | "row")[] = [
     }),
   ),
   "row",
+  "lineHeight",
+  "sep",
   { label: msg("• 목록"), title: msg("글머리 목록"), group: "block", run: (e) => e.chain().focus().toggleBulletList().run(), active: (e) => e.isActive("bulletList") },
   { label: msg("1. 목록"), title: msg("번호 목록"), group: "block", run: (e) => e.chain().focus().toggleOrderedList().run(), active: (e) => e.isActive("orderedList") },
   { label: msg("❝ 인용"), title: msg("인용"), group: "block", run: (e) => e.chain().focus().toggleBlockquote().run(), active: (e) => e.isActive("blockquote") },
@@ -256,6 +260,7 @@ export function RichEditor({
       Color,
       BackgroundColor,
       TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right"] }),
+      LineHeight,
       Placeholder.configure({ placeholder: t("오늘 배운 것, 생각한 것, 무엇이든 적어 보세요 ✏️") }),
     ],
     content: initialHtml,
@@ -334,6 +339,7 @@ export function RichEditor({
         fontSize: style.fontSize ? parseInt(style.fontSize, 10) || DEFAULT_FONT_SIZE : DEFAULT_FONT_SIZE,
         color: style.color ?? null,
         background: style.backgroundColor ?? null,
+        lineHeight: (editor.getAttributes(editor.isActive("heading") ? "heading" : "paragraph").lineHeight as string | null) ?? DEFAULT_LINE_HEIGHT,
       };
     },
   });
@@ -404,6 +410,27 @@ export function RichEditor({
           ) : tool === "row" ? (
             // 너비 100%짜리 빈 칸으로 줄을 바꾼다
             <span key={i} className="basis-full max-sm:hidden" aria-hidden="true" />
+          ) : tool === "lineHeight" ? (
+            <select
+              key={i}
+              aria-label={t("줄 간격")}
+              title={t("줄 간격")}
+              disabled={!editor}
+              value={state?.lineHeight ?? DEFAULT_LINE_HEIGHT}
+              onChange={(e) => {
+                if (!editor) return;
+                const value = e.currentTarget.value;
+                const chain = editor.chain().focus();
+                (value === DEFAULT_LINE_HEIGHT ? chain.unsetLineHeight() : chain.setLineHeight(value)).run();
+              }}
+              className={`${SELECT_CLASS} w-20 ${inGroup("align")}`}
+            >
+              {LINE_HEIGHTS.map((v) => (
+                <option key={v} value={v}>
+                  ↕ {v}
+                </option>
+              ))}
+            </select>
           ) : tool === "colors" ? (
             <div key={i} className={`flex gap-0.5 sm:gap-1 ${inGroup("font")}`}>
               <ColorPicker editor={editor} kind="color" current={state?.color ?? null} />
