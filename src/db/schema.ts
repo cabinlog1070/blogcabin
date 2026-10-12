@@ -476,6 +476,26 @@ export const postLikes = pgTable(
   (t) => [primaryKey({ columns: [t.postId, t.userId] })],
 );
 
+// 글 번역 저장 (POST-10): DeepL로 번역한 제목·본문을 글·언어마다 하나 둔다.
+// 같은 글을 다시 번역하지 않아 무료 한도를 아낀다. 글을 고치면 source_hash가 달라져 다시 번역해 덮어쓴다
+export const postTranslations = pgTable(
+  "post_translations",
+  {
+    postId: integer("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    targetLang: userLocale("target_lang").notNull(),
+    sourceHash: text("source_hash").notNull(), // 번역한 원문(제목+본문)의 sha256
+    title: text("title").notNull(),
+    contentHtml: text("content_html").notNull(), // 번역 결과도 sanitizePostHtml로 정화해서 넣는다
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.postId, t.targetLang] }),
+    check("post_translations_target_lang_check", oneOf(t.targetLang, USER_LOCALES)),
+  ],
+);
+
 // 회원 ↔ 회원 (자기 참조 N:M): 이웃
 export const follows = pgTable(
   "follows",

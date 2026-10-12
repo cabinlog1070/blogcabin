@@ -6,13 +6,15 @@ import { z } from "zod";
 import { db } from "@/db";
 import { blogs, comments, follows, pointLedger, postLikes, posts } from "@/db/schema";
 import { MAX_FAVORITES } from "@/lib/game";
-import { msg } from "@/lib/i18n";
+import { isLocale, msg } from "@/lib/i18n";
 import { MAX_DB_INT, parseId } from "@/lib/ids";
+import { detectPostLanguage } from "@/lib/translate";
 import { canSeePrivatePosts } from "@/server/blog";
-import { requireMember } from "@/server/dal";
+import { getViewer, requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
 import { hasLikeNotification, notifySocial } from "@/server/notifications";
 import { grantReward, lockUser } from "@/server/points";
+import { translatePostWithDeepL, type TranslateResult } from "@/server/translate";
 import { addBlogVisit, addPostView, currentViewerKey, getBlogVisitStats } from "@/server/visits";
 
 /** 글과 그 글의 블로그 주인 (공개 글이거나, 내 글이거나, 서로 이웃의 비공개 글일 때만) */
@@ -226,4 +228,24 @@ export async function recordPostView(postId: number): Promise<number | null> {
   if (post.visibility === "private" && !(await canSeePrivatePosts(memberId, post.ownerId))) return null;
   if (isOwner) return post.viewCount;
   return addPostView(postId, key);
+}
+
+// ===== 글 번역 (POST-10) =====
+// 방문자도 누르는 버튼이라 requireMember()를 걸지 않는다. 대신 그 사람이 볼 수 있는 글인지 서버에서 다시 확인하고,
+// 화면 언어와 다른 말로 쓴 글만 번역한다 (번역 결과는 저장해 두어 같은 글은 다시 부르지 않는다)
+export async function translatePost(postId: number, to: string): Promise<TranslateResult> {
+  if (parseId(postId) === null || !isLocale(to)) return { ok: false, reason: "error" };
+  const [post] = await db
+    .select({ id: posts.id, title: posts.title, contentHtml: posts.contentHtml, contentText: posts.contentText, visibility: posts.visibility, ownerId: blogs.ownerId })
+    .from(posts)
+    .innerJoin(blogs, eq(blogs.id, posts.blogId))
+    .where(eq(posts.id, postId));
+  if (!post) return { ok: false, reason: "error" };
+  if (post.visibility === "private") {
+    const viewer = await getViewer();
+    if (!(await canSeePrivatePosts(viewer?.profile ? viewer.userId : null, post.ownerId))) return { ok: false, reason: "error" };
+  }
+  const from = detectPostLanguage(`${post.title}\n${post.contentText}`);
+  if (!from || from === to) return { ok: false, reason: "error" };
+  return translatePostWithDeepL(post, from, to);
 }

@@ -21,6 +21,7 @@ import {
 } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
+import { serverTranslationEnabled } from "@/server/translate";
 import { categoryLabel } from "@/lib/i18n";
 import { detectPostLanguage } from "@/lib/translate";
 
@@ -100,6 +101,8 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
 
       {/* 다른 말로 쓴 글이면 제목·본문을 번역해 보여 줄 수 있게 감싼다 (POST-10). 안쪽은 다른 PR과 겹치지 않게 들여쓰기를 그대로 둔다 */}
       <PostTranslateProvider
+        postId={post.id}
+        server={serverTranslationEnabled()}
         from={detectPostLanguage(`${post.title}\n${post.contentText}`)}
         title={post.title}
         html={post.contentHtml}

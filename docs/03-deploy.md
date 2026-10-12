@@ -16,6 +16,7 @@
 | `DB_ADDRESS`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` | `DATABASE_URL`로 합쳐서 컨테이너에 넘김 (비밀번호의 특수문자는 자동 인코딩) |
 | `APP_URL` (선택) | 사용자가 여는 주소. 없으면 `http://SSH_ADDRESS:8440`. 도메인·https를 붙이면 꼭 넣는다 (로그인 쿠키·로그아웃이 이 주소 기준) |
 | `TRUSTED_ORIGINS`, `DB_SSLMODE`, `GOOGLE_*`, `KAKAO_*`, `NAVER_*` (선택) | 추가 허용 주소, DB SSL, 소셜 로그인 |
+| `DEEPL_API_KEY` (선택) | 글 번역(POST-10). DeepL API Free 키(끝이 `:fx`)면 무료 주소로 부른다. 없으면 컴퓨터 크롬 번역·파파고 링크로만 번역 |
 
 서버 쪽 준비와 폴더:
 - Docker가 설치돼 있고, SSH 계정이 `docker`를 쓸 수 있어야 한다 (docker 그룹 또는 비밀번호 없는 sudo)

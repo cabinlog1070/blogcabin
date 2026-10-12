@@ -37,6 +37,7 @@ erDiagram
     users ||--o{ comments : "작성"
     comments |o--o{ comments : "답글"
 
+    posts ||--o{ post_translations : "번역"
     posts ||--o{ post_likes : ""
     users ||--o{ post_likes : "공감"
 
@@ -172,6 +173,14 @@ erDiagram
         timestamptz created_at
         timestamptz deleted_at "삭제 표시"
     }
+    post_translations {
+        int post_id PK, FK
+        text target_lang PK "ko | ja"
+        text source_hash "원문 sha256"
+        text title
+        text content_html "정화한 번역 본문"
+        timestamptz created_at
+    }
     post_likes {
         int post_id PK, FK
         text user_id PK, FK
@@ -285,7 +294,7 @@ erDiagram
 |---|---|---|
 | 인증 | `users`, `accounts`, `sessions`, `verifications` | AUTH |
 | 회원·블로그 | `profiles`, `blogs`, `categories` | AUTH-02, BLOG |
-| 글·교류 | `posts`, `tags`, `post_tags`, `comments`, `post_likes`, `follows` | POST, SOC |
+| 글·교류 | `posts`, `tags`, `post_tags`, `comments`, `post_likes`, `follows`, `post_translations` | POST, SOC |
 | 아이템 | `items`, `user_items`, `avatar_equips`, `room_furniture` | GAME-01, SHOP |
 | 보상 | `attendances`, `point_ledger` | GAME-02~05 |
 | 첨부 | `attachments` | POST-07, POST-09 |
@@ -504,6 +513,12 @@ COMMIT
 - 글 본문(`posts.content_html`)에는 `<img src="/files/키">`, `<a href="/files/키" data-file …>`처럼 주소만 들어간다. 글과 첨부를 잇는 테이블은 두지 않았다. 저장할 때 본문의 키를 `attachments`에서 확인한다 (DB에 없는 키는 정화에서 뺀다).
 - 누가 열 수 있는지(spec 003 FR-059, 0.7)도 본문으로 찾는다: `content_html LIKE '%/files/키%'`인 글 중 공개 글이 있으면 누구나, 비공개 글에만 있으면 그 글의 주인만, 없으면 올린 사람만. 글이 많아져 느려지면 글 ↔ 첨부 연결 테이블을 둔다.
 - 내려받는 이름은 `attachments.name`(원래 이름)을 쓰므로, 본문을 조작해도 바뀌지 않는다.
+
+### 3.12 글 번역은 저장해 두고 다시 쓴다 (POST-10, 2026-10-12, 마이그레이션 0017)
+
+- DeepL 무료 한도(한 달 50만 자)를 아끼려고, 번역한 제목·본문을 `post_translations`에 글·언어마다 한 줄 둔다 (`(post_id, target_lang)` 기본 키).
+- `source_hash`는 번역할 때의 원문(제목+본문) sha256이다. 글을 고치면 값이 달라져 다음 번역 요청 때 다시 번역해 덮어쓴다. 글을 지우면 함께 지워진다(`CASCADE`).
+- 바깥에서 받은 HTML이라 저장 전에 글과 똑같이 `sanitizePostHtml()`로 정화한다.
 
 ## 4. 데이터 마이그레이션
 
