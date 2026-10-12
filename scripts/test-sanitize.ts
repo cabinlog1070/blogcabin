@@ -82,3 +82,30 @@ if (failed) process.exit(1);
   expect("다른 style 지움", out, !/position|justify|url|900px/.test(out));
   if (bad) process.exit(1);
 }
+
+// 표: 칸·제목 칸·합치기는 남기고, 표 크기 style과 colgroup은 지운 뒤 가로 스크롤 상자로 감싼다
+{
+  let bad = 0;
+  const expect = (name: string, got: string, ok: boolean) => {
+    if (!ok) bad++;
+    console.log(`${ok ? "✅" : "❌"} ${name.padEnd(22)} → ${got}`);
+  };
+  const editorHtml =
+    '<table style="min-width: 75px"><colgroup><col style="min-width: 25px"><col style="min-width: 25px"></colgroup><tbody>' +
+    '<tr><th colspan="1" rowspan="1"><p>이름</p></th><th><p style="text-align: center">점수</p></th></tr>' +
+    '<tr><td colspan="2" style="text-align: right" onclick="alert(1)"><p>합친 칸</p></td></tr></tbody></table>';
+  let out = sanitizePostHtml(editorHtml);
+  expect(
+    "표 남김",
+    out,
+    out ===
+      '<div class="table-scroll"><table><tbody><tr><th><p>이름</p></th><th><p style="text-align:center">점수</p></th></tr>' +
+        '<tr><td colspan="2" style="text-align:right"><p>합친 칸</p></td></tr></tbody></table></div>',
+  );
+  expect("다시 정화해도 상자 하나", sanitizePostHtml(out), sanitizePostHtml(out) === out);
+  out = sanitizePostHtml('<table><tr><td rowspan="999" colspan="x" style="position: fixed">x</td></tr></table>');
+  expect("이상한 합치기·style 지움", out, !/rowspan|colspan|position/.test(out));
+  out = sanitizePostHtml('<div class="evil"><p>x</p></div>');
+  expect("다른 div는 빠짐", out, out === "<p>x</p>");
+  if (bad) process.exit(1);
+}

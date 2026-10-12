@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.10.0",
+        title: msg("글에 표 넣기"),
+        changes: [
+          { kind: "new", text: msg("글쓰기 도구에 ▦ 표 버튼이 생겼어요. 행과 열 수를 골라 표를 넣고, 표 안을 누르면 행·열 넣기와 지우기, 칸 합치기, 제목 행 켜기를 할 수 있어요.") },
+          { kind: "new", text: msg("글 읽는 화면에서 표가 깔끔한 칸으로 보이고, 휴대폰에서 표가 넓으면 표만 옆으로 밀어서 볼 수 있어요.") },
+        ],
+      },
+      {
         version: "1.9.3",
         title: msg("보상 못 받은 이유 알려 주기"),
         changes: [
