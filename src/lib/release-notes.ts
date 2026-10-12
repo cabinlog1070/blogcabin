@@ -26,10 +26,11 @@ export const RELEASE_KIND_LABEL: Record<ReleaseChangeKind, string> = {
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
     date: "2026-10-12",
-    title: "닉네임 바꾸기와 릴리스 노트",
+    title: "닉네임 바꾸기, 릴리스 노트, 아이폰 그림 선명하게",
     changes: [
       { kind: "new", text: "내 정보 메뉴의 문의하기 아래에 릴리스 노트가 생겼어요. 업데이트될 때마다 여기에 소식을 올려요." },
       { kind: "new", text: "환경 설정의 기본 정보에서 닉네임을 바꿀 수 있어요. 2~12자이고, 다른 주민이 쓰는 닉네임은 쓸 수 없어요." },
+      { kind: "fixed", text: "아이폰(사파리)에서 크레용 그림이 뭉개져 보이던 문제를 고쳤어요." },
       { kind: "improved", text: "비공개 글도 언제나 볼 수 있어요.", admin: true },
     ],
   },
