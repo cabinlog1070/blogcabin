@@ -1,6 +1,7 @@
 // 중앙 광장 (2D 탑다운). Phaser는 브라우저에서만 동작하므로 런타임에 받아서 씬을 만든다.
 // 그림은 src/lib/art/ 의 SVG를 이미지로 바꿔 쓴다 (townTextures → TownGame이 미리 불러온다).
 import type * as PhaserNS from "phaser";
+import type { T } from "@/lib/i18n";
 import { animalSvg, toAnimalDataUri } from "@/lib/art/animals";
 import { headerPopoverBlocksTap } from "@/components/header-popover";
 import { PHONE_MEDIA } from "@/lib/device";
@@ -174,7 +175,7 @@ const propKey = (kind: PropKind) => `prop:${kind}`;
 const houseKey = (stage: HouseStage, roof: string) => `house:${stage}:${roof}`;
 
 /** 이 광장이 쓸 그림 목록. TownGame이 미리 이미지로 불러 둔다 */
-export function townTextures(data: TownData) {
+export function townTextures(data: TownData, t: T) {
   const list = new Map<string, string>();
   const houses = [data.myHouse, ...data.neighbors].filter(Boolean) as TownHouse[];
   // 내 캐릭터(방문자는 방문자 캐릭터): 앞·뒤·옆 모습마다 서 있기(0)·걷기(1·2) 그림. 옆모습은 오른쪽을 본다
@@ -189,9 +190,9 @@ export function townTextures(data: TownData) {
   }
   const pet = data.player?.pet;
   if (pet) list.set("pet", toAnimalDataUri(animalSvg(pet.assetKey, pet.stage, PET_SIZE * 2, pet.accessory)));
-  list.set("board", toDataUri(boardSvg()));
-  list.set("attendance", toDataUri(attendanceSvg()));
-  list.set("shop", toDataUri(shopSvg()));
+  list.set("board", toDataUri(boardSvg(t)));
+  list.set("attendance", toDataUri(attendanceSvg(t)));
+  list.set("shop", toDataUri(shopSvg(t)));
   list.set("campfire", toDataUri(campfireSvg()));
   list.set("campfire:front", toDataUri(campfireFrontSvg()));
   for (let i = 0; i < FLAME_FRAMES; i++) list.set(`flame:${i}`, toDataUri(flameSvg(i)));
@@ -203,7 +204,7 @@ export function townTextures(data: TownData) {
   return [...list].map(([key, uri]) => ({ key, uri }));
 }
 
-function layout(data: TownData) {
+function layout(data: TownData, t: T) {
   const member = Boolean(data.player);
   const need = (href: string): TownTarget => (member ? { kind: "link", href } : { kind: "login" });
   const structures: Structure[] = [];
@@ -212,27 +213,27 @@ function layout(data: TownData) {
 
   // 마을 게시판 = 마을 소식
   const bw = BOARD_SIZE.width, bh = BOARD_SIZE.height;
-  structures.push({ texture: "board", ...BOARD_POS, w: bw, h: bh, solid: { w: bw * 0.92, h: 22 }, label: "마을 게시판", sub: "마을 소식 · 이웃 새 글" });
+  structures.push({ texture: "board", ...BOARD_POS, w: bw, h: bh, solid: { w: bw * 0.92, h: 22 }, label: t("마을 게시판"), sub: t("마을 소식 · 이웃 새 글") });
   entrances.push({
-    label: "마을 소식", emoji: "📋", x: BOARD_POS.x, y: BOARD_POS.y + 26, target: { kind: "link", href: "/feed" },
+    label: t("마을 소식"), emoji: "📋", x: BOARD_POS.x, y: BOARD_POS.y + 26, target: { kind: "link", href: "/feed" },
     area: { x: BOARD_POS.x - bw / 2, y: BOARD_POS.y - bh, w: bw, h: bh }, promptY: BOARD_POS.y - bh - 6,
   });
   // 출석 도장 판 (게시판에서 떨어뜨려 따로 세운다)
   const aw = ATTENDANCE_SIZE.width, ah = ATTENDANCE_SIZE.height;
   structures.push({
     texture: "attendance", ...ATTENDANCE_POS, w: aw, h: ah, solid: { w: 30, h: 14 },
-    label: "출석 체크",
-    sub: `${data.attendedToday ? "오늘 완료 ✅" : "보상 받기 🎁"}${data.quests ? ` · 퀘스트 ${data.quests.done}/${data.quests.total}` : ""}`,
+    label: t("출석 체크"),
+    sub: `${data.attendedToday ? t("오늘 완료 ✅") : t("보상 받기 🎁")}${data.quests ? ` · ${t("퀘스트 {done}/{total}", { done: data.quests.done, total: data.quests.total })}` : ""}`,
   });
   entrances.push({
-    label: data.attendedToday ? "출석 체크 (오늘 완료)" : "출석 체크", emoji: "📮", x: ATTENDANCE_POS.x, y: ATTENDANCE_POS.y + 26,
+    label: data.attendedToday ? t("출석 체크 (오늘 완료)") : t("출석 체크"), emoji: "📮", x: ATTENDANCE_POS.x, y: ATTENDANCE_POS.y + 26,
     target: need("/attendance"), area: { x: ATTENDANCE_POS.x - aw / 2, y: ATTENDANCE_POS.y - ah, w: aw, h: ah }, promptY: ATTENDANCE_POS.y - ah - 6,
   });
 
   // 상점
-  structures.push({ texture: "shop", ...SHOP_POS, w: SHOP_SIZE.width, h: SHOP_SIZE.height, solid: { w: SHOP_SIZE.width * 0.86, h: 60 }, label: "상점", sub: "꾸미기·가구·배경" });
+  structures.push({ texture: "shop", ...SHOP_POS, w: SHOP_SIZE.width, h: SHOP_SIZE.height, solid: { w: SHOP_SIZE.width * 0.86, h: 60 }, label: t("상점"), sub: t("꾸미기·가구·배경") });
   entrances.push({
-    label: "상점", emoji: "🏪", x: SHOP_POS.x + 40, y: SHOP_POS.y + 24, target: need("/shop"),
+    label: t("상점"), emoji: "🏪", x: SHOP_POS.x + 40, y: SHOP_POS.y + 24, target: need("/shop"),
     area: { x: SHOP_POS.x - SHOP_SIZE.width / 2, y: SHOP_POS.y - SHOP_SIZE.height, w: SHOP_SIZE.width, h: SHOP_SIZE.height },
     promptY: SHOP_POS.y - SHOP_SIZE.height - 6,
   });
@@ -240,10 +241,10 @@ function layout(data: TownData) {
   // 동물 농장: 알을 받아 동물을 키운다
   structures.push({
     texture: "farm", ...FARM_POS, w: FARM_SIZE.width, h: FARM_SIZE.height, solid: { w: FARM_SIZE.width * 0.94, h: 100 },
-    label: "동물 농장", sub: "펫 키우기 · 카드 도감",
+    label: t("동물 농장"), sub: t("펫 키우기 · 카드 도감"),
   });
   entrances.push({
-    label: "동물 농장", emoji: "🐮", x: FARM_POS.x, y: FARM_POS.y + 24, target: need("/farm"),
+    label: t("동물 농장"), emoji: "🐮", x: FARM_POS.x, y: FARM_POS.y + 24, target: need("/farm"),
     area: { x: FARM_POS.x - FARM_SIZE.width / 2, y: FARM_POS.y - FARM_SIZE.height, w: FARM_SIZE.width, h: FARM_SIZE.height },
     promptY: FARM_POS.y - FARM_SIZE.height - 6,
   });
@@ -257,7 +258,7 @@ function layout(data: TownData) {
     structures.push({
       texture: houseKey(h.stage, roof), ...pos, w, h: hh, solid: { w: wallW * 0.92, h: 38 + h.stage * 8 },
       // 블로그 이름이 길면 옆집과 겹치지 않게 줄인다 (집 간격 260)
-      label: mine ? "내 집" : `${h.nickname}의 집`, sub: h.title.length > 16 ? `${h.title.slice(0, 16)}…` : h.title,
+      label: mine ? t("내 집") : t("{nickname}의 집", { nickname: h.nickname }), sub: h.title.length > 16 ? `${h.title.slice(0, 16)}…` : h.title,
     });
     // 집 주인 캐릭터가 문 옆(벽 오른쪽 끝)에 서 있다
     structures.push({ texture: charKey(h.characterAsset), x: pos.x + wallW / 2 + 4, y: pos.y + 2, w: 46, h: 46 });
@@ -269,7 +270,7 @@ function layout(data: TownData) {
     });
     windows.push({ x: pos.x, y: pos.y - hh * 0.35, r: w * 0.9 });
     entrances.push({
-      label: mine ? "내 집" : `${h.nickname}의 집`, emoji: "🏠", x: pos.x, y: pos.y + 22, target: { kind: "link", href: `/@${h.slug}` },
+      label: mine ? t("내 집") : t("{nickname}의 집", { nickname: h.nickname }), emoji: "🏠", x: pos.x, y: pos.y + 22, target: { kind: "link", href: `/@${h.slug}` },
       area: { x: pos.x - w / 2, y: pos.y - hh, w, h: hh }, promptY: pos.y - hh - 4,
     });
   };
@@ -319,6 +320,7 @@ export function createTownScene(
   data: TownData,
   images: Map<string, HTMLCanvasElement>,
   onEnter: (target: TownTarget) => void,
+  t: T,
   fontFamily = "sans-serif",
   dpr = 1, // 캔버스가 CSS 1px당 몇 픽셀인가. 카메라를 이만큼 확대해 화면에 보이는 크기는 그대로 둔다
 ) {
@@ -370,7 +372,7 @@ export function createTownScene(
       this.drawGround();
 
       const walls = this.physics.add.staticGroup();
-      const { structures, entrances, windows, neighborSlots } = layout(data);
+      const { structures, entrances, windows, neighborSlots } = layout(data, t);
       this.entrances = entrances;
       this.game.canvas.dataset.neighborSlots = neighborSlots.join(";"); // 이웃 집이 놓인 자리 (e2e)
       for (const s of structures) this.placeStructure(s, walls);
@@ -400,7 +402,7 @@ export function createTownScene(
       }
 
       this.nameTag = this.add
-        .text(0, 0, data.player?.nickname ?? "구경하는 중", font({
+        .text(0, 0, data.player?.nickname ?? t("구경하는 중"), font({
           fontSize: "13px",
           fontStyle: "bold",
           color: "#2b2118",
@@ -669,8 +671,13 @@ export function createTownScene(
         }
       }
       if (closest) {
-        const verb = closest.target.kind === "login" ? "로그인하고 이용하기" : "들어가기";
-        this.prompt.setText(`${closest.emoji} ${closest.label} · ${this.touch ? "탭해서" : "Space"} ${verb}`);
+        const login = closest.target.kind === "login";
+        const vars = { emoji: closest.emoji, label: closest.label };
+        this.prompt.setText(
+          this.touch
+            ? login ? t("{emoji} {label} · 탭해서 로그인하고 이용하기", vars) : t("{emoji} {label} · 탭해서 들어가기", vars)
+            : login ? t("{emoji} {label} · Space 로그인하고 이용하기", vars) : t("{emoji} {label} · Space 들어가기", vars),
+        );
         this.prompt.setPosition(closest.x, closest.promptY).setVisible(true);
         if (this.actionKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))) onEnter(closest.target);
       } else {

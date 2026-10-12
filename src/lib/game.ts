@@ -1,5 +1,6 @@
 // 게임 규칙: docs/01-requirements.md 4.5, docs/02-erd.md 3.4
 // DB를 쓰지 않는 순수 계산만 둔다 (화면과 서버 어디서나 import 가능)
+import { LOCALE_TAGS, makeT, type Locale, type T } from "@/lib/i18n";
 
 /** 레벨 n이 되기 위한 누적 경험치: 50 × n × (n − 1) */
 export function expForLevel(level: number): number {
@@ -86,10 +87,10 @@ export function houseStageForLevel(level: number): 1 | 2 | 3 {
 }
 
 /** 알림 시간 표시 (GAME-08): 방금 / N분 전 / N시간 전 / 하루가 지나면 YYYY. MM. DD. (한국 시간) */
-export function timeAgo(date: Date, now = new Date()): string {
+export function timeAgo(date: Date, now = new Date(), locale: Locale = "ko", t: T = makeT(locale)): string {
   const sec = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
-  if (sec < 60) return "방금";
-  if (sec < 3600) return `${Math.floor(sec / 60)}분 전`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}시간 전`;
-  return new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  if (sec < 60) return t("방금");
+  if (sec < 3600) return t("{n}분 전", { n: Math.floor(sec / 60) });
+  if (sec < 86400) return t("{n}시간 전", { n: Math.floor(sec / 3600) });
+  return new Intl.DateTimeFormat(LOCALE_TAGS[locale], { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }

@@ -8,7 +8,9 @@ import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
 import { BackgroundColor, Color, FontSize, TextStyle } from "@tiptap/extension-text-style";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { useT } from "@/components/i18n";
 import { attachmentPath, FILE_TYPES, IMAGE_TYPES } from "@/lib/attachments";
+import { msg, type T } from "@/lib/i18n";
 import { FileCard } from "./file-card";
 import { filesFrom, useAttachmentUpload } from "./use-attachment-upload";
 
@@ -29,16 +31,16 @@ const PostImage = Image.extend({
 type ToolButton = {
   label: ReactNode;
   title: string;
-  run: (e: Editor) => void;
+  run: (e: Editor, t: T) => void;
   active?: (e: Editor) => boolean;
   className?: string;
 };
 
 // 문단 스타일: H2·H3 대신 티스토리처럼 이름으로 고른다. 저장되는 태그는 그대로 (제목 h2, 부제목 h3)
 const BLOCK_STYLES = [
-  { value: "p", label: "본문" },
-  { value: "h2", label: "제목" },
-  { value: "h3", label: "부제목" },
+  { value: "p", label: msg("본문") },
+  { value: "h2", label: msg("제목") },
+  { value: "h3", label: msg("부제목") },
 ] as const;
 type BlockStyle = (typeof BLOCK_STYLES)[number]["value"];
 
@@ -60,9 +62,9 @@ export const TEXT_COLORS = ["#2e2118", "#6a5444", "#b83a29", "#e8590c", "#96500f
 export const BACKGROUND_COLORS = ["#fff3bf", "#ffe8cc", "#ffe3e3", "#d3f9d8", "#d0ebff", "#e5dbff", "#f1f3f5"];
 
 const ALIGNS = [
-  { value: "left", title: "왼쪽 정렬" },
-  { value: "center", title: "가운데 정렬" },
-  { value: "right", title: "오른쪽 정렬" },
+  { value: "left", title: msg("왼쪽 정렬") },
+  { value: "center", title: msg("가운데 정렬") },
+  { value: "right", title: msg("오른쪽 정렬") },
 ] as const;
 type Align = (typeof ALIGNS)[number]["value"];
 
@@ -80,10 +82,10 @@ function AlignIcon({ align }: { align: Align }) {
 
 // "colors" 자리에 글자색·배경색 버튼이 들어간다
 const TOOLS: (ToolButton | "sep" | "colors")[] = [
-  { label: "B", title: "굵게", className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
-  { label: "I", title: "기울임", className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
-  { label: "U", title: "밑줄", className: "underline underline-offset-2", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
-  { label: "S", title: "취소선", className: "line-through", run: (e) => e.chain().focus().toggleStrike().run(), active: (e) => e.isActive("strike") },
+  { label: "B", title: msg("굵게"), className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
+  { label: "I", title: msg("기울임"), className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
+  { label: "U", title: msg("밑줄"), className: "underline underline-offset-2", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
+  { label: "S", title: msg("취소선"), className: "line-through", run: (e) => e.chain().focus().toggleStrike().run(), active: (e) => e.isActive("strike") },
   "colors",
   "sep",
   ...ALIGNS.map(
@@ -96,17 +98,17 @@ const TOOLS: (ToolButton | "sep" | "colors")[] = [
     }),
   ),
   "sep",
-  { label: "• 목록", title: "글머리 목록", run: (e) => e.chain().focus().toggleBulletList().run(), active: (e) => e.isActive("bulletList") },
-  { label: "1. 목록", title: "번호 목록", run: (e) => e.chain().focus().toggleOrderedList().run(), active: (e) => e.isActive("orderedList") },
-  { label: "❝ 인용", title: "인용", run: (e) => e.chain().focus().toggleBlockquote().run(), active: (e) => e.isActive("blockquote") },
-  { label: "</> 코드", title: "코드 블록", run: (e) => e.chain().focus().toggleCodeBlock().run(), active: (e) => e.isActive("codeBlock") },
-  { label: "― 구분선", title: "구분선", run: (e) => e.chain().focus().setHorizontalRule().run() },
+  { label: msg("• 목록"), title: msg("글머리 목록"), run: (e) => e.chain().focus().toggleBulletList().run(), active: (e) => e.isActive("bulletList") },
+  { label: msg("1. 목록"), title: msg("번호 목록"), run: (e) => e.chain().focus().toggleOrderedList().run(), active: (e) => e.isActive("orderedList") },
+  { label: msg("❝ 인용"), title: msg("인용"), run: (e) => e.chain().focus().toggleBlockquote().run(), active: (e) => e.isActive("blockquote") },
+  { label: msg("</> 코드"), title: msg("코드 블록"), run: (e) => e.chain().focus().toggleCodeBlock().run(), active: (e) => e.isActive("codeBlock") },
+  { label: msg("― 구분선"), title: msg("구분선"), run: (e) => e.chain().focus().setHorizontalRule().run() },
   {
-    label: "🔗 링크",
-    title: "링크",
-    run: (e) => {
+    label: msg("🔗 링크"),
+    title: msg("링크"),
+    run: (e, t) => {
       const prev = e.getAttributes("link").href as string | undefined;
-      const url = window.prompt("링크 주소 (비우면 링크 해제)", prev ?? "https://");
+      const url = window.prompt(t("링크 주소 (비우면 링크 해제)"), prev ?? "https://");
       if (url === null) return;
       if (!url || url === "https://") e.chain().focus().extendMarkRange("link").unsetLink().run();
       else e.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
@@ -114,8 +116,8 @@ const TOOLS: (ToolButton | "sep" | "colors")[] = [
     active: (e) => e.isActive("link"),
   },
   "sep",
-  { label: "↶", title: "되돌리기", run: (e) => e.chain().focus().undo().run() },
-  { label: "↷", title: "다시 실행", run: (e) => e.chain().focus().redo().run() },
+  { label: "↶", title: msg("되돌리기"), run: (e) => e.chain().focus().undo().run() },
+  { label: "↷", title: msg("다시 실행"), run: (e) => e.chain().focus().redo().run() },
 ];
 
 const SELECT_CLASS =
@@ -131,6 +133,7 @@ function ColorPicker({
   kind: "color" | "background";
   current: string | null;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -142,7 +145,7 @@ function ColorPicker({
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
   const colors = kind === "color" ? TEXT_COLORS : BACKGROUND_COLORS;
-  const title = kind === "color" ? "글자색" : "글자 배경색";
+  const title = kind === "color" ? t("글자색") : t("글자 배경색");
   const apply = (c: string | null) => {
     if (!editor) return;
     const chain = editor.chain().focus();
@@ -166,7 +169,7 @@ function ColorPicker({
           className="leading-none"
           style={kind === "background" ? { background: current ?? BACKGROUND_COLORS[0], padding: "0 2px", borderRadius: 2 } : undefined}
         >
-          가
+          {t("가")}
         </span>
         {kind === "color" && <span className="mt-0.5 h-1 w-4 rounded-full" style={{ background: current ?? "var(--color-ink)" }} />}
       </button>
@@ -194,7 +197,7 @@ function ColorPicker({
             onClick={() => apply(null)}
             className="mt-2 w-full rounded-lg py-1 text-xs font-bold text-ink-soft hover:bg-cream hover:text-ink"
           >
-            {kind === "color" ? "기본 색으로" : "배경색 없애기"}
+            {kind === "color" ? t("기본 색으로") : t("배경색 없애기")}
           </button>
         </div>
       )}
@@ -212,6 +215,7 @@ export function RichEditor({
   /** 첨부를 올리는 동안 true (그동안 발행 버튼을 막는다) */
   onUploadingChange?: (uploading: boolean) => void;
 }) {
+  const t = useT();
   // 붙여 넣기·끌어다 놓기는 에디터 설정(처음 한 번 만들어짐) 안에서 불리므로 최신 함수를 ref로 넘긴다
   const uploadRef = useRef<(files: File[], at?: number) => void>(() => {});
   const editor = useEditor({
@@ -224,14 +228,14 @@ export function RichEditor({
       Color,
       BackgroundColor,
       TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right"] }),
-      Placeholder.configure({ placeholder: "오늘 배운 것, 생각한 것, 무엇이든 적어 보세요 ✏️" }),
+      Placeholder.configure({ placeholder: t("오늘 배운 것, 생각한 것, 무엇이든 적어 보세요 ✏️") }),
     ],
     content: initialHtml,
     immediatelyRender: false, // 서버 렌더링과 어긋나지 않게 브라우저에서 처음 그린다
     editorProps: {
       attributes: {
         class: "prose-blog min-h-[360px] px-5 py-4 outline-none",
-        "aria-label": "본문",
+        "aria-label": t("본문"),
       },
       // 사진·파일을 붙여 넣거나(Ctrl+V) 끌어다 놓으면 올려서 넣는다. 여러 개도 한 번에
       handlePaste: (_view, event) => {
@@ -297,7 +301,7 @@ export function RichEditor({
       if (!editor) return null;
       const style = editor.getAttributes("textStyle") as { fontSize?: string; color?: string; backgroundColor?: string };
       return {
-        tools: TOOLS.map((t) => (typeof t !== "string" && t.active ? t.active(editor) : false)),
+        tools: TOOLS.map((tool) => (typeof tool !== "string" && tool.active ? tool.active(editor) : false)),
         block: blockStyleOf(editor),
         fontSize: style.fontSize ? parseInt(style.fontSize, 10) || DEFAULT_FONT_SIZE : DEFAULT_FONT_SIZE,
         color: style.color ?? null,
@@ -309,10 +313,10 @@ export function RichEditor({
 
   return (
     <div data-rich-editor className="overflow-hidden rounded-2xl border-2 border-line bg-paper focus-within:border-sun">
-      <div className="flex flex-wrap items-center gap-1 border-b-2 border-line bg-cream/60 p-2" role="toolbar" aria-label="글꼴 도구">
+      <div className="flex flex-wrap items-center gap-1 border-b-2 border-line bg-cream/60 p-2" role="toolbar" aria-label={t("글꼴 도구")}>
         <select
-          aria-label="문단 스타일"
-          title="문단 스타일"
+          aria-label={t("문단 스타일")}
+          title={t("문단 스타일")}
           disabled={!editor}
           value={state?.block ?? "p"}
           onChange={(e) => editor && setBlockStyle(editor, e.currentTarget.value as BlockStyle)}
@@ -320,13 +324,13 @@ export function RichEditor({
         >
           {BLOCK_STYLES.map((b) => (
             <option key={b.value} value={b.value}>
-              {b.label}
+              {t(b.label)}
             </option>
           ))}
         </select>
         <select
-          aria-label="글자 크기"
-          title="글자 크기"
+          aria-label={t("글자 크기")}
+          title={t("글자 크기")}
           disabled={!editor}
           value={state?.fontSize ?? DEFAULT_FONT_SIZE}
           onChange={(e) => {
@@ -357,46 +361,46 @@ export function RichEditor({
             <button
               key={tool.title}
               type="button"
-              title={tool.title}
+              title={t(tool.title)}
               aria-pressed={active?.[i] ?? false}
               disabled={!editor}
               onMouseDown={(e) => e.preventDefault()} // 버튼이 포커스를 가져가 커서 위치를 잃지 않게
-              onClick={() => editor && tool.run(editor)}
+              onClick={() => editor && tool.run(editor, t)}
               className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-bold transition ${tool.className ?? ""} ${
                 active?.[i] ? "bg-ink text-cream" : "text-ink-soft hover:bg-paper hover:text-ink"
               }`}
             >
-              {tool.label}
+              {typeof tool.label === "string" ? t(tool.label) : tool.label}
             </button>
           ),
         )}
         <span className="mx-1 h-5 w-px bg-line" />
         <button
           type="button"
-          title="사진 올리기 (PNG·JPG·GIF·WEBP, 10MB까지)"
+          title={t("사진 올리기 (PNG·JPG·GIF·WEBP, 10MB까지)")}
           disabled={!editor || !!progress}
           onClick={() => imageInput.current?.click()}
           className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40"
         >
-          🖼 사진
+          {t("🖼 사진")}
         </button>
         <button
           type="button"
-          title="파일 올리기 (PDF·한글·오피스·ZIP 등, 30MB까지)"
+          title={t("파일 올리기 (PDF·한글·오피스·ZIP 등, 30MB까지)")}
           disabled={!editor || !!progress}
           onClick={() => fileInput.current?.click()}
           className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40"
         >
-          📎 파일
+          {t("📎 파일")}
         </button>
-        <input ref={imageInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label="사진 고르기" onChange={(e) => pick(e.currentTarget)} />
-        <input ref={fileInput} type="file" accept={FILE_ACCEPT} multiple hidden aria-label="파일 고르기" onChange={(e) => pick(e.currentTarget)} />
+        <input ref={imageInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("사진 고르기")} onChange={(e) => pick(e.currentTarget)} />
+        <input ref={fileInput} type="file" accept={FILE_ACCEPT} multiple hidden aria-label={t("파일 고르기")} onChange={(e) => pick(e.currentTarget)} />
       </div>
       {(progress || errors.length > 0) && (
         <div className="border-b-2 border-line bg-cream/40 px-4 py-2 text-sm" role="status" aria-live="polite">
           {progress && (
             <p className="font-bold text-ink-soft">
-              올리는 중... ({progress.done + 1}/{progress.total})
+              {t("올리는 중... ({done}/{total})", { done: progress.done + 1, total: progress.total })}
             </p>
           )}
           {errors.length > 0 && (
@@ -406,7 +410,7 @@ export function RichEditor({
                   <li key={e}>{e}</li>
                 ))}
               </ul>
-              <button type="button" onClick={clearErrors} className="shrink-0 text-ink-soft hover:text-ink" aria-label="안내 닫기">
+              <button type="button" onClick={clearErrors} className="shrink-0 text-ink-soft hover:text-ink" aria-label={t("안내 닫기")}>
                 ✕
               </button>
             </div>

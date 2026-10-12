@@ -2,8 +2,10 @@
 
 import { useOptimistic, useTransition } from "react";
 import { toggleLike } from "@/app/blog/actions";
+import { useT } from "@/components/i18n";
 
 export function LikeButton({ postId, count, liked, canLike }: { postId: number; count: number; liked: boolean; canLike: boolean }) {
+  const t = useT();
   const [pending, startTransition] = useTransition();
   // 서버 응답을 기다리지 않고 바로 하트를 바꿔 보여준다
   const [state, setState] = useOptimistic({ count, liked });
@@ -12,7 +14,7 @@ export function LikeButton({ postId, count, liked, canLike }: { postId: number; 
     <button
       type="button"
       disabled={!canLike || pending}
-      title={canLike ? undefined : "로그인하면 공감할 수 있어요"}
+      title={canLike ? undefined : t("로그인하면 공감할 수 있어요")}
       aria-pressed={state.liked}
       onClick={() =>
         startTransition(async () => {
@@ -22,7 +24,7 @@ export function LikeButton({ postId, count, liked, canLike }: { postId: number; 
       }
       className={`btn border-2 px-6 text-lg ${state.liked ? "border-berry bg-[#ffecec] text-berry" : "border-line bg-paper text-ink"}`}
     >
-      {state.liked ? "♥" : "♡"} 공감 {state.count}
+      {state.liked ? "♥" : "♡"} {t("공감 {n}", { n: state.count })}
     </button>
   );
 }

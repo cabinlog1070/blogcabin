@@ -3,6 +3,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { animalCares, animalSpecies, farmItems, notifications, pointLedger, profiles, userAnimals } from "@/db/schema";
 import {
+  petDisplayName,
   animalStage,
   type CareAction,
   levelEggLevels,
@@ -13,6 +14,8 @@ import {
   POST_GROWTH,
 } from "@/lib/farm";
 import { todayKST } from "@/lib/game";
+import { msg } from "@/lib/i18n";
+import { getT } from "@/server/i18n";
 import { recordLevelUps } from "@/server/notifications";
 import type { Tx } from "@/server/points";
 
@@ -96,10 +99,11 @@ export async function getFarm(userId: string, level: number) {
   const hasStarter = rows.some((r) => r.source === "starter");
   const claimedLevels = new Set(rows.filter((r) => r.source === "level").map((r) => r.sourceLevel));
   const freeEggs = [
-    ...(hasStarter ? [] : [{ kind: "starter" as const, label: "농장 첫 알" }]),
+    ...(hasStarter ? [] : [{ kind: "starter" as const, label: msg("농장 첫 알") }]),
     ...levelEggLevels(level)
       .filter((l) => !claimedLevels.has(l))
-      .map((l) => ({ kind: "level" as const, level: l, label: `레벨 ${l} 보상 알` })),
+      // label은 화면에서 t(label, { level })로 바꾼다
+      .map((l) => ({ kind: "level" as const, level: l, label: msg("레벨 {level} 보상 알") })),
   ];
 
   const [[potion], species, [profile]] = await Promise.all([
@@ -151,7 +155,13 @@ const showcaseColumns = {
   growExp: animalSpecies.growExp,
   maxLevel: animalSpecies.maxLevel,
   accessory: userAnimals.accessory,
+  speciesName: animalSpecies.name,
 };
+
+/** 보여 줄 펫 이름: 이름을 안 바꿨으면(동물 이름 그대로) 화면 언어로 (petDisplayName) */
+async function shownName<P extends { name: string }>(pet: P, speciesName: string): Promise<P> {
+  return { ...pet, name: petDisplayName(await getT(), pet.name, speciesName) };
+}
 
 /** 데리고 다니는 펫 (없으면 null) */
 export async function getCarriedPet(userId: string): Promise<PetShowcase | null> {
@@ -160,7 +170,7 @@ export async function getCarriedPet(userId: string): Promise<PetShowcase | null>
     .from(userAnimals)
     .innerJoin(animalSpecies, eq(animalSpecies.id, userAnimals.speciesId))
     .where(and(eq(userAnimals.userId, userId), eq(userAnimals.carried, true)));
-  return row ? toShowcase(row) : null;
+  return row ? shownName(toShowcase(row), row.speciesName) : null;
 }
 
 /** 프로필에 전시한 다 키운 동물 카드 (없으면 null) */
@@ -171,7 +181,7 @@ export async function getDisplayedCard(userId: string): Promise<(PetShowcase & {
     .innerJoin(userAnimals, and(eq(userAnimals.id, profiles.displayedAnimalId), eq(userAnimals.status, "grown")))
     .innerJoin(animalSpecies, eq(animalSpecies.id, userAnimals.speciesId))
     .where(eq(profiles.userId, userId));
-  return row ? { ...toShowcase(row), grownAt: row.grownAt } : null;
+  return row ? shownName({ ...toShowcase(row), grownAt: row.grownAt }, row.speciesName) : null;
 }
 
 /** 키우는 중인 알·동물 수 (다 키운 동물은 빼고) */
@@ -183,13 +193,13 @@ export async function countActive(tx: Tx, userId: string) {
   return n;
 }
 
-export type GrownAnimal = { id: number; name: string; rewardExp: number; rewardCoins: number };
+export type GrownAnimal = { id: number; name: string; speciesName: string; rewardExp: number; rewardCoins: number };
 
 /**
  * 동물에게 성장치를 더하고, 다 자라면 보상을 준다. lockUser를 건 트랜잭션 안에서 호출한다.
  * animalIds가 없으면 그 회원이 키우는 모든 동물 (글쓰기 보상)
  */
-export type GrowthResult = { grown: GrownAnimal[]; leveled: { id: number; name: string; level: number }[] };
+export type GrowthResult = { grown: GrownAnimal[]; leveled: { id: number; name: string; speciesName: string; level: number }[] };
 
 export async function addGrowth(tx: Tx, userId: string, amount: number, animalIds?: number[]): Promise<GrowthResult> {
   const where = and(
@@ -219,7 +229,7 @@ export async function addGrowth(tx: Tx, userId: string, amount: number, animalId
       const rows = [];
       for (let level = before + 1; level <= after; level++) rows.push({ userId, kind: "pet_level_up" as const, level, refId: String(u.id) });
       await tx.insert(notifications).values(rows).onConflictDoNothing();
-      leveled.push({ id: u.id, name: u.name ?? sp.name, level: after });
+      leveled.push({ id: u.id, name: u.name ?? sp.name, speciesName: sp.name, level: after });
     }
     if (u.growth < sp.growExp) continue;
     await tx
@@ -237,7 +247,7 @@ export async function addGrowth(tx: Tx, userId: string, amount: number, animalId
       });
       await recordLevelUps(tx, userId, sp.rewardExp);
     }
-    grown.push({ id: u.id, name: u.name ?? sp.name, rewardExp: sp.rewardExp, rewardCoins: sp.rewardCoins });
+    grown.push({ id: u.id, name: u.name ?? sp.name, speciesName: sp.name, rewardExp: sp.rewardExp, rewardCoins: sp.rewardCoins });
   }
   return { grown, leveled };
 }

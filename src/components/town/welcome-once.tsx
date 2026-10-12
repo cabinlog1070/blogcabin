@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useT } from "@/components/i18n";
 
 /**
  * 온보딩 직후 환영 문구는 한 번만 보여준다 (TOWN-01 결정).
@@ -10,6 +11,7 @@ import { useEffect, useState, type ReactNode } from "react";
  */
 export function WelcomeOnce({ children, className = "" }: { children: ReactNode; className?: string }) {
   const [open, setOpen] = useState(true);
+  const t = useT();
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -22,7 +24,7 @@ export function WelcomeOnce({ children, className = "" }: { children: ReactNode;
   return (
     <div className={className} data-welcome>
       {children}
-      <button type="button" onClick={() => setOpen(false)} className="shrink-0 rounded-lg px-2 py-1 text-ink-soft hover:bg-paper" aria-label="환영 문구 닫기">
+      <button type="button" onClick={() => setOpen(false)} className="shrink-0 rounded-lg px-2 py-1 text-ink-soft hover:bg-paper" aria-label={t("환영 문구 닫기")}>
         ✕
       </button>
     </div>

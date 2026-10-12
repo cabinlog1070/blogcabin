@@ -50,6 +50,9 @@ export const VISIBILITIES = ["public", "private"] as const;
 export const visibility = enumText(VISIBILITIES);
 export const USER_ROLES = ["user", "admin"] as const;
 export const userRole = enumText(USER_ROLES);
+// 화면 언어 (한국어·일본어). 값 목록은 src/lib/i18n/index.ts의 LOCALES와 같다
+export const USER_LOCALES = ["ko", "ja"] as const;
+export const userLocale = enumText(USER_LOCALES);
 export const LEDGER_REASONS = [
   "signup",
   "attendance",
@@ -109,10 +112,15 @@ export const users = pgTable(
     username: text("username").unique(),
     displayUsername: text("display_username"),
     role: userRole("role").notNull().default("user"),
+    // 회원이 고른 화면 언어. NULL = 아직 안 고름 (브라우저 쿠키 → 한국어 순서로 정한다)
+    locale: userLocale("locale"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [check("users_role_check", oneOf(t.role, USER_ROLES))],
+  (t) => [
+    check("users_role_check", oneOf(t.role, USER_ROLES)),
+    check("users_locale_check", oneOf(t.locale, USER_LOCALES)),
+  ],
 );
 
 export const sessions = pgTable(

@@ -6,14 +6,20 @@ import { attendances, blogs, comments, pointLedger, posts, profiles, users } fro
 import { formatDateTime } from "@/lib/format";
 import { levelFromExp, todayKST } from "@/lib/game";
 import { requireAdmin } from "@/server/dal";
+import { getLocale, getT } from "@/server/i18n";
 import { startOfTodayKST } from "@/server/points";
 import { AdminDeletePostButton } from "./delete-button";
 import { AdminGrantForm } from "./grant-form";
 
-export const metadata = { title: "관리자" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("관리자") };
+}
 
 export default async function AdminPage() {
   const admin = await requireAdmin();
+  const t = await getT();
+  const locale = await getLocale();
 
   const [[stats], recentUsers, recentPosts, residents] = await Promise.all([
     db.select({
@@ -64,26 +70,29 @@ export default async function AdminPage() {
   ]);
   const members = residents.map((r) => ({
     userId: r.userId,
-    label: `${r.nickname} (${r.username ?? "소셜"}) · Lv.${levelFromExp(r.exp)} · 🪙 ${r.coins.toLocaleString()}`,
+    label: `${r.nickname} (${r.username ?? t("소셜")}) · Lv.${levelFromExp(r.exp)} · 🪙 ${r.coins.toLocaleString()}`,
   }));
 
+  // 문장 가운데 아이콘이 들어가서 {icon} 자리에서 나눈다
+  const grantNote = t('주민에게 코인·경험치를 줘요. 받은 사람의 내역에는 "{icon} 관리자 지급"으로 보여요.').split("{icon}");
+
   const cards = [
-    { label: "가입 계정", value: stats.users },
-    { label: "주민 (온보딩 완료)", value: stats.residents },
-    { label: "전체 글", value: stats.posts },
-    { label: "댓글", value: stats.comments },
-    { label: "오늘 새 글", value: stats.postsToday },
-    { label: "오늘 출석", value: stats.attendToday },
+    { label: t("가입 계정"), value: stats.users },
+    { label: t("주민 (온보딩 완료)"), value: stats.residents },
+    { label: t("전체 글"), value: stats.posts },
+    { label: t("댓글"), value: stats.comments },
+    { label: t("오늘 새 글"), value: stats.postsToday },
+    { label: t("오늘 출석"), value: stats.attendToday },
   ];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="font-display text-3xl">
-        <Icon name="level" size={34} className="-mt-1" /> 관리자
+        <Icon name="level" size={34} className="-mt-1" /> {t("관리자")}
       </h1>
       <p className="mt-3">
         <Link href="/admin/members" className="btn btn-basic" data-admin-members-link>
-          <Icon name="search" size={20} /> 회원 관리 (조회·글/댓글 삭제·강제 탈퇴)
+          <Icon name="search" size={20} /> {t("회원 관리 (조회·글/댓글 삭제·강제 탈퇴)")}
         </Link>
       </p>
 
@@ -98,37 +107,38 @@ export default async function AdminPage() {
 
       <section className="card mt-8 p-5">
         <h2 className="mb-1 font-display text-xl">
-          <Icon name="achievement" size={26} className="-mt-1" /> 관리자 지급
+          <Icon name="achievement" size={26} className="-mt-1" /> {t("관리자 지급")}
         </h2>
         <p className="mb-3 text-sm text-ink-soft">
-          주민에게 코인·경험치를 줘요. 받은 사람의 내역에는 &quot;
-          <Icon name="achievement" size={16} /> 관리자 지급&quot;으로 보여요.
+          {grantNote[0]}
+          <Icon name="achievement" size={16} />
+          {grantNote[1]}
         </p>
         <AdminGrantForm members={members} defaultUserId={admin.userId} />
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">
-        <h2 className="mb-3 font-display text-xl">최근 가입 (20명)</h2>
+        <h2 className="mb-3 font-display text-xl">{t("최근 가입 (20명)")}</h2>
         <table className="w-full text-left text-sm">
           <thead className="text-ink-soft">
-            <tr><th className="py-2">아이디 / 로그인 방식</th><th>닉네임</th><th>블로그</th><th>권한</th><th>가입</th></tr>
+            <tr><th className="py-2">{t("아이디 / 로그인 방식")}</th><th>{t("닉네임")}</th><th>{t("블로그")}</th><th>{t("권한")}</th><th>{t("가입")}</th></tr>
           </thead>
           <tbody className="divide-y-2 divide-line/60">
             {recentUsers.map((u) => (
               <tr key={u.id}>
-                <td className="py-2">{u.username ?? "-"} <span className="text-ink-soft">({u.provider ?? "없음"})</span></td>
-                <td><Link href={`/admin/members/${u.id}`} className="text-sky underline">{u.nickname ?? "온보딩 전"}</Link></td>
+                <td className="py-2">{u.username ?? "-"} <span className="text-ink-soft">({u.provider ?? t("없음")})</span></td>
+                <td><Link href={`/admin/members/${u.id}`} className="text-sky underline">{u.nickname ?? t("온보딩 전")}</Link></td>
                 <td>{u.slug ? <Link href={`/@${u.slug}`} className="text-sky underline">@{u.slug}</Link> : "-"}</td>
                 <td>
                   {u.role === "admin" ? (
                     <>
-                      <Icon name="level" size={16} /> 관리자
+                      <Icon name="level" size={16} /> {t("관리자")}
                     </>
                   ) : (
-                    "회원"
+                    t("회원")
                   )}
                 </td>
-                <td className="whitespace-nowrap text-ink-soft">{formatDateTime(u.createdAt)}</td>
+                <td className="whitespace-nowrap text-ink-soft">{formatDateTime(u.createdAt, locale)}</td>
               </tr>
             ))}
           </tbody>
@@ -136,26 +146,26 @@ export default async function AdminPage() {
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">
-        <h2 className="mb-3 font-display text-xl">최근 30일 글</h2>
+        <h2 className="mb-3 font-display text-xl">{t("최근 30일 글")}</h2>
         {recentPosts.length ? (
           <table className="w-full text-left text-sm">
             <thead className="text-ink-soft">
-              <tr><th className="py-2">제목</th><th>작성자</th><th>공개</th><th>작성</th><th /></tr>
+              <tr><th className="py-2">{t("제목")}</th><th>{t("작성자")}</th><th>{t("공개")}</th><th>{t("작성")}</th><th /></tr>
             </thead>
             <tbody className="divide-y-2 divide-line/60">
               {recentPosts.map((p) => (
                 <tr key={p.id}>
                   <td className="py-2"><Link href={`/@${p.slug}/${p.id}`} className="hover:underline">{p.title}</Link></td>
                   <td>{p.nickname}</td>
-                  <td>{p.visibility === "public" ? "공개" : <Icon name="lock" size={18} title="비공개" />}</td>
-                  <td className="whitespace-nowrap text-ink-soft">{formatDateTime(p.createdAt)}</td>
+                  <td>{p.visibility === "public" ? t("공개") : <Icon name="lock" size={18} title={t("비공개")} />}</td>
+                  <td className="whitespace-nowrap text-ink-soft">{formatDateTime(p.createdAt, locale)}</td>
                   <td className="text-right"><AdminDeletePostButton postId={p.id} title={p.title} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className="text-ink-soft">글이 없어요</p>
+          <p className="text-ink-soft">{t("글이 없어요")}</p>
         )}
       </section>
     </div>
