@@ -29,7 +29,7 @@ export default async function BlogSettingsPage() {
 
       <section className="card mt-6 p-6">
         <h2 className="mb-4 font-display text-xl">기본 정보</h2>
-        <BlogInfoForm title={blog.title} description={blog.description} />
+        <BlogInfoForm nickname={viewer.profile.nickname} title={blog.title} description={blog.description} />
         <p className="mt-3 text-sm text-ink-soft">블로그 주소: /@{blog.slug} (주소는 바꿀 수 없어요)</p>
       </section>
 

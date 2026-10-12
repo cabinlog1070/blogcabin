@@ -4,23 +4,40 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
-import { blogs, categories } from "@/db/schema";
+import { blogs, categories, profiles } from "@/db/schema";
 import { parseId } from "@/lib/ids";
+import { ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
 import { requireMember } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
 
 export type FormState = { error?: string; ok?: number };
 
 const infoSchema = z.object({
+  nickname: nicknameSchema,
   title: z.string().trim().min(1, "블로그 이름을 적어 주세요").max(12, "블로그 이름은 12자까지예요"),
   description: z.string().trim().max(160, "소개는 160자까지예요"),
 });
 
 export async function updateBlogInfo(_prev: FormState, formData: FormData): Promise<FormState> {
   const viewer = await requireMember();
-  const parsed = infoSchema.safeParse({ title: formData.get("title") ?? "", description: formData.get("description") ?? "" });
+  const parsed = infoSchema.safeParse({
+    nickname: formData.get("nickname") ?? "",
+    title: formData.get("title") ?? "",
+    description: formData.get("description") ?? "",
+  });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  await db.update(blogs).set(parsed.data).where(eq(blogs.ownerId, viewer.userId));
+  const { nickname, ...info } = parsed.data;
+  // 관리자 닉네임은 관리자만 쓴다 (AUTH-08)
+  if (nickname === ADMIN_NICKNAME && viewer.user.role !== "admin") return { error: "이 닉네임은 쓸 수 없어요" };
+  try {
+    await db.transaction(async (tx) => {
+      await tx.update(profiles).set({ nickname }).where(eq(profiles.userId, viewer.userId));
+      await tx.update(blogs).set(info).where(eq(blogs.ownerId, viewer.userId));
+    });
+  } catch (err) {
+    if (uniqueViolation(err)?.includes("nickname")) return { error: "이미 있는 닉네임이에요" };
+    throw err;
+  }
   revalidatePath("/", "layout");
   return { ok: Date.now() };
 }
