@@ -7,6 +7,7 @@ import { avatarEquips, blogs, items, profiles, roomFurniture, userItems } from "
 import { isRoofColor } from "@/lib/art/town";
 import { clampPct, MAX_FURNITURE } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
+import { getT } from "@/server/i18n";
 import { getWallet, lockUser } from "@/server/points";
 
 export type ActionResult = { ok: boolean; error?: string };
@@ -24,9 +25,10 @@ async function ownedItem(userId: string, itemId: number) {
 /** 캐릭터·배경 장착 (SHOP-04) */
 export async function equipItem(itemId: number): Promise<ActionResult> {
   const viewer = await requireMember();
+  const t = await getT();
 
   const owned = await ownedItem(viewer.userId, itemId);
-  if (!owned) return { ok: false, error: "가지고 있지 않은 아이템이에요" };
+  if (!owned) return { ok: false, error: t("가지고 있지 않은 아이템이에요") };
 
   // 복합 외래 키가 "보유한 아이템만 장착"을 DB에서 한 번 더 막아 준다
   if (owned.type === "character") {
@@ -34,7 +36,7 @@ export async function equipItem(itemId: number): Promise<ActionResult> {
   } else if (owned.type === "background") {
     await db.update(blogs).set({ backgroundItemId: itemId }).where(eq(blogs.ownerId, viewer.userId));
   } else {
-    return { ok: false, error: "아직 장착할 수 없는 종류예요" };
+    return { ok: false, error: t("아직 장착할 수 없는 종류예요") };
   }
   revalidatePath("/", "layout");
   return { ok: true };
@@ -43,15 +45,16 @@ export async function equipItem(itemId: number): Promise<ActionResult> {
 /** 아바타 꾸미기 입기·벗기 (SHOP-06). 부위마다 하나: 같은 부위의 다른 아이템을 입으면 바뀐다 */
 export async function setAvatarWear(itemId: number, wear: boolean): Promise<ActionResult> {
   const viewer = await requireMember();
+  const t = await getT();
 
   const owned = await ownedItem(viewer.userId, itemId);
-  if (!owned) return { ok: false, error: "가지고 있지 않은 아이템이에요" };
-  if (owned.type !== "avatar" || !owned.slot) return { ok: false, error: "아직 장착할 수 없는 종류예요" };
+  if (!owned) return { ok: false, error: t("가지고 있지 않은 아이템이에요") };
+  if (owned.type !== "avatar" || !owned.slot) return { ok: false, error: t("아직 장착할 수 없는 종류예요") };
 
   if (wear) {
     // 레벨이 되어야 입을 수 있다 (옷은 레벨에 따라 풀린다)
     const wallet = await getWallet(viewer.userId);
-    if (wallet.level < owned.requiredLevel) return { ok: false, error: `레벨 ${owned.requiredLevel}부터 입을 수 있어요` };
+    if (wallet.level < owned.requiredLevel) return { ok: false, error: t("레벨 {level}부터 입을 수 있어요", { level: owned.requiredLevel }) };
     // 복합 외래 키: (회원, 아이템) → user_items 보유 확인, (아이템, 부위) → items 부위 확인
     await db
       .insert(avatarEquips)
@@ -67,11 +70,12 @@ export async function setAvatarWear(itemId: number, wear: boolean): Promise<Acti
 /** 미니룸에 가구 놓기·옮기기 (SHOP-05). 위치는 미니룸 기준 비율(0~100%) */
 export async function placeFurniture(itemId: number, x: number, y: number): Promise<ActionResult> {
   const viewer = await requireMember();
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: "놓을 위치가 올바르지 않아요" };
+  const t = await getT();
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: t("놓을 위치가 올바르지 않아요") };
 
   const owned = await ownedItem(viewer.userId, itemId);
-  if (!owned) return { ok: false, error: "가지고 있지 않은 아이템이에요" };
-  if (owned.type !== "furniture") return { ok: false, error: "가구만 미니룸에 놓을 수 있어요" };
+  if (!owned) return { ok: false, error: t("가지고 있지 않은 아이템이에요") };
+  if (owned.type !== "furniture") return { ok: false, error: t("가구만 미니룸에 놓을 수 있어요") };
 
   const result = await db.transaction(async (tx): Promise<ActionResult> => {
     // 같은 회원의 배치 요청이 겹쳐서 5개를 넘지 않게 잠근다
@@ -80,7 +84,7 @@ export async function placeFurniture(itemId: number, x: number, y: number): Prom
       .select({ n: count() })
       .from(roomFurniture)
       .where(and(eq(roomFurniture.userId, viewer.userId), ne(roomFurniture.itemId, itemId)));
-    if (others.n >= MAX_FURNITURE) return { ok: false, error: `가구는 ${MAX_FURNITURE}개까지 놓을 수 있어요` };
+    if (others.n >= MAX_FURNITURE) return { ok: false, error: t("가구는 {max}개까지 놓을 수 있어요", { max: MAX_FURNITURE }) };
     // 이미 놓인 가구면 새로 추가하지 않고 위치만 옮긴다 (기본 키: 회원, 아이템)
     await tx
       .insert(roomFurniture)
@@ -106,7 +110,8 @@ export async function removeFurniture(itemId: number): Promise<ActionResult> {
  */
 export async function setRoofColor(color: string | null): Promise<ActionResult> {
   const viewer = await requireMember();
-  if (color !== null && !isRoofColor(color)) return { ok: false, error: "고를 수 없는 색이에요" };
+  const t = await getT();
+  if (color !== null && !isRoofColor(color)) return { ok: false, error: t("고를 수 없는 색이에요") };
   // DB CHECK blogs_roof_color_check가 한 번 더 막는다
   await db.update(blogs).set({ roofColor: color }).where(eq(blogs.ownerId, viewer.userId));
   revalidatePath("/", "layout");

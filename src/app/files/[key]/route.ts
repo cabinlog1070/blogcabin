@@ -5,9 +5,13 @@ import { attachments, blogs, posts } from "@/db/schema";
 import { ATTACHMENT_KEY_RE } from "@/lib/attachments";
 import { canSeePrivatePosts } from "@/server/blog";
 import { getViewer } from "@/server/dal";
+import { getT } from "@/server/i18n";
 import { openAttachment } from "@/server/storage";
 
-const notFound = () => new Response("파일을 찾을 수 없어요", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+const notFound = async () => {
+  const t = await getT();
+  return new Response(t("파일을 찾을 수 없어요"), { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+};
 
 export async function GET(_request: Request, ctx: RouteContext<"/files/[key]">) {
   const { key } = await ctx.params;

@@ -2,14 +2,18 @@
 
 import { startTransition, useEffect, useState } from "react";
 import { recordBlogVisit } from "@/app/blog/actions";
+import { useLocale, useT } from "@/components/i18n";
+import { LOCALE_TAGS, type Locale } from "@/lib/i18n";
 
-const fmt = (n: number) => n.toLocaleString("ko-KR"); // 서버와 브라우저가 같은 모양이 되게 locale을 정해 둔다
+const fmt = (n: number, locale: Locale) => n.toLocaleString(LOCALE_TAGS[locale]); // 서버와 브라우저가 같은 모양이 되게 locale을 정해 둔다
 
 /**
  * 블로그 방문자 수 `오늘 방문 N · 전체 방문 N` (BLOG-06).
  * 서버가 그린 숫자로 시작하고, 화면이 열리면 방문을 기록한 뒤 돌려받은 숫자로 바꾼다. 실패하면 처음 숫자 그대로(문구 없음).
  */
 export function VisitCount({ blogId, today, total, isOwner }: { blogId: number; today: number; total: number; isOwner: boolean }) {
+  const t = useT();
+  const locale = useLocale();
   const [stats, setStats] = useState({ today, total });
 
   useEffect(() => {
@@ -27,7 +31,7 @@ export function VisitCount({ blogId, today, total, isOwner }: { blogId: number; 
 
   return (
     <span data-visit-count>
-      오늘 방문 <span data-visit-today>{fmt(stats.today)}</span> · 전체 방문 <span data-visit-total>{fmt(stats.total)}</span>
+      {t("오늘 방문")} <span data-visit-today>{fmt(stats.today, locale)}</span> · {t("전체 방문")} <span data-visit-total>{fmt(stats.total, locale)}</span>
     </span>
   );
 }

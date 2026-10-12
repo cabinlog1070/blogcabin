@@ -6,6 +6,7 @@ import { eq, sql } from "drizzle-orm";
 import { nextCookies } from "better-auth/next-js";
 import { username } from "better-auth/plugins";
 import { db } from "@/db";
+import { msg } from "@/lib/i18n";
 import * as schema from "@/db/schema";
 import { grantSocialLinkReward } from "@/server/points";
 
@@ -56,7 +57,7 @@ export const enabledProviders = {
 export const LOGIN_MAX_FAILURES = 5;
 export const LOGIN_LOCK_MINUTES = 5;
 export const LOGIN_LOCKED_CODE = "LOGIN_LOCKED";
-export const LOGIN_LOCKED_MESSAGE = "로그인을 너무 많이 시도했어요. 5분 뒤에 다시 시도해 주세요";
+export const LOGIN_LOCKED_MESSAGE = msg("로그인을 너무 많이 시도했어요. 5분 뒤에 다시 시도해 주세요");
 const SIGN_IN_PATHS = new Set(["/sign-in/username", "/sign-in/email"]);
 
 /** 막을 단위: 소문자 아이디. 이메일 로그인이면 아이디 가입자의 대체 이메일(아이디@users.blogcabin.invalid)은 아이디로 바꾼다 */
@@ -139,7 +140,7 @@ const SITE_EMAIL_DOMAIN = "@users.blogcabin.invalid";
 const RESERVED_USERNAMES = new Set(
   ["admin", "administrator", "root", "notice", "blogcabin", process.env.ADMIN_USERNAME?.trim().toLowerCase()].filter((n): n is string => Boolean(n)),
 );
-const usernameTaken = () => new APIError("BAD_REQUEST", { code: "USERNAME_IS_ALREADY_TAKEN", message: "이미 있는 아이디예요" });
+const usernameTaken = () => new APIError("BAD_REQUEST", { code: "USERNAME_IS_ALREADY_TAKEN", message: msg("이미 있는 아이디예요") });
 
 function assertUsernameAllowed(data: Record<string, unknown>, creating: boolean) {
   const name = typeof data.username === "string" ? data.username.trim().toLowerCase() : null;

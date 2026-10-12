@@ -2,14 +2,19 @@ import { CharacterNotice } from "@/components/character-notice";
 import { Icon } from "@/components/icon";
 import { isForSale } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
+import { getT } from "@/server/i18n";
 import { getEquipped, listItemsWithOwnership } from "@/server/inventory";
 import { getWallet } from "@/server/points";
 import { ShopView } from "./shop-view";
 
-export const metadata = { title: "상점" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("상점") };
+}
 
 export default async function ShopPage() {
   const viewer = await requireMember();
+  const t = await getT();
   const [all, wallet, equipped] = await Promise.all([
     listItemsWithOwnership(viewer.userId),
     getWallet(viewer.userId),
@@ -25,9 +30,9 @@ export default async function ShopPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl">
-            <Icon name="shop" size={34} className="-mt-1" /> 마을 상점
+            <Icon name="shop" size={34} className="-mt-1" /> {t("마을 상점")}
           </h1>
-          <p className="mt-1 text-ink-soft">글을 쓰고 출석해서 모은 코인으로 옷과 가구, 배경을 사 보세요.</p>
+          <p className="mt-1 text-ink-soft">{t("글을 쓰고 출석해서 모은 코인으로 옷과 가구, 배경을 사 보세요.")}</p>
         </div>
         <div className="card flex gap-4 px-4 py-2 text-sm">
           <span>

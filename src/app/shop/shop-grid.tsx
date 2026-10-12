@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 import { IconEmoji } from "@/components/icon-emoji";
 import { ItemArt } from "@/components/item-art";
@@ -36,6 +37,7 @@ export function ShopGrid({
   onTry?: (item: ShopItem) => void;
   triedIds?: number[];
 }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -57,12 +59,12 @@ export function ShopGrid({
               {locked && (
                 // 잠금을 크게 보여준다: 레벨이 오르면 풀린다 (SHOP-02)
                 <span className="absolute inset-x-0 top-2 mx-auto w-fit rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-cream shadow">
-                  <IconEmoji name="lock" emoji="🔒" size={14} className="-mt-0.5" /> Lv.{item.requiredLevel}부터
+                  <IconEmoji name="lock" emoji="🔒" size={14} className="-mt-0.5" /> {t("Lv.{level}부터", { level: item.requiredLevel })}
                 </span>
               )}
               {item.slot && (
                 <span className="absolute bottom-1.5 left-1.5 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-bold text-ink-soft">
-                  {SLOT_LABEL[item.slot]}
+                  {t(SLOT_LABEL[item.slot])}
                 </span>
               )}
             </div>
@@ -77,7 +79,7 @@ export function ShopGrid({
                   type="button"
                   onClick={() => onTry(item)}
                   aria-pressed={tried}
-                  aria-label={`${item.name} 입어 보기`}
+                  aria-label={t("{name} 입어 보기", { name: t(item.name) })}
                   className="rounded-xl text-left transition hover:-translate-y-0.5"
                 >
                   {art}
@@ -85,8 +87,8 @@ export function ShopGrid({
               ) : (
                 art
               )}
-              <h3 className="mt-2 font-display text-lg">{item.name}</h3>
-              <p className="line-clamp-2 min-h-10 text-xs text-ink-soft">{item.description}</p>
+              <h3 className="mt-2 font-display text-lg">{t(item.name)}</h3>
+              <p className="line-clamp-2 min-h-10 text-xs text-ink-soft">{item.description && t(item.description)}</p>
               <p className="mt-2 text-sm">
                 <Icon name="coin" size={18} /> <b>{item.price.toLocaleString()}</b>
                 {item.requiredLevel > 1 && <span className="ml-2 text-xs text-ink-soft">Lv.{item.requiredLevel}+</span>}
@@ -97,22 +99,22 @@ export function ShopGrid({
                 onClick={() =>
                   start(async () => {
                     const r = await buyItem(item.id);
-                    setMessage(r.ok ? { ok: true, text: `🎉 ${r.name}을(를) 샀어요! 꾸미기에서 장착해 보세요.` } : { ok: false, text: r.error });
+                    setMessage(r.ok ? { ok: true, text: t("🎉 {name}을(를) 샀어요! 꾸미기에서 장착해 보세요.", { name: t(r.name) }) } : { ok: false, text: r.error });
                   })
                 }
                 className="btn mt-3 bg-sun py-1.5 text-sm text-ink"
               >
                 {item.owned ? (
-                  "보유 중"
+                  t("보유 중")
                 ) : locked ? (
                   // 버튼(.btn)은 flex라 아이콘과 글자를 한 줄로 묶는다. 글자로는 "🔒 Lv.2" 그대로
                   <span>
                     <IconEmoji name="lock" emoji="🔒" size={16} className="-mt-0.5" /> Lv.{item.requiredLevel}
                   </span>
                 ) : short ? (
-                  "코인 부족"
+                  t("코인 부족")
                 ) : (
-                  "사기"
+                  t("사기")
                 )}
               </button>
             </article>

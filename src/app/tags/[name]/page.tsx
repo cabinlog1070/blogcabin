@@ -1,6 +1,7 @@
 import { FeedView } from "@/components/blog/feed-view";
 import { parsePage } from "@/components/pagination";
 import { getAllTags, listFeed } from "@/server/blog";
+import { getT } from "@/server/i18n";
 
 export async function generateMetadata(props: PageProps<"/tags/[name]">) {
   // generateMetadata의 params는 이미 디코딩되어 온다 (/tags/100%25 → "100%").
@@ -11,6 +12,7 @@ export async function generateMetadata(props: PageProps<"/tags/[name]">) {
 
 export default async function TagPage(props: PageProps<"/tags/[name]">) {
   // 페이지의 params는 인코딩된 그대로 온다 (/tags/100%25 → "100%25")
+  const t = await getT();
   const tag = decodeURIComponent((await props.params).name);
   const page = parsePage((await props.searchParams).page);
   const [list, tags] = await Promise.all([listFeed({ page, tag }), getAllTags()]);
@@ -21,7 +23,7 @@ export default async function TagPage(props: PageProps<"/tags/[name]">) {
       tags={tags}
       showFollowingTab={false}
       hrefFor={(n) => `/tags/${encodeURIComponent(tag)}?page=${n}`}
-      empty={<>이 태그가 달린 글이 없어요.</>}
+      empty={<>{t("이 태그가 달린 글이 없어요.")}</>}
     />
   );
 }

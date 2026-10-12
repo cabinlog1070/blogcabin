@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { setFavorite } from "@/app/blog/actions";
 import { CharacterBadge } from "@/components/character";
+import { useT } from "@/components/i18n";
 import { MAX_FAVORITES } from "@/lib/game";
 
 const PREVIEW_COUNT = 3;
@@ -16,6 +17,7 @@ type Neighbor = { ownerId: string; slug: string; title: string; nickname: string
  * ☆을 누르면 ⭐ 즐겨찾기(최대 10명), 다시 누르면 취소. 즐겨찾기한 블로그의 집만 광장에 나타난다 (TOWN-04).
  */
 export function NeighborList({ neighbors }: { neighbors: Neighbor[] }) {
+  const t = useT();
   const [list, setList] = useState(neighbors);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -30,7 +32,7 @@ export function NeighborList({ neighbors }: { neighbors: Neighbor[] }) {
     const next = !n.favorite;
     setMessage(null);
     if (next && favCount >= MAX_FAVORITES) {
-      setMessage(`즐겨찾기할 이웃은 최대 ${MAX_FAVORITES}명이에요`);
+      setMessage(t("즐겨찾기할 이웃은 최대 {n}명이에요", { n: MAX_FAVORITES }));
       return;
     }
     const before = list;
@@ -40,25 +42,25 @@ export function NeighborList({ neighbors }: { neighbors: Neighbor[] }) {
         const r = await setFavorite(n.ownerId, next);
         if (!r.ok) {
           setList(before);
-          setMessage(r.error ?? "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요");
+          setMessage(r.error ?? t("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요"));
         }
       } catch {
         setList(before);
-        setMessage("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요");
+        setMessage(t("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요"));
       }
     });
   }
 
   return (
-    <section className="card p-4" aria-label="내 이웃" data-my-neighbors>
+    <section className="card p-4" aria-label={t("내 이웃")} data-my-neighbors>
       <h2 className="font-display text-lg">
-        💛 내 이웃 <span className="text-sm text-ink-soft">{list.length}</span>
+        {t("💛 내 이웃")} <span className="text-sm text-ink-soft">{list.length}</span>
       </h2>
       <p className="mb-2 text-xs text-ink-soft">
-        ☆을 누르면 즐겨찾기({favCount}/{MAX_FAVORITES}). 즐겨찾기한 이웃의 집이 광장에 생겨요.
+        {t("☆을 누르면 즐겨찾기({count}/{max}). 즐겨찾기한 이웃의 집이 광장에 생겨요.", { count: favCount, max: MAX_FAVORITES })}
       </p>
       {list.length === 0 ? (
-        <p className="text-sm text-ink-soft">아직 이웃이 없어요. 마을 소식에서 마음에 드는 블로그를 이웃으로 추가해 보세요.</p>
+        <p className="text-sm text-ink-soft">{t("아직 이웃이 없어요. 마을 소식에서 마음에 드는 블로그를 이웃으로 추가해 보세요.")}</p>
       ) : (
         <ul className="space-y-1">
           {shown.map((n) => (
@@ -68,7 +70,7 @@ export function NeighborList({ neighbors }: { neighbors: Neighbor[] }) {
                 disabled={pending}
                 onClick={() => toggle(n)}
                 aria-pressed={n.favorite}
-                aria-label={n.favorite ? `${n.nickname} 즐겨찾기 취소` : `${n.nickname} 즐겨찾기`}
+                aria-label={n.favorite ? t("{nickname} 즐겨찾기 취소", { nickname: n.nickname }) : t("{nickname} 즐겨찾기", { nickname: n.nickname })}
                 className="shrink-0 rounded-lg px-1 text-lg leading-none hover:bg-cream"
               >
                 {n.favorite ? "⭐" : "☆"}
@@ -90,7 +92,7 @@ export function NeighborList({ neighbors }: { neighbors: Neighbor[] }) {
           aria-expanded={expanded}
           className="mt-2 w-full rounded-xl bg-honey/60 px-3 py-1.5 text-center text-sm font-bold text-ink-soft hover:bg-honey hover:text-ink"
         >
-          {expanded ? "접기 ⌃" : `이웃 더보기 (${list.length - collapsedCount}) >`}
+          {expanded ? t("접기 ⌃") : t("이웃 더보기 ({n}) >", { n: list.length - collapsedCount })}
         </button>
       )}
       <p role="status" aria-live="polite" className="mt-1 min-h-5 text-sm font-bold text-berry">

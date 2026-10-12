@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/components/i18n";
 import { roofHex } from "@/lib/art/town";
 import type { TownData, TownTarget } from "./types";
 
@@ -89,6 +90,7 @@ async function trimStore(store: Cache | null) {
 export function TownGame({ data, className = "" }: { data: TownData; className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const t = useT();
   // 광장을 준비하는 동안 빈 초록 화면 대신 안내를 보여 준다 (그린 그림 수 / 전체)
   const [loading, setLoading] = useState<{ done: number; total: number } | null>({ done: 0, total: 0 });
 
@@ -110,7 +112,7 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
       const Phaser = (await import("phaser")).default;
       const { createTownScene, townTextures } = await import("./scene");
       // 광장 그림(SVG)을 미리 그려 둔다. 한 장씩 그리고 사이사이 화면에 진행 상황을 보여 준다. 글꼴도 준비된 뒤에 글자를 그린다
-      const textures = townTextures(data);
+      const textures = townTextures(data, t);
       const images = new Map<string, HTMLCanvasElement>();
       setLoading({ done: 0, total: textures.length });
       const store = await openStore();
@@ -140,7 +142,7 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
         backgroundColor: "#8aba5c",
         physics: { default: "arcade", arcade: { debug: false } },
         scale: { mode: Phaser.Scale.NONE, width: w, height: h, zoom: 1 / dpr, autoRound: false },
-        scene: createTownScene(Phaser, data, images, onEnter, getComputedStyle(document.body).fontFamily, dpr),
+        scene: createTownScene(Phaser, data, images, onEnter, t, getComputedStyle(document.body).fontFamily, dpr),
       });
       observer = new ResizeObserver(() => {
         const [nw, nh] = size();
@@ -165,14 +167,14 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
       stop();
     };
     // 광장 데이터가 바뀌면(새 이웃 등) 게임을 다시 만든다
-  }, [data, router]);
+  }, [data, router, t]);
 
   return (
     <div className={`relative ${className}`}>
       <div
         ref={containerRef}
         className="h-full w-full overflow-hidden bg-[#8aba5c]"
-        aria-label="중앙 광장. 방향키나 WASD로 움직이고 Space로 건물에 들어갑니다."
+        aria-label={t("중앙 광장. 방향키나 WASD로 움직이고 Space로 건물에 들어갑니다.")}
         // 집 단계 확인용 (TOWN-11, e2e): 캔버스 그림 대신 이 값으로 확인한다
         data-my-house-stage={data.myHouse?.stage ?? ""}
         data-neighbor-stages={data.neighbors.map((h) => `${h.slug}:${h.stage}`).join(",")}
@@ -185,7 +187,7 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
       {loading && (
         <div role="status" className="pointer-events-none absolute inset-0 flex items-center justify-center" data-town-loading>
           <p className="rounded-full bg-paper/95 px-5 py-2.5 font-display text-lg text-ink shadow-md">
-            🏕 광장 준비 중{loading.total ? ` ${Math.round((loading.done / loading.total) * 100)}%` : "…"}
+            {loading.total ? t("🏕 광장 준비 중 {percent}%", { percent: Math.round((loading.done / loading.total) * 100) }) : t("🏕 광장 준비 중…")}
           </p>
         </div>
       )}

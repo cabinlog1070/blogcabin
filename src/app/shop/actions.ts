@@ -7,12 +7,14 @@ import { items, pointLedger, userItems } from "@/db/schema";
 import { isForSale } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
+import { getT } from "@/server/i18n";
 import { getWallet, lockUser } from "@/server/points";
 
 export type BuyResult = { ok: true; name: string } | { ok: false; error: string };
 
 export async function buyItem(itemId: number): Promise<BuyResult> {
   const viewer = await requireMember();
+  const t = await getT();
 
   try {
     const result = await db.transaction(async (tx): Promise<BuyResult> => {
@@ -21,11 +23,11 @@ export async function buyItem(itemId: number): Promise<BuyResult> {
 
       const [item] = await tx.select().from(items).where(eq(items.id, itemId));
       // 기본 아이템, 상점에서 빠진 캐릭터(2026-10-06 결정), 없는 아이템은 살 수 없다
-      if (!item || !isForSale(item)) return { ok: false, error: "살 수 없는 아이템이에요" };
+      if (!item || !isForSale(item)) return { ok: false, error: t("살 수 없는 아이템이에요") };
 
       const wallet = await getWallet(viewer.userId, tx);
-      if (wallet.level < item.requiredLevel) return { ok: false, error: `레벨 ${item.requiredLevel}부터 살 수 있어요` };
-      if (wallet.coins < item.price) return { ok: false, error: `코인이 ${item.price - wallet.coins}개 부족해요` };
+      if (wallet.level < item.requiredLevel) return { ok: false, error: t("레벨 {level}부터 살 수 있어요", { level: item.requiredLevel }) };
+      if (wallet.coins < item.price) return { ok: false, error: t("코인이 {n}개 부족해요", { n: item.price - wallet.coins }) };
 
       // 아이템 지급 (이미 있으면 기본 키 위반 → 전체 취소)
       await tx.insert(userItems).values({ userId: viewer.userId, itemId: item.id });
@@ -40,7 +42,7 @@ export async function buyItem(itemId: number): Promise<BuyResult> {
     if (result.ok) revalidatePath("/", "layout");
     return result;
   } catch (err) {
-    if (uniqueViolation(err) !== null) return { ok: false, error: "이미 가지고 있는 아이템이에요" };
+    if (uniqueViolation(err) !== null) return { ok: false, error: t("이미 가지고 있는 아이템이에요") };
     throw err;
   }
 }

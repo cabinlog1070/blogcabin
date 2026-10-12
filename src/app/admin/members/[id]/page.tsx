@@ -8,16 +8,22 @@ import { blogs, comments, pointLedger, posts, profiles, users } from "@/db/schem
 import { formatDateTime } from "@/lib/format";
 import { levelFromExp } from "@/lib/game";
 import { requireAdmin } from "@/server/dal";
+import { getLocale, getT } from "@/server/i18n";
 import { AdminDeleteCommentButton, AdminDeletePostButton } from "../../delete-button";
 import { AdminWithdrawButton } from "../withdraw-button";
 
-export const metadata = { title: "회원 관리" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("회원 관리") };
+}
 
 const postBlog = alias(blogs, "post_blog");
 
 /** 관리자: 회원 한 명의 정보, 쓴 글·댓글 (하나씩 삭제), 강제 탈퇴 */
 export default async function AdminMemberPage(props: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
+  const t = await getT();
+  const locale = await getLocale();
   const { id } = await props.params;
   if (id.length > 100) notFound();
 
@@ -65,57 +71,57 @@ export default async function AdminMemberPage(props: { params: Promise<{ id: str
       .orderBy(desc(comments.createdAt)),
   ]);
 
-  const name = member.nickname ?? member.username ?? "이 회원";
+  const name = member.nickname ?? member.username ?? t("이 회원");
   const canWithdraw = member.role !== "admin" && member.id !== admin.userId;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <p className="text-sm">
-        <Link href="/admin" className="text-sky underline">관리자</Link> ›{" "}
-        <Link href="/admin/members" className="text-sky underline">회원 관리</Link> › {name}
+        <Link href="/admin" className="text-sky underline">{t("관리자")}</Link> ›{" "}
+        <Link href="/admin/members" className="text-sky underline">{t("회원 관리")}</Link> › {name}
       </p>
       <h1 className="mt-1 font-display text-3xl">{name}</h1>
 
       <section className="card mt-6 p-5">
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm sm:grid-cols-[auto_1fr_auto_1fr]">
-          <dt className="text-ink-soft">아이디</dt><dd>{member.username ?? "-"} <span className="text-ink-soft">({member.provider ?? "없음"})</span></dd>
-          <dt className="text-ink-soft">이메일</dt><dd>{member.email.endsWith(".invalid") ? "-" : member.email}</dd>
-          <dt className="text-ink-soft">블로그</dt><dd>{member.slug ? <Link href={`/@${member.slug}`} className="text-sky underline">@{member.slug}</Link> : "온보딩 전"}</dd>
-          <dt className="text-ink-soft">권한</dt><dd>{member.role === "admin" ? "관리자" : "회원"}</dd>
-          <dt className="text-ink-soft">레벨 · 코인</dt><dd>Lv.{levelFromExp(member.exp)} · <Icon name="coin" size={16} /> {member.coins.toLocaleString()}</dd>
-          <dt className="text-ink-soft">가입</dt><dd>{formatDateTime(member.createdAt)}</dd>
+          <dt className="text-ink-soft">{t("아이디")}</dt><dd>{member.username ?? "-"} <span className="text-ink-soft">({member.provider ?? t("없음")})</span></dd>
+          <dt className="text-ink-soft">{t("이메일")}</dt><dd>{member.email.endsWith(".invalid") ? "-" : member.email}</dd>
+          <dt className="text-ink-soft">{t("블로그")}</dt><dd>{member.slug ? <Link href={`/@${member.slug}`} className="text-sky underline">@{member.slug}</Link> : t("온보딩 전")}</dd>
+          <dt className="text-ink-soft">{t("권한")}</dt><dd>{member.role === "admin" ? t("관리자") : t("회원")}</dd>
+          <dt className="text-ink-soft">{t("레벨 · 코인")}</dt><dd>Lv.{levelFromExp(member.exp)} · <Icon name="coin" size={16} /> {member.coins.toLocaleString()}</dd>
+          <dt className="text-ink-soft">{t("가입")}</dt><dd>{formatDateTime(member.createdAt, locale)}</dd>
         </dl>
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">
-        <h2 className="mb-3 font-display text-xl">쓴 글 ({memberPosts.length})</h2>
+        <h2 className="mb-3 font-display text-xl">{t("쓴 글 ({n})", { n: memberPosts.length })}</h2>
         {memberPosts.length ? (
           <table className="w-full text-left text-sm" data-admin-member-posts>
             <thead className="text-ink-soft">
-              <tr><th className="py-2">제목</th><th>공개</th><th>작성</th><th /></tr>
+              <tr><th className="py-2">{t("제목")}</th><th>{t("공개")}</th><th>{t("작성")}</th><th /></tr>
             </thead>
             <tbody className="divide-y-2 divide-line/60">
               {memberPosts.map((p) => (
                 <tr key={p.id}>
                   <td className="py-2"><Link href={`/@${member.slug}/${p.id}`} className="hover:underline">{p.title}</Link></td>
-                  <td>{p.visibility === "public" ? "공개" : <Icon name="lock" size={18} title="비공개" />}</td>
-                  <td className="whitespace-nowrap text-ink-soft">{formatDateTime(p.createdAt)}</td>
+                  <td>{p.visibility === "public" ? t("공개") : <Icon name="lock" size={18} title={t("비공개")} />}</td>
+                  <td className="whitespace-nowrap text-ink-soft">{formatDateTime(p.createdAt, locale)}</td>
                   <td className="text-right"><AdminDeletePostButton postId={p.id} title={p.title} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className="text-ink-soft">쓴 글이 없어요</p>
+          <p className="text-ink-soft">{t("쓴 글이 없어요")}</p>
         )}
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">
-        <h2 className="mb-3 font-display text-xl">쓴 댓글 ({memberComments.length})</h2>
+        <h2 className="mb-3 font-display text-xl">{t("쓴 댓글 ({n})", { n: memberComments.length })}</h2>
         {memberComments.length ? (
           <table className="w-full text-left text-sm" data-admin-member-comments>
             <thead className="text-ink-soft">
-              <tr><th className="py-2">댓글</th><th>달린 글</th><th>작성</th><th /></tr>
+              <tr><th className="py-2">{t("댓글")}</th><th>{t("달린 글")}</th><th>{t("작성")}</th><th /></tr>
             </thead>
             <tbody className="divide-y-2 divide-line/60">
               {memberComments.map((c) => (
@@ -125,28 +131,28 @@ export default async function AdminMemberPage(props: { params: Promise<{ id: str
                     <a href={`/@${c.slug}/${c.postId}#comment-${c.id}`} className="hover:underline">{c.content}</a>
                   </td>
                   <td><Link href={`/@${c.slug}/${c.postId}`} className="hover:underline">{c.postTitle}</Link></td>
-                  <td className="whitespace-nowrap text-ink-soft">{formatDateTime(c.createdAt)}</td>
+                  <td className="whitespace-nowrap text-ink-soft">{formatDateTime(c.createdAt, locale)}</td>
                   <td className="text-right"><AdminDeleteCommentButton commentId={c.id} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className="text-ink-soft">쓴 댓글이 없어요</p>
+          <p className="text-ink-soft">{t("쓴 댓글이 없어요")}</p>
         )}
       </section>
 
-      <section className="card mt-10 border-berry/40 p-6" aria-label="강제 탈퇴">
-        <h2 className="mb-2 font-display text-xl">강제 탈퇴</h2>
+      <section className="card mt-10 border-berry/40 p-6" aria-label={t("강제 탈퇴")}>
+        <h2 className="mb-2 font-display text-xl">{t("강제 탈퇴")}</h2>
         {canWithdraw ? (
           <>
             <p className="mb-4 text-sm text-ink-soft">
-              회원이 스스로 탈퇴할 때와 똑같이 프로필·블로그·글·코인 기록·로그인 정보가 바로 지워지고 되돌릴 수 없어요. 그 회원은 바로 로그아웃돼요.
+              {t("회원이 스스로 탈퇴할 때와 똑같이 프로필·블로그·글·코인 기록·로그인 정보가 바로 지워지고 되돌릴 수 없어요. 그 회원은 바로 로그아웃돼요.")}
             </p>
             <AdminWithdrawButton userId={member.id} name={name} />
           </>
         ) : (
-          <p className="text-sm text-ink-soft">관리자 계정은 강제 탈퇴할 수 없어요.</p>
+          <p className="text-sm text-ink-soft">{t("관리자 계정은 강제 탈퇴할 수 없어요.")}</p>
         )}
       </section>
     </div>
