@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.13.0",
+        title: msg("다른 말로 쓴 글 번역하기"),
+        changes: [
+          { kind: "new", text: msg("일본어로 쓴 글을 한국어 화면에서 열면(또는 그 반대) 본문 위에 번역 버튼이 생겨요. 컴퓨터의 크롬에서는 그 자리에서 번역되고 원문과 오갈 수 있고, 다른 브라우저에서는 파파고에서 번역해 보여 줘요.") },
+        ],
+      },
+      {
         version: "1.12.0",
         title: msg("서로 이웃과 나를 이웃한 사람 보기"),
         changes: [
