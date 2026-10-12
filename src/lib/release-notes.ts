@@ -39,9 +39,9 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     versions: [
       {
         version: "1.13.1",
-        title: msg("큰 화면에서 광장 꽉 채우기"),
+        title: msg("숲으로 둘러싸인 광장"),
         changes: [
-          { kind: "fixed", text: msg("큰 컴퓨터 화면에서 광장이 왼쪽에만 그려지고 오른쪽에 빈 잔디가 남던 문제를 고쳤어요. 이제 창 크기에 맞춰 광장이 화면을 꽉 채워요.") },
+          { kind: "fixed", text: msg("큰 컴퓨터 화면에서 광장 오른쪽에 길이 끊긴 빈 잔디가 남던 문제를 고쳤어요. 이제 걸을 수 있는 곳 바깥을 숲이 빙 둘러싸서, 광장이 숲 속 빈터처럼 보여요.") },
         ],
       },
       {

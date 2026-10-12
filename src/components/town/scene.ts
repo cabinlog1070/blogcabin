@@ -74,7 +74,10 @@ import type { TownData, TownHouse, TownTarget } from "./types";
 type PhaserLib = typeof PhaserNS;
 
 export const WORLD = { width: 1800, height: 1400 };
+const GROUND_DEPTH = -1_000_000; // 땅은 둘레 숲의 나무(깊이 = 음수 y)보다도 뒤에
 const CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
+// 걸을 수 있는 광장 바깥을 빙 둘러싼 숲의 두께. 큰 화면에서 광장 밖이 보여도 숲 속 빈터처럼 보인다
+const FOREST = 760;
 const PLAZA_RADIUS = 230;
 // 걷기·조이스틱·탭 이동 모두 같은 속도 (달리기 정도, 일정하게)
 const SPEED = 330;
@@ -378,6 +381,7 @@ export function createTownScene(
       for (const s of structures) this.placeStructure(s, walls);
       this.createCampfireFlames();
       this.plantTrees(walls);
+      this.plantForest();
       this.scatterProps(walls);
       // 길찾기 칸: 발 상자(28×16) 반만큼 + 여유 3px 넓혀서 막는다
       this.grid = new WalkGrid(WORLD.width, WORLD.height, this.solids, { x: 17, y: 11 });
@@ -424,9 +428,10 @@ export function createTownScene(
         .setVisible(false);
 
       // 카메라
-      this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
+      // 카메라는 둘레 숲까지 비춘다 (걷는 곳은 그대로 WORLD 안)
+      this.cameras.main.setBounds(-FOREST, -FOREST, WORLD.width + FOREST * 2, WORLD.height + FOREST * 2);
       this.cameras.main.startFollow(this.feet, true, 0.12, 0.12, 0, 20);
-      this.cameras.main.setBackgroundColor("#8aba5c");
+      this.cameras.main.setBackgroundColor("#7aa94e"); // 숲 바닥색
 
       // 입력: 방향키, WASD, Space/Enter, 클릭·터치
       const keyboard = this.input.keyboard!;
@@ -440,11 +445,11 @@ export function createTownScene(
       const phone = window.matchMedia?.(PHONE_MEDIA).matches;
       if (!phone && window.matchMedia?.("(pointer: coarse)").matches) this.createJoystick();
       this.touch = Boolean(phone || this.joystick);
-      // 큰 컴퓨터 화면(가로 1920·2560 등)에서는 광장(1800×1400)보다 창이 넓어 오른쪽·아래에 빈 잔디가 남았다.
-      // 창이 광장보다 크면 광장이 창을 꽉 채우도록 그만큼 확대한다 (그림은 2배로 그려 둬서 2배까지는 선명하다)
+      // 큰 컴퓨터 화면에서는 광장 둘레의 숲이 보인다. 숲보다도 창이 큰 아주 넓은 화면에서만
+      // 빈 곳이 남지 않게 그만큼 확대한다 (그림은 2배로 그려 둬서 2배까지는 선명하다)
       const baseZoom = (phone ? PHONE_ZOOM : 1) * dpr;
       const fitZoom = () => {
-        const zoom = Math.max(baseZoom, this.scale.width / WORLD.width, this.scale.height / WORLD.height);
+        const zoom = Math.max(baseZoom, this.scale.width / (WORLD.width + FOREST * 2), this.scale.height / (WORLD.height + FOREST * 2));
         this.cameras.main.setZoom(zoom);
         this.game.canvas.dataset.zoom = (zoom / dpr).toFixed(3); // CSS 기준 확대 배율 (e2e 확인용)
       };
@@ -786,7 +791,7 @@ export function createTownScene(
         const shade = mixColor(0xffffff, sky.tint, sky.alpha);
         const glowImages = new Set<unknown>(this.glows.map((l) => l.image));
         for (const o of this.children.list) {
-          if (o instanceof Phaser.GameObjects.Image && !glowImages.has(o) && !o.getData("light")) o.setTint(shade);
+          if ((o instanceof Phaser.GameObjects.Image || o instanceof Phaser.GameObjects.TileSprite) && !glowImages.has(o) && !o.getData("light")) o.setTint(shade);
         }
         for (const l of this.glows) {
           // 캠프파이어: 낮에도 살짝(0.22), 밤에는 더 밝게. 가로등·창문: 저녁부터 켜진다
@@ -831,7 +836,7 @@ export function createTownScene(
 
     private drawGround() {
       const rng = new Phaser.Math.RandomDataGenerator(["blogcabin"]);
-      const g = this.add.graphics().setDepth(-10);
+      const g = this.add.graphics();
 
       // 잔디: 은은한 체크 무늬 타일
       const TILE = 80;
@@ -893,7 +898,53 @@ export function createTownScene(
       // 밤에 어둡게 칠할 수 있게(tint) 그림 한 장으로 굽는다
       g.generateTexture("ground", WORLD.width, WORLD.height);
       g.destroy();
-      this.add.image(0, 0, "ground").setOrigin(0).setDepth(-10);
+      this.add.image(0, 0, "ground").setOrigin(0).setDepth(GROUND_DEPTH);
+
+      // 둘레 숲 바닥: 광장 잔디보다 조금 진한 잔디 무늬를 숲 전체에 깐다
+      if (!this.textures.exists("forest-floor")) {
+        const f = this.add.graphics();
+        f.fillStyle(0x7aa94e).fillRect(0, 0, TILE * 2, TILE * 2);
+        f.fillStyle(0x76a44b).fillRect(0, 0, TILE, TILE).fillRect(TILE, TILE, TILE, TILE);
+        f.lineStyle(2, 0x5f8c3c, 0.9);
+        for (const [x, y] of [[22, 30], [110, 52], [60, 120], [140, 140]]) {
+          f.beginPath();
+          f.moveTo(x - 4, y - 5).lineTo(x - 1, y).lineTo(x + 1, y - 7).lineTo(x + 3, y).lineTo(x + 6, y - 4);
+          f.strokePath();
+        }
+        f.generateTexture("forest-floor", TILE * 2, TILE * 2);
+        f.destroy();
+      }
+      this.add
+        .tileSprite(-FOREST, -FOREST, WORLD.width + FOREST * 2, WORLD.height + FOREST * 2, "forest-floor")
+        .setOrigin(0)
+        .setDepth(GROUND_DEPTH - 1);
+    }
+
+    /** 둘레 숲: 걸을 수 있는 곳 바깥을 나무로 빽빽하게 채운다. 바깥이라 부딪힘은 없다 (광장 경계가 막는다) */
+    private plantForest() {
+      const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-forest"]);
+      const GAP = { x: 58, y: 44 };
+      // 가장자리의 나무는 광장 쪽으로 조금 걸쳐서 경계선이 보이지 않게 한다
+      const EDGE = 14;
+      let count = 0;
+      for (let y = -FOREST + 60; y < WORLD.height + FOREST + 100; y += GAP.y) {
+        const row = Math.round(y / GAP.y);
+        for (let x = -FOREST; x < WORLD.width + FOREST; x += GAP.x) {
+          const tx = x + (row % 2 ? GAP.x / 2 : 0) + rng.between(-16, 16);
+          const ty = y + rng.between(-12, 12);
+          const inside = tx > -EDGE && tx < WORLD.width + EDGE && ty > 12 && ty < WORLD.height + 60;
+          if (inside) continue;
+          const kind = rng.pick(["pine", "pine", "pine", "pine", "round", "round", "blossom", "bush"]);
+          const scale = kind === "bush" ? rng.realInRange(0.8, 1) : rng.realInRange(1.05, 1.45);
+          this.add
+            .image(tx, ty, `tree:${kind}`)
+            .setOrigin(0.5, 1)
+            .setDisplaySize(TREE_SIZE.width * scale, TREE_SIZE.height * scale)
+            .setDepth(ty);
+          count++;
+        }
+      }
+      this.game.canvas.dataset.forestTrees = String(count); // e2e 확인용
     }
 
     /** 나무: 길, 광장, 건물 자리를 피해서 심는다 */
