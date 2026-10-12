@@ -38,10 +38,17 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
-        version: "1.9.1",
+        version: "1.9.2",
         title: msg("릴리스 노트를 버전별로"),
         changes: [
           { kind: "improved", text: msg("릴리스 노트를 업데이트(버전)마다 나눠 적고, 날짜를 누르면 그날 업데이트가 펼쳐지게 바꿨어요.") },
+        ],
+      },
+      {
+        version: "1.9.1",
+        title: msg("공지 글 눈에 띄게"),
+        changes: [
+          { kind: "improved", text: msg("마을 소식에서 공지사항 글은 진한 나무색 카드에 📢 공지 표시가 붙어 다른 글과 한눈에 구분돼요.") },
         ],
       },
       {
