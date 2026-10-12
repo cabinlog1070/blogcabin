@@ -73,7 +73,7 @@ try {
   check("POST-08 처음에는 자동 저장 안내", await a.page.getByText("작성 중인 글은 이 브라우저에 자동 저장돼요.").isVisible());
   await a.page.getByPlaceholder("제목").fill("임시 저장 시험");
   await a.page.getByLabel("카테고리").selectOption(String(catId));
-  await a.page.getByRole("radio", { name: "🔒 비공개" }).click();
+  await a.page.getByRole("radio", { name: "🔒 서로 이웃만" }).click();
   await a.page.locator(".ProseMirror").click();
   await a.page.keyboard.press("ControlOrMeta+b");
   await a.page.keyboard.type("굵은 글");
@@ -98,7 +98,7 @@ try {
     "POST-08 불러오면 제목·카테고리·공개 설정·본문(서식)·태그가 채워짐",
     (await a.page.getByPlaceholder("제목").inputValue()) === "임시 저장 시험" &&
       (await a.page.getByLabel("카테고리").inputValue()) === String(catId) &&
-      (await a.page.getByRole("radio", { name: "🔒 비공개" }).getAttribute("aria-checked")) === "true" &&
+      (await a.page.getByRole("radio", { name: "🔒 서로 이웃만" }).getAttribute("aria-checked")) === "true" &&
       (await a.page.locator(".ProseMirror strong").innerText()) === "굵은 글" &&
       (await a.page.getByLabel("태그").inputValue()) === "임시, 저장",
   );
