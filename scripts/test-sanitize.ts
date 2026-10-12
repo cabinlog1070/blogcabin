@@ -1,6 +1,6 @@
 // NF-03: 글 HTML 정화가 XSS 공격 문자열을 제거하는지 확인한다
 // 실행: npm run test:sanitize
-import { sanitizePostHtml } from "../src/server/sanitize";
+import { relaxNbsp, sanitizePostHtml } from "../src/server/sanitize";
 // 글쓰기 화면 글자 수가 서버 보상 판단과 같은지도 함께 확인한다 (#18)
 import "./test-text-length";
 const cases = {
@@ -60,6 +60,10 @@ if (failed) process.exit(1);
   expect("다른 주소 파일 카드 뺌", out, out === "");
   out = s('<p><a href="https://example.com">링크</a></p>');
   expect("보통 링크는 새 탭", out, out.includes('target="_blank"') && out.includes('rel="noopener noreferrer nofollow"'));
+  out = s(`<div data-slider="" data-label="🎞" style="x" onclick="x()"><img src="/files/${KEY}" alt=""><img src="https://evil.example/x.png"></div>`);
+  expect("사진 슬라이드 남김", out, out === `<div data-slider><img src="/files/${KEY}" alt="" /></div>`);
+  out = s(`<div data-row="" data-label="▥" class="x"><img src="/files/${KEY}" alt=""><img src="/files/${KEY}" alt=""></div>`);
+  expect("사진 나란히 남김", out, out === `<div data-row><img src="/files/${KEY}" alt="" /><img src="/files/${KEY}" alt="" /></div>`);
   out = sanitizePostHtml(`<img src="/files/${"b".repeat(32)}">`);
   expect("known 없으면 형식만 확인", out, out === `<img src="/files/${"b".repeat(32)}" />`);
   if (bad) process.exit(1);
@@ -78,7 +82,52 @@ if (failed) process.exit(1);
   expect("크기·색 남김", out, out.includes("font-size:24px") && out.includes("color:#b83a29") && out.includes("background-color:rgb(255, 243, 191)"));
   out = sanitizePostHtml('<p style="line-height: 2.2">넓게</p><h3 style="line-height: 1.4; text-align: center">좁게</h3><p style="line-height: 9">x</p>');
   expect("줄 간격 남김", out, out === '<p style="line-height:2.2">넓게</p><h3 style="line-height:1.4;text-align:center">좁게</h3><p>x</p>');
+  out = sanitizePostHtml('<p style="line-height: 1.0">아주 좁게</p>');
+  expect("줄 간격 1.0 남김", out, out === '<p style="line-height:1.0">아주 좁게</p>');
   out = sanitizePostHtml('<p style="position: fixed; text-align: justify"><span style="background-color: url(javascript:alert(1)); font-size: 900px">x</span></p>');
   expect("다른 style 지움", out, !/position|justify|url|900px/.test(out));
+  if (bad) process.exit(1);
+}
+
+// 낱말 사이 nbsp는 보통 띄어쓰기로 (붙여 넣거나 한글 입력기가 넣은 nbsp 때문에 읽는 화면에서 줄이 안 바뀌던 문제)
+{
+  let bad = 0;
+  const expect = (name: string, got: string, ok: boolean) => {
+    if (!ok) bad++;
+    console.log(`${ok ? "✅" : "❌"} ${name.padEnd(22)} → ${JSON.stringify(got)}`);
+  };
+  let out = sanitizePostHtml("<p>아악‼️&nbsp;까아악‼️ 아아악\u00a0끝</p>");
+  expect("낱말 사이 nbsp 풀기", out, out === "<p>아악‼️ 까아악‼️ 아아악 끝</p>");
+  out = sanitizePostHtml("<p>칸&nbsp;&nbsp;&nbsp;띄움</p><p>&nbsp;들여쓰기</p><p>&nbsp;</p>");
+  expect("일부러 띄운 칸은 그대로", out, !out.includes("칸 ") && out.includes("\u00a0들여쓰기") && out.includes("<p>\u00a0</p>"));
+  out = relaxNbsp("<p>예전&nbsp;글 A&amp;&nbsp;B</p>");
+  expect("예전 글 보여 줄 때", out, out === "<p>예전 글 A&amp;&nbsp;B</p>");
+  if (bad) process.exit(1);
+}
+
+// 표: 칸·제목 칸·합치기는 남기고, 표 크기 style과 colgroup은 지운 뒤 가로 스크롤 상자로 감싼다
+{
+  let bad = 0;
+  const expect = (name: string, got: string, ok: boolean) => {
+    if (!ok) bad++;
+    console.log(`${ok ? "✅" : "❌"} ${name.padEnd(22)} → ${got}`);
+  };
+  const editorHtml =
+    '<table style="min-width: 75px"><colgroup><col style="min-width: 25px"><col style="min-width: 25px"></colgroup><tbody>' +
+    '<tr><th colspan="1" rowspan="1"><p>이름</p></th><th><p style="text-align: center">점수</p></th></tr>' +
+    '<tr><td colspan="2" style="text-align: right" onclick="alert(1)"><p>합친 칸</p></td></tr></tbody></table>';
+  let out = sanitizePostHtml(editorHtml);
+  expect(
+    "표 남김",
+    out,
+    out ===
+      '<div class="table-scroll"><table><tbody><tr><th><p>이름</p></th><th><p style="text-align:center">점수</p></th></tr>' +
+        '<tr><td colspan="2" style="text-align:right"><p>합친 칸</p></td></tr></tbody></table></div>',
+  );
+  expect("다시 정화해도 상자 하나", sanitizePostHtml(out), sanitizePostHtml(out) === out);
+  out = sanitizePostHtml('<table><tr><td rowspan="999" colspan="x" style="position: fixed">x</td></tr></table>');
+  expect("이상한 합치기·style 지움", out, !/rowspan|colspan|position/.test(out));
+  out = sanitizePostHtml('<div class="evil"><p>x</p></div>');
+  expect("다른 div는 빠짐", out, out === "<p>x</p>");
   if (bad) process.exit(1);
 }

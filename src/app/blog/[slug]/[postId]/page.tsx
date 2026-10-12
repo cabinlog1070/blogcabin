@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CommentSection } from "@/components/blog/comment-section";
 import { DeletePostButton } from "@/components/blog/delete-post-button";
 import { LikeButton } from "@/components/blog/like-button";
+import { PostBody, PostTitle, PostTranslateProvider, TranslateBar } from "@/components/blog/post-translate";
 import { ViewCount } from "@/components/blog/view-count";
 import { ClearDraft } from "@/components/editor/clear-draft";
 import { CharacterBadge } from "@/components/character";
@@ -13,14 +14,18 @@ import {
   canSeePrivatePosts,
   getAdjacentPosts,
   getBlogBySlug,
+  getFeedAdjacentPosts,
   getComments,
   getLikeState,
   getPost,
   getPostTags,
 } from "@/server/blog";
 import { getViewer } from "@/server/dal";
+import { relaxNbsp } from "@/server/sanitize";
 import { getLocale, getT } from "@/server/i18n";
 import { categoryLabel } from "@/lib/i18n";
+import { feedFrom, parseFeedFrom } from "@/lib/feed-from";
+import { detectPostLanguage } from "@/lib/translate";
 
 async function load(props: PageProps<"/blog/[slug]/[postId]">) {
   const { slug, postId } = await props.params;
@@ -55,12 +60,22 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
   const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인, 서로 이웃, 관리자만
   if (post.visibility === "private" && !includePrivate) notFound();
 
-  const [tagNames, like, comments, adjacent] = await Promise.all([
+  // 마을 소식에서 열었으면 이전·다음 글도 그 목록(마을 전체·💛 이웃 새 글·태그) 순서로 넘긴다.
+  // 💛 이웃 새 글은 회원만 볼 수 있는 목록이라 비회원이면 블로그 안의 이전·다음 글로 둔다
+  const source = parseFeedFrom(sp);
+  const feed =
+    source && ("tag" in source ? { tag: source.tag } : source.tab === "all" ? {} : viewerId ? { followerId: viewerId } : null);
+  const [tagNames, like, comments, feedAdjacent] = await Promise.all([
     getPostTags(post.id),
     getLikeState(post.id, viewerId),
     getComments(post.id),
-    getAdjacentPosts(blog.id, post, includePrivate),
+    feed ? getFeedAdjacentPosts(post.id, feed) : null,
   ]);
+  // 지금 글이 그 목록에 없으면(비공개 글 등) 블로그 안의 이전·다음 글
+  const adjacent = feedAdjacent
+    ? { ...feedAdjacent, query: `?${feedFrom(source!)}` }
+    : { ...(await getAdjacentPosts(blog.id, post, includePrivate)), query: "" };
+  const hrefOf = (p: { id: number; blogSlug?: string }) => `/@${p.blogSlug ?? blog.slug}/${p.id}${adjacent.query}`;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -96,6 +111,13 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
         <span>· {blog.nickname}</span>
       </Link>
 
+      {/* 다른 말로 쓴 글이면 제목·본문을 번역해 보여 줄 수 있게 감싼다 (POST-10). 안쪽은 다른 PR과 겹치지 않게 들여쓰기를 그대로 둔다 */}
+      <PostTranslateProvider
+        from={detectPostLanguage(`${post.title}\n${post.contentText}`)}
+        title={post.title}
+        html={post.contentHtml}
+        text={post.contentText}
+      >
       <article className="card p-6 sm:p-10">
         <header className="border-b-2 border-dashed border-line pb-5">
           <div className="mb-2 flex flex-wrap gap-2 text-xs font-bold">
@@ -106,7 +128,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
             )}
             {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">{t("🔒 서로 이웃 공개")}</span>}
           </div>
-          <h1 className="font-display text-3xl leading-snug sm:text-4xl">{post.title}</h1>
+          <PostTitle title={post.title} />
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
             <span>{formatDateTime(post.createdAt, locale)}</span>
             <ViewCount postId={post.id} initial={post.viewCount} isOwner={isOwner} />
@@ -119,8 +141,10 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
           </div>
         </header>
 
-        {/* 저장할 때 sanitize-html로 정화한 HTML만 넣는다 */}
-        <div className="prose-blog mt-6" dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
+        {/* 다른 말로 쓴 글이면 번역 버튼 (POST-10) */}
+        <TranslateBar />
+        {/* 저장할 때 sanitize-html로 정화한 HTML만 넣는다. relaxNbsp는 nbsp가 남은 예전 글도 줄이 바뀌게 한다 */}
+        <PostBody html={relaxNbsp(post.contentHtml)} />
 
         {tagNames.length > 0 && (
           <ul className="mt-8 flex flex-wrap gap-2">
@@ -159,10 +183,11 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
           )}
         />
       </article>
+      </PostTranslateProvider>
 
       <nav className="mt-6 grid gap-3 sm:grid-cols-2" aria-label={t("이전 글, 다음 글")}>
         {adjacent.prev ? (
-          <Link href={`/@${blog.slug}/${adjacent.prev.id}`} className="card p-4 hover:-translate-y-0.5">
+          <Link href={hrefOf(adjacent.prev)} className="card p-4 hover:-translate-y-0.5">
             <span className="text-xs text-ink-soft">{t("← 이전 글")}</span>
             <span className="block truncate font-bold">{adjacent.prev.title}</span>
           </Link>
@@ -170,7 +195,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
           <span />
         )}
         {adjacent.next && (
-          <Link href={`/@${blog.slug}/${adjacent.next.id}`} className="card p-4 text-right hover:-translate-y-0.5">
+          <Link href={hrefOf(adjacent.next)} className="card p-4 text-right hover:-translate-y-0.5">
             <span className="text-xs text-ink-soft">{t("다음 글 →")}</span>
             <span className="block truncate font-bold">{adjacent.next.title}</span>
           </Link>

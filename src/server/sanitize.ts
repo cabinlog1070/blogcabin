@@ -8,30 +8,51 @@ export type KnownAttachments = Map<string, { kind: "image" | "file"; name: strin
 // 에디터의 정렬·줄 간격·글자 크기·글자색·배경색만 style로 남긴다. 값 모양을 좁게 잡아 url(), expression() 같은 것은 들어올 수 없다
 const COLOR_RE = [/^#[0-9a-f]{3}([0-9a-f]{3})?$/i, /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\)$/i];
 // 줄 간격은 에디터 목록(src/components/editor/line-height.ts)의 값만
-const ALIGN_STYLE = { "text-align": [/^(left|center|right)$/], "line-height": [/^(1\.4|1\.6|1\.8|2\.2|2\.6)$/] };
+const ALIGN_STYLE = { "text-align": [/^(left|center|right)$/], "line-height": [/^(1(\.0)?|1\.2|1\.4|1\.6|1\.8|2\.2|2\.6)$/] };
+const CELL_STYLE = { "text-align": [/^(left|center|right)$/] };
 const SPAN_STYLE = { "font-size": [/^([89]|[1-6]\d|7[0-2])px$/], color: COLOR_RE, "background-color": COLOR_RE };
 
 const attachmentKey = (url: string | undefined) => ATTACHMENT_URL_RE.exec(url ?? "")?.[1] ?? null;
+
+function cellSpans(tagName: string, attribs: sanitizeHtml.Attributes): sanitizeHtml.Tag {
+  const out = { ...attribs };
+  for (const key of ["colspan", "rowspan"]) {
+    const n = Number(out[key]);
+    if (Number.isInteger(n) && n > 1 && n <= 50) out[key] = String(n);
+    else delete out[key];
+  }
+  return { tagName, attribs: out };
+}
 
 // 에디터가 만들 수 있는 태그만 허용한다. <script>, onClick 같은 속성은 모두 제거된다 (XSS 방지)
 function options(known?: KnownAttachments): sanitizeHtml.IOptions {
   return {
     allowedTags: [
       "p", "br", "h1", "h2", "h3", "strong", "em", "u", "s", "code", "pre", "span",
-      "blockquote", "ul", "ol", "li", "a", "hr", "img",
+      "blockquote", "ul", "ol", "li", "a", "hr", "img", "div",
+      "table", "thead", "tbody", "tr", "th", "td",
     ],
     allowedAttributes: {
       a: ["href", "target", "rel", "data-file", "data-name", "data-size", "data-size-label", "data-ext", "aria-label"],
       img: ["src", "alt"],
+      div: ["data-slider", "data-row"], // 사진 슬라이드 <div data-slider>, 나란히 놓기 <div data-row> (에디터의 image-slider.ts)
       p: ["style"],
       h1: ["style"],
       h2: ["style"],
       h3: ["style"],
       span: ["style"],
+      th: ["colspan", "rowspan", "style"],
+      td: ["colspan", "rowspan", "style"],
     },
-    allowedStyles: { p: ALIGN_STYLE, h1: ALIGN_STYLE, h2: ALIGN_STYLE, h3: ALIGN_STYLE, span: SPAN_STYLE },
+    allowedStyles: { p: ALIGN_STYLE, h1: ALIGN_STYLE, h2: ALIGN_STYLE, h3: ALIGN_STYLE, span: SPAN_STYLE, th: CELL_STYLE, td: CELL_STYLE },
     allowedSchemes: ["http", "https", "mailto"],
     transformTags: {
+      // 사진 슬라이드·나란히 놓기가 아닌 div(표 스크롤 상자 등)는 허용하지 않는 이름으로 바꿔 껍데기만 빼고 안은 남긴다
+      div: (tagName, attribs): sanitizeHtml.Tag =>
+        "data-slider" in attribs || "data-row" in attribs ? { tagName, attribs } : { tagName: "unwrap", attribs: {} },
+      // 표 칸 합치기 (colspan·rowspan)는 1~50 숫자만
+      th: cellSpans,
+      td: cellSpans,
       a: (tagName, attribs): sanitizeHtml.Tag => {
         // 파일 카드 (POST-09): 이름·크기는 요청에 적힌 값 대신 DB 값을 쓴다
         if ("data-file" in attribs) {
@@ -74,7 +95,25 @@ function options(known?: KnownAttachments): sanitizeHtml.IOptions {
  * known 없이 부르면 주소 형식만 확인한다
  */
 export function sanitizePostHtml(html: string, known?: KnownAttachments): string {
-  return sanitizeHtml(html, options(known));
+  return wrapTables(relaxNbsp(sanitizeHtml(html, options(known))));
+}
+
+/**
+ * 낱말 사이 줄이 안 바뀌는 공백(nbsp)을 보통 띄어쓰기로 바꾼다.
+ * 한글 입력기나 붙여 넣기로 들어온 nbsp는 그 앞뒤 낱말을 한 덩어리로 묶어, 읽는 화면(keep-all)에서 줄이 안 바뀌고 칸 밖으로 넘친다.
+ * 공백이 둘 이상 이어진 곳(일부러 띄운 칸)과 태그 바로 앞뒤는 그대로 둔다. 저장할 때와 예전 글을 보여 줄 때 모두 쓴다
+ */
+export function relaxNbsp(html: string): string {
+  return html.replace(/(?<=[^\s<>;])(?:\u00a0|&nbsp;|&#160;|&#xa0;)(?=[^\s<>&])/gi, " ");
+}
+
+/**
+ * 표마다 가로 스크롤 상자(div.table-scroll)로 감싼다. 휴대폰에서 넓은 표가 본문 칸을 밀어내지 않고 표만 옆으로 밀린다.
+ * 상자 div는 정화에서 허용하지 않아 먼저 빠지므로, 이미 정화한 글을 다시 정화해도 상자가 겹치지 않는다.
+ * 에디터는 이 div를 무시하고 표만 읽는다
+ */
+function wrapTables(html: string): string {
+  return html.replace(/<table>/g, '<div class="table-scroll"><table>').replace(/<\/table>/g, "</table></div>");
 }
 
 /** HTML 안의 첨부 키 (/files/키) */

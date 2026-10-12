@@ -5,6 +5,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/r
 import StarterKit from "@tiptap/starter-kit";
 import { postTextLength } from "@/lib/text-length";
 import Image from "@tiptap/extension-image";
+import { TableKit } from "@tiptap/extension-table";
 import TextAlign from "@tiptap/extension-text-align";
 import { BackgroundColor, Color, FontSize, TextStyle } from "@tiptap/extension-text-style";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
@@ -12,8 +13,10 @@ import { useT } from "@/components/i18n";
 import { attachmentPath, FILE_TYPES, IMAGE_TYPES } from "@/lib/attachments";
 import { msg, type T } from "@/lib/i18n";
 import { FileCard } from "./file-card";
+import { ImageRow, ImageSlider, ROW_MAX } from "./image-slider";
 import { DEFAULT_LINE_HEIGHT, LINE_HEIGHTS, LineHeight } from "./line-height";
-import { filesFrom, useAttachmentUpload } from "./use-attachment-upload";
+import { TABLE_ACTIONS, TablePicker, TableToolbar } from "./table-tools";
+import { filesFrom, useAttachmentUpload, type ImageGroup } from "./use-attachment-upload";
 
 const IMAGE_ACCEPT = Object.keys(IMAGE_TYPES).map((e) => `.${e}`).join(",");
 const FILE_ACCEPT = Object.keys(FILE_TYPES).map((e) => `.${e}`).join(",");
@@ -44,7 +47,7 @@ type Group = "font" | "align" | "block";
 const GROUPS: { value: Group; title: string }[] = [
   { value: "font", title: msg("글자 꾸미기") },
   { value: "align", title: msg("정렬·줄 간격") },
-  { value: "block", title: msg("목록·인용·링크") },
+  { value: "block", title: msg("목록·인용·링크·표") },
 ];
 
 function GroupIcon({ group }: { group: Group }) {
@@ -106,9 +109,9 @@ function AlignIcon({ align }: { align: Align }) {
   );
 }
 
-// "colors" 자리에 글자색·배경색 버튼, "lineHeight" 자리에 줄 간격 고르기가 들어간다.
-// 컴퓨터는 "row"에서 줄을 바꿔 두 줄 (글꼴·정렬 / 줄 간격·목록부터)
-const TOOLS: (ToolButton | "sep" | "colors" | "row" | "lineHeight")[] = [
+// "colors" 자리에 글자색·배경색 버튼, "lineHeight" 자리에 줄 간격 고르기, "table" 자리에 표 넣기가 들어간다.
+// 컴퓨터는 "row"에서 줄을 바꿔 두 줄 (글꼴·정렬·되돌리기 / 줄 간격·목록·표·사진·파일)
+const TOOLS: (ToolButton | "sep" | "colors" | "row" | "lineHeight" | "table")[] = [
   { label: "B", title: msg("굵게"), group: "font", className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
   { label: "I", title: msg("기울임"), group: "font", className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
   { label: "U", title: msg("밑줄"), group: "font", className: "underline underline-offset-2", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
@@ -125,6 +128,9 @@ const TOOLS: (ToolButton | "sep" | "colors" | "row" | "lineHeight")[] = [
       active: (e) => (a.value === "left" ? !e.isActive({ textAlign: "center" }) && !e.isActive({ textAlign: "right" }) : e.isActive({ textAlign: a.value })),
     }),
   ),
+  "sep",
+  { label: "↶", title: msg("되돌리기"), className: "max-sm:ml-auto", run: (e) => e.chain().focus().undo().run() },
+  { label: "↷", title: msg("다시 실행"), run: (e) => e.chain().focus().redo().run() },
   "row",
   "lineHeight",
   "sep",
@@ -146,9 +152,7 @@ const TOOLS: (ToolButton | "sep" | "colors" | "row" | "lineHeight")[] = [
     },
     active: (e) => e.isActive("link"),
   },
-  "sep",
-  { label: "↶", title: msg("되돌리기"), className: "max-sm:ml-auto", run: (e) => e.chain().focus().undo().run() },
-  { label: "↷", title: msg("다시 실행"), run: (e) => e.chain().focus().redo().run() },
+  "table",
 ];
 
 const SELECT_CLASS =
@@ -254,6 +258,8 @@ export function RichEditor({
     extensions: [
       PostImage.configure({ inline: false, allowBase64: false }), // 사진 (POST-07)
       FileCard, // 파일 카드 (POST-09)
+      ImageSlider.configure({ label: t("🎞 슬라이드 · 읽을 때 옆으로 넘겨 봐요") }), // 사진 슬라이드
+      ImageRow.configure({ label: t("▥ 나란히 · 한 줄에 {n}장까지", { n: ROW_MAX }) }), // 사진 나란히 놓기
       StarterKit.configure({ heading: { levels: [2, 3] }, link: { openOnClick: false, autolink: true } }),
       TextStyle, // 글자 크기·색을 <span style>로 담는다
       FontSize,
@@ -261,6 +267,7 @@ export function RichEditor({
       BackgroundColor,
       TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right"] }),
       LineHeight,
+      TableKit, // 표: 칸 안의 글은 문단이라 정렬·글꼴 도구를 그대로 쓴다
       Placeholder.configure({ placeholder: t("오늘 배운 것, 생각한 것, 무엇이든 적어 보세요 ✏️") }),
     ],
     content: initialHtml,
@@ -321,9 +328,11 @@ export function RichEditor({
   }, []);
   const imageInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const pick = (input: HTMLInputElement | null) => {
+  const sliderInput = useRef<HTMLInputElement>(null);
+  const rowInput = useRef<HTMLInputElement>(null);
+  const pick = (input: HTMLInputElement | null, group?: ImageGroup) => {
     if (!input) return;
-    upload(filesFrom(input.files));
+    upload(filesFrom(input.files), undefined, group);
     input.value = ""; // 같은 파일을 다시 고를 수 있게
   };
 
@@ -339,6 +348,9 @@ export function RichEditor({
         fontSize: style.fontSize ? parseInt(style.fontSize, 10) || DEFAULT_FONT_SIZE : DEFAULT_FONT_SIZE,
         color: style.color ?? null,
         background: style.backgroundColor ?? null,
+        inTable: editor.isActive("table"),
+        canInsertTable: !editor.isActive("table") && !editor.isActive("codeBlock"),
+        tableActions: TABLE_ACTIONS.map((a) => a.can(editor)),
         lineHeight: (editor.getAttributes(editor.isActive("heading") ? "heading" : "paragraph").lineHeight as string | null) ?? DEFAULT_LINE_HEIGHT,
       };
     },
@@ -431,6 +443,9 @@ export function RichEditor({
                 </option>
               ))}
             </select>
+          ) : tool === "table" ? (
+            // 표 안이나 코드 블록 안에는 표를 넣지 않는다
+            <TablePicker key={i} editor={editor} disabled={!state?.canInsertTable} className={inGroup("block")} />
           ) : tool === "colors" ? (
             <div key={i} className={`flex gap-0.5 sm:gap-1 ${inGroup("font")}`}>
               <ColorPicker editor={editor} kind="color" current={state?.color ?? null} />
@@ -461,22 +476,44 @@ export function RichEditor({
           title={t("사진 올리기 (PNG·JPG·GIF·WEBP, 10MB까지)")}
           disabled={!editor || !!progress}
           onClick={() => imageInput.current?.click()}
-          className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
+          className="rounded-lg px-1.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
         >
           <span className="max-sm:hidden">{t("🖼 사진")}</span>
           <span className="text-base sm:hidden">🖼</span>
         </button>
         <button
           type="button"
+          title={t("사진 여러 장을 옆으로 넘겨 보는 슬라이드로 넣기 (슬라이드 사진을 고른 채 누르면 그 슬라이드에 더해요)")}
+          disabled={!editor || !!progress}
+          onClick={() => sliderInput.current?.click()}
+          className="rounded-lg px-1.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
+        >
+          <span className="max-sm:hidden">{t("🎞 슬라이드")}</span>
+          <span className="text-base sm:hidden">🎞</span>
+        </button>
+        <button
+          type="button"
+          title={t("사진을 한 줄에 {n}장까지 나란히 넣기 (나란히 놓은 사진을 고른 채 누르면 그 줄에 더해요)", { n: ROW_MAX })}
+          disabled={!editor || !!progress}
+          onClick={() => rowInput.current?.click()}
+          className="rounded-lg px-1.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
+        >
+          <span className="max-sm:hidden">{t("▥ 나란히")}</span>
+          <span className="text-base sm:hidden">▥</span>
+        </button>
+        <button
+          type="button"
           title={t("파일 올리기 (PDF·한글·오피스·ZIP 등, 30MB까지)")}
           disabled={!editor || !!progress}
           onClick={() => fileInput.current?.click()}
-          className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
+          className="rounded-lg px-1.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
         >
           <span className="max-sm:hidden">{t("📎 파일")}</span>
           <span className="text-base sm:hidden">📎</span>
         </button>
         <input ref={imageInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("사진 고르기")} onChange={(e) => pick(e.currentTarget)} />
+        <input ref={sliderInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("슬라이드 사진 고르기")} onChange={(e) => pick(e.currentTarget, "imageSlider")} />
+        <input ref={rowInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("나란히 놓을 사진 고르기")} onChange={(e) => pick(e.currentTarget, "imageRow")} />
         <input ref={fileInput} type="file" accept={FILE_ACCEPT} multiple hidden aria-label={t("파일 고르기")} onChange={(e) => pick(e.currentTarget)} />
       </div>
       {(progress || errors.length > 0) && (
@@ -500,6 +537,7 @@ export function RichEditor({
           )}
         </div>
       )}
+      {editor && state?.inTable && <TableToolbar editor={editor} enabled={state.tableActions} />}
       <EditorContent editor={editor} />
     </div>
   );

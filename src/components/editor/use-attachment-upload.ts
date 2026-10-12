@@ -6,6 +6,10 @@ import { useCallback, useRef, useState } from "react";
 import { useT } from "@/components/i18n";
 import { ATTACH_MESSAGES, attachmentKind, attachmentProblem } from "@/lib/attachments";
 import { msg } from "@/lib/i18n";
+import { ROW_MAX } from "./image-slider";
+
+/** 사진을 묶어 넣는 방식: 옆으로 넘기는 슬라이드, 한 줄에 나란히 */
+export type ImageGroup = "imageSlider" | "imageRow";
 
 type Uploaded = { key: string; url: string; kind: "image" | "file"; name: string; size: number };
 
@@ -28,7 +32,8 @@ async function uploadOne(file: File): Promise<Uploaded> {
 
 /**
  * 버튼·붙여 넣기·끌어다 놓기로 고른 파일들을 차례로 올려 본문에 넣는다 (POST-07 사진, POST-09 파일).
- * 사진은 <img>, 나머지는 파일 카드. 형식·크기가 맞지 않는 파일은 건너뛰고 문구로 알려준다
+ * 사진은 <img>, 나머지는 파일 카드. 형식·크기가 맞지 않는 파일은 건너뛰고 문구로 알려준다.
+ * group을 주면 사진을 다 올린 뒤 슬라이드나 나란히 놓기 묶음으로 넣는다 (그 묶음의 사진을 고른 채면 그 묶음에 더한다)
  */
 export function useAttachmentUpload(editor: Editor | null) {
   const t = useT();
@@ -37,7 +42,7 @@ export function useAttachmentUpload(editor: Editor | null) {
   const busy = useRef(false);
 
   const upload = useCallback(
-    async (files: File[], at?: number) => {
+    async (files: File[], at?: number, group?: ImageGroup) => {
       if (!editor || !files.length) return;
       if (busy.current) {
         const busyMessage = t(BUSY_MESSAGE);
@@ -60,26 +65,53 @@ export function useAttachmentUpload(editor: Editor | null) {
         pos = transaction.mapping.map(pos);
       };
       editor.on("transaction", track);
+      // 방금 넣은 것 바로 뒤로 커서를 옮긴다. 글자 자리로 옮겨 두어야 다음 글자가 사진을 덮어쓰지 않는다
+      const insert = (content: Parameters<Editor["commands"]["insertContentAt"]>[1], at = pos) => {
+        editor.chain().insertContentAt(Math.min(at, editor.state.doc.content.size), content).run();
+        pos = editor.state.selection.to;
+        const $end = editor.state.doc.resolve(pos);
+        const next = TextSelection.findFrom($end, 1, true) ?? TextSelection.findFrom($end, -1, true);
+        if (next) editor.view.dispatch(editor.state.tr.setSelection(next));
+      };
+      const groupImages: { type: "image"; attrs: { src: string; alt: string } }[] = [];
       try {
         for (const [i, file] of ok.entries()) {
           setProgress({ done: i, total: ok.length });
           try {
             const up = await uploadOne(file);
             if (editor.isDestroyed) return;
+            if (group && up.kind === "image") {
+              groupImages.push({ type: "image", attrs: { src: up.url, alt: "" } });
+              continue;
+            }
             const node =
               up.kind === "image"
                 ? { type: "image", attrs: { src: up.url, alt: "" } }
                 : { type: "fileCard", attrs: { href: up.url, name: up.name, size: up.size } };
-            editor.chain().insertContentAt(Math.min(pos, editor.state.doc.content.size), node).run();
-            // 방금 넣은 것 바로 뒤. 커서를 글자 자리로 옮겨 두어야 다음 글자가 사진을 덮어쓰지 않는다
-            pos = editor.state.selection.to;
-            const $end = editor.state.doc.resolve(pos);
-            const next = TextSelection.findFrom($end, 1, true) ?? TextSelection.findFrom($end, -1, true);
-            if (next) editor.view.dispatch(editor.state.tr.setSelection(next));
+            insert(node);
           } catch (err) {
             // 서버가 돌려준 문구(ATTACH_MESSAGES의 한국어)도 화면 언어로 바꾼다
             problems.push(`${file.name}: ${t(err instanceof Error ? err.message : ATTACH_MESSAGES.failed)}`);
             setErrors([...problems]);
+          }
+        }
+        if (groupImages.length && group && !editor.isDestroyed) {
+          let rest = groupImages;
+          let at = Math.min(pos, editor.state.doc.content.size);
+          const $at = editor.state.doc.resolve(at);
+          if ($at.parent.type.name === group) {
+            // 고른 묶음에 더한다. 나란히는 한 줄에 ROW_MAX장까지라 넘치는 사진은 바로 아래 새 줄로
+            const room = group === "imageRow" ? ROW_MAX - $at.parent.childCount : rest.length;
+            const now = rest.slice(0, room);
+            rest = rest.slice(now.length);
+            if (now.length) insert(now, $at.end());
+            at = $at.after() + now.length; // 사진 한 장은 문서에서 한 칸
+          }
+          if (rest.length) {
+            const size = group === "imageRow" ? ROW_MAX : rest.length;
+            const chunks = Array.from({ length: Math.ceil(rest.length / size) }, (_, i) => rest.slice(i * size, (i + 1) * size));
+            // 한 장뿐인 묶음은 넘기거나 나란히 놓을 것이 없으니 보통 사진으로
+            insert(chunks.map((c) => (c.length > 1 ? { type: group, content: c } : c[0])), at);
           }
         }
       } finally {
