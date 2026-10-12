@@ -2,7 +2,7 @@
 // 앞·뒤·옆(오른쪽을 본다) 모습 × 서 있기(0)·걷기(1·2). 입은 꾸미기는 모습마다 그 방향에 맞게 그린다.
 // 머리카락은 한 덩어리로 그리고 얼굴을 그 위에 얹어, 앞머리 선 = 얼굴 윗선이 되게 한다.
 
-import { E, F, L, Rc, S, SKIN, blush, clip, dot, make, nid, pastel, shadow } from "./crayon";
+import { E, F, L, Rc, S, SKIN, blush, dot, make, nid, pastel, shadow } from "./crayon";
 
 export type View = "front" | "back" | "side";
 export type Frame = 0 | 1 | 2;
@@ -22,7 +22,7 @@ export type HatWear = { draw: (v: View) => string };
 
 const BEIGE = "#e8d2ae";
 const HEAD = "M144 20C200 20 214 66 207 100C202 126 190 141 144 144C98 141 86 126 81 100C74 66 88 20 144 20Z";
-const TORSO = "M139 146Q122 149 118 156L114 218Q114 222 118 222L170 222Q174 222 174 218L170 156Q166 149 149 146Z";
+const TORSO = "M139 146Q122 149 118 156L114 214Q114 222 128 222L160 222Q174 222 174 214L170 156Q166 149 149 146Z";
 const LEGL = "M114 204L114 264Q114 270 121 270L134 270Q140 270 140 264L141 204Z";
 const LEGR = "M174 204L174 264Q174 270 167 270L154 270Q148 270 148 264L147 204Z";
 const ARML = "M121 163Q106 180 93 199Q90 206 97 206L104 205Q108 209 112 205L119 188Z";
@@ -31,7 +31,7 @@ const mirror = (d: string) =>
   d.replace(/([MLQC])([^MLQCZ]+)/g, (_, c: string, args: string) => c + args.trim().split(/[\s,]+/).map((v, i) => (i % 2 === 0 ? String(288 - parseFloat(v)) : v)).join(" "));
 const ARMR = mirror(ARML);
 
-const SIDE_LEG = (x: number) => `M${x} 204v60q0 6 6 6h22q4 0 2-6l-8-6v-54Z`;
+const SIDE_LEG = (x: number) => `M${x} 204v60q0 6 6 6h20q4 0 2-6l-8-6v-54Z`;
 const SIDE_TORSO = "M132 148Q124 152 122 160L124 214Q126 222 144 222Q162 222 164 214L162 160Q160 150 150 147Z";
 const SIDE_ARM = "M137 156q2 8 4 20q2 16 3 26q2 8 9 6q6-2 4-8l-3-26q-1-14-4-20q-6-6-13 2Z";
 
@@ -64,19 +64,10 @@ const LEAF = "M144 18q-2-14 10-18q4 10-10 18Z";
 
 type Ctx = { kind: Kind; frame: Frame; skin: string; top: string; bot: string; shoe: string; w: Wear };
 
-/** 팔 + 소매: 소매 색은 팔 모양 안에서만 칠하고 소매 끝선을 긋는다.
- *  윤곽선(armLine)을 먼저 긋고 살·소매(armFill)를 나중에 칠하면, 몸통 속으로 들어간 팔 윤곽은 몸통 색에 덮여
- *  어깨에서 팔이 한 덩어리로 이어져 나온다 */
-const armLine = (d: string) => L(d, 4.5);
-const armFill = (d: string, sy: number, top: string, skin: string) => {
+/** 팔 + 소매: 소매 색은 팔 모양 안에서만 칠하고 소매 끝선을 긋는다 */
+const armS = (d: string, sy: number, top: string, skin: string) => {
   const id = nid("a");
-  return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, skin)}<g clip-path="url(#${id})">${F(Rc(60, 100, 180, sy - 100), top)}${L(`M60 ${sy}H240`, 3.5)}</g>`;
-};
-/** 옆모습 팔: 몸 앞에 오므로 윤곽을 긋되, 어깨 쪽은 서서히 투명해지게 해 몸통에서 자라 나온 것처럼 보이게 한다 */
-const armSide = (d: string, sy: number, top: string, skin: string) => {
-  const m = nid("m"), g = nid("g");
-  const mask = `<linearGradient id="${g}" gradientUnits="userSpaceOnUse" x1="0" y1="152" x2="0" y2="164"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient><mask id="${m}" maskUnits="userSpaceOnUse" x="0" y="0" width="288" height="288"><rect width="288" height="288" fill="url(#${g})"/></mask>`;
-  return `${mask}<g mask="url(#${m})">${armFill(d, sy, top, skin)}${armLine(d)}</g>`;
+  return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, skin)}<g clip-path="url(#${id})">${F(Rc(60, 100, 180, sy - 100), top)}${L(`M60 ${sy}H240`, 3.5)}</g>${L(d, 4.5)}`;
 };
 /** 다리 + 바지 + 신발 (다리 모양 그대로 잘라 입힌다) */
 const leg = (c: Ctx, d: string, line: string) => {
@@ -84,13 +75,11 @@ const leg = (c: Ctx, d: string, line: string) => {
   const pants = c.w.bottom?.skirt ? "" : F(Rc(60, 200, 160, c.w.bottom?.long ? 70 : 22), c.bot);
   return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, c.skin)}<g clip-path="url(#${id})">${pants}${F(Rc(60, 256, 160, 20), c.shoe)}</g>${L(d, 4.5)}${L(line, 3)}`;
 };
-/** 몸통 + 아랫단(하의 색). 윤곽(torsoLine)과 색(torsoFill)을 나눠, 그 사이에 팔·다리를 그려 넣으면
- *  몸통 색이 팔·다리 윗부분을 덮어 이음새 없이 이어진다 */
-const torsoLine = (d: string) => L(d, 5);
-const torsoFill = (c: Ctx, d: string) => {
+/** 몸통 + 아랫단(하의 색) */
+const torso = (c: Ctx, d: string) => {
+  const id = nid("t");
   const band = c.w.bottom?.skirt ? c.w.bottom.color : c.bot;
-  // 윗옷·아랫단을 몸통 모양이 아니라 가로선으로 나눠 자른다: 크레용 면의 번진 가장자리가 다리 위에 다른 색으로 남지 않게
-  return clip(Rc(0, 0, 288, 199), F(d, c.top)) + clip(Rc(0, 198, 288, 90), F(d, band));
+  return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, c.top)}<g clip-path="url(#${id})">${F(Rc(60, 198, 160, 30), band)}</g>${L(d, 5)}`;
 };
 const sleeveY = (c: Ctx, side: boolean) => (c.w.top?.longSleeve ? (side ? 198 : 196) : side ? 180 : 189);
 
@@ -98,16 +87,14 @@ const sleeveY = (c: Ctx, side: boolean) => (c.w.top?.longSleeve ? (side ? 198 : 
 function bodyFB(c: Ctx, v: View): string {
   const f = c.frame, bob = f ? -3 : 0;
   const liftL = f === 1 ? -7 : 0, liftR = f === 2 ? -7 : 0, swing = f === 1 ? 6 : f === 2 ? -6 : 0;
-  const sy = sleeveY(c, false);
-  const up = (x: string) => `<g transform="translate(0 ${bob})">${x}</g>`;
-  const armL = (x: string) => `<g transform="rotate(${swing} 119 162)">${x}</g>`, armR = (x: string) => `<g transform="rotate(${-swing} 169 162)">${x}</g>`;
-  // 윤곽(몸통·팔) → 다리 → 팔 색 → 몸통 색 순서: 몸통 색이 팔·다리 뿌리를 덮어 한 몸으로 이어진다
-  let s = up(torsoLine(TORSO) + armL(armLine(ARML)) + armR(armLine(ARMR)));
+  let s = "";
   s += `<g transform="translate(0 ${liftL})">${leg(c, LEGL, "M114 256h26")}${bootF(c, 112)}</g>`;
   s += `<g transform="translate(0 ${liftR})">${leg(c, LEGR, "M148 256h26")}${bootF(c, 146)}</g>`;
   s += `<g transform="translate(0 ${bob})">`;
-  s += armL(armFill(ARML, sy, c.top, c.skin)) + armR(armFill(ARMR, sy, c.top, c.skin));
-  s += torsoFill(c, TORSO);
+  const sy = sleeveY(c, false);
+  s += `<g transform="rotate(${swing} 119 162)">${armS(ARML, sy, c.top, c.skin)}</g>`;
+  s += `<g transform="rotate(${-swing} 169 162)">${armS(ARMR, sy, c.top, c.skin)}</g>`;
+  s += torso(c, TORSO);
   if (c.w.bottom?.skirt) s += S("M115 200h58l10 34q-39 10 -78 0Z", c.w.bottom.color, 4.5) + L("M132 204l-6 28M156 204l6 28", 2.5);
   s += c.w.top?.deco?.(v) ?? "";
   s += "</g>";
@@ -156,13 +143,10 @@ function side(c: Ctx): string {
     const boot = c.w.shoes?.boots ? S(`M${x - 2} 238h28v26q0 6-6 6h-22Z`, c.shoe, 4) : "";
     return `<g transform="rotate(${rot} 144 206)">${leg(c, d, `M${x} 256h24`)}${boot}</g>`;
   };
-  const lift = `translate(0 -${c.frame ? 3 : 0})`;
-  // 몸통 윤곽 → 다리 → 몸통 색: 다리 뿌리가 몸통 속으로 들어가 이음새가 보이지 않는다
-  o += `<g transform="${lift}">${torsoLine(SIDE_TORSO)}</g>`;
-  o += sideLeg(131, -sw) + sideLeg(136, sw);
-  o += `<g transform="${lift}">`;
+  o += sideLeg(134, -sw) + sideLeg(136, sw);
+  o += `<g transform="translate(0 -${c.frame ? 3 : 0})">`;
   const H = c.kind === "mannequin" ? null : HAIRS[c.kind];
-  o += torsoFill(c, SIDE_TORSO);
+  o += torso(c, SIDE_TORSO);
   if (c.w.bottom?.skirt) o += S("M122 200h44l12 34q-34 10-68 0Z", c.w.bottom.color, 4.5) + L("M140 204l-4 28", 2.5);
   o += c.w.top?.deco?.("side") ?? "";
   // 머리는 앞모습과 같은 동그란 두상을 몸 한가운데 위에 얹고, 머리카락이 뒤통수·정수리를 덮는다
@@ -173,7 +157,7 @@ function side(c: Ctx): string {
     if (c.kind === "visitor") o += S(LEAF, "#6fb34f", 3.5);
   }
   o += c.w.hat?.draw("side") ?? "";
-  o += `<g transform="rotate(${-sw * 2} 143 160)">${armSide(SIDE_ARM, sleeveY(c, true), c.top, c.skin)}</g>`;
+  o += `<g transform="rotate(${-sw * 2} 143 160)">${armS(SIDE_ARM, sleeveY(c, true), c.top, c.skin)}</g>`;
   o += "</g>";
   return o + (c.w.shoes?.deco?.("side") ?? "");
 }
