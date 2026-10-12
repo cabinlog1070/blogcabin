@@ -68,13 +68,14 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
       {sp.new && isOwner && viewerId && <ClearDraft userId={viewerId} />}
       {sp.new && (
         <div className="card mb-6 border-sun bg-honey p-4 text-center">
-          {t("🎉 글을 발행했어요!")}{" "}
+          {/* 첫 줄은 발행 알림, 다음 줄에 보상 결과 */}
+          <p className="font-bold">{t("🎉 글을 발행했어요!")}</p>
           {sp.new === "reward" ? (
-            <b>
+            <b className="mt-1 block">
               {t("✨ 경험치 {exp} · 🪙 {coins} 코인을 받았어요", { exp: REWARD_RULES.post.exp, coins: REWARD_RULES.post.coins })}
             </b>
           ) : (
-            <span className="text-ink-soft">
+            <span className="mt-1 block text-ink-soft">
               {/* 보상을 못 받은 실제 이유 하나만 말한다 (savePost가 new=private|short|limit로 넘긴다) */}
               {sp.new === "private"
                 ? t("(서로 이웃만 보는 비공개 글이라 보상은 없어요)")
