@@ -175,3 +175,10 @@ body {
     animation: none;
   }
 }
+
+/* 일본어는 띄어쓰기가 없어서 keep-all(단어 안 끊기)이면 한 문장이 통째로 한 줄이 되어 칸 밖으로 넘친다.
+   일본어 화면에서는 글자 단위 줄바꿈으로 되돌린다 (회원이 쓴 글 본문 .prose-blog는 그대로) */
+html:lang(ja) .break-keep {
+  word-break: normal;
+  line-break: strict;
+}
