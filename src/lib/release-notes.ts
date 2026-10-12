@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.9.4",
+        title: msg("일본어 화면 글쓰기 이름"),
+        changes: [
+          { kind: "improved", text: msg("일본어 화면에서 「記事を書く」라고 보이던 글쓰기 버튼과 안내를 「ブログを書く」로 바꿨어요.") },
+        ],
+      },
+      {
         version: "1.9.3",
         title: msg("보상 못 받은 이유 알려 주기"),
         changes: [
