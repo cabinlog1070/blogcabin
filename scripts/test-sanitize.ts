@@ -78,6 +78,8 @@ if (failed) process.exit(1);
   expect("크기·색 남김", out, out.includes("font-size:24px") && out.includes("color:#b83a29") && out.includes("background-color:rgb(255, 243, 191)"));
   out = sanitizePostHtml('<p style="line-height: 2.2">넓게</p><h3 style="line-height: 1.4; text-align: center">좁게</h3><p style="line-height: 9">x</p>');
   expect("줄 간격 남김", out, out === '<p style="line-height:2.2">넓게</p><h3 style="line-height:1.4;text-align:center">좁게</h3><p>x</p>');
+  out = sanitizePostHtml('<p style="line-height: 1.0">아주 좁게</p>');
+  expect("줄 간격 1.0 남김", out, out === '<p style="line-height:1.0">아주 좁게</p>');
   out = sanitizePostHtml('<p style="position: fixed; text-align: justify"><span style="background-color: url(javascript:alert(1)); font-size: 900px">x</span></p>');
   expect("다른 style 지움", out, !/position|justify|url|900px/.test(out));
   if (bad) process.exit(1);

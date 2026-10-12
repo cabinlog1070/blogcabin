@@ -42,7 +42,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         title: msg("글 본문 칸 넘침 고침, 줄 간격 좁게"),
         changes: [
           { kind: "fixed", text: msg("글 읽는 화면에서 붙여 넣은 글 등의 띄어쓰기에서 줄이 안 바뀌어 본문이 칸 밖으로 넘치던 문제를 고쳤어요.") },
-          { kind: "improved", text: msg("글 본문의 기본 줄 간격을 조금 좁혔어요. 글쓰기에서 더 좁은 간격(1.2)도 고를 수 있어요.") },
+          { kind: "improved", text: msg("글 본문의 기본 줄 간격을 1.2로 좁혔어요. 글쓰기에서 더 좁은 간격(1.0)도 고를 수 있어요.") },
         ],
       },
       {
