@@ -5,13 +5,26 @@ import { FurnitureArt, MiniRoom, type RoomFurniture } from "@/components/charact
 import { useT } from "@/components/i18n";
 import { IconEmoji } from "@/components/icon-emoji";
 import { ItemArt } from "@/components/item-art";
-import { canWear, composeLook, furnitureInfo, MANNEQUIN, SLOT_LABEL, SLOT_ORDER, type AvatarSlot } from "@/lib/assets";
+import {
+  canWear,
+  composeLook,
+  FURNITURE_COLOR_KEYS,
+  FURNITURE_COLORS,
+  furnitureInfo,
+  isFurnitureColor,
+  MANNEQUIN,
+  paintedFurnitureKey,
+  SLOT_LABEL,
+  SLOT_ORDER,
+  type AvatarSlot,
+  type FurnitureColor,
+} from "@/lib/assets";
 import { HOUSE_STAGES, houseSvg, ROOF_COLORS, roofHex, type HouseStage, type RoofColor } from "@/lib/art/town";
 import { msg } from "@/lib/i18n";
 import { clampPct, MAX_FURNITURE, type ItemType } from "@/lib/shop";
-import { equipItem, placeFurniture, removeFurniture, setAvatarWear, setRoofColor } from "./actions";
+import { equipItem, placeFurniture, removeFurniture, setAvatarWear, setFurnitureColor, setRoofColor } from "./actions";
 
-type OwnedItem = { id: number; type: ItemType; slot: AvatarSlot | null; name: string; assetKey: string };
+type OwnedItem = { id: number; type: ItemType; slot: AvatarSlot | null; name: string; assetKey: string; color?: string | null };
 type Message = { ok: boolean; text: string } | null;
 type Worn = Partial<Record<AvatarSlot, number>>;
 
@@ -59,6 +72,11 @@ export function ClosetView({
   );
   const [drag, setDrag] = useState<Drag | null>(null);
   const [roof, setRoof] = useState<string | null>(roofColor);
+  // 가구 색 (SHOP-05): 가구 id → 고른 색 (없으면 기본 색)
+  const [colors, setColors] = useState<Record<number, FurnitureColor | null>>(() =>
+    Object.fromEntries(items.filter((i) => i.type === "furniture").map((i) => [i.id, isFurnitureColor(i.color) ? i.color : null])),
+  );
+  const [paintId, setPaintId] = useState<number | null>(() => items.find((i) => i.type === "furniture")?.id ?? null);
   const [message, setMessage] = useState<Message>(null);
   const [pending, start] = useTransition();
 
@@ -132,6 +150,26 @@ export function ClosetView({
   }
 
   // ===== 가구 (SHOP-05) =====
+  /** 고른 색을 붙인 가구 키 */
+  const painted = (item: OwnedItem) => (item.type === "furniture" ? paintedFurnitureKey(item.assetKey, colors[item.id]) : item.assetKey);
+
+  function paint(item: OwnedItem, color: FurnitureColor | null) {
+    const before = { colors, placed };
+    const key = paintedFurnitureKey(item.assetKey, color);
+    setColors({ ...colors, [item.id]: color });
+    setPlaced(placed.map((f) => (f.id === item.id ? { ...f, assetKey: key } : f)));
+    save(
+      () => {
+        setColors(before.colors);
+        setPlaced(before.placed);
+      },
+      () => setFurnitureColor(item.id, color),
+      color
+        ? t("{name} 색을 {color}(으)로 바꿨어요 ✓", { name: t(item.name), color: t(FURNITURE_COLORS[color].name) })
+        : t("{name}을(를) 기본 색으로 되돌렸어요 ✓", { name: t(item.name) }),
+    );
+  }
+
   function place(item: OwnedItem, x: number, y: number) {
     const before = placed;
     const already = placed.some((f) => f.id === item.id);
@@ -139,7 +177,7 @@ export function ClosetView({
       setMessage({ ok: false, text: t("가구는 {max}개까지 놓을 수 있어요", { max: MAX_FURNITURE }) });
       return;
     }
-    const spot = { id: item.id, assetKey: item.assetKey, x: clampPct(x), y: clampPct(y) };
+    const spot = { id: item.id, assetKey: painted(item), x: clampPct(x), y: clampPct(y) };
     setPlaced(already ? placed.map((f) => (f.id === item.id ? spot : f)) : [...placed, spot]);
     save(() => setPlaced(before), () => placeFurniture(item.id, spot.x, spot.y), t("{name} 배치를 저장했어요 ✓", { name: t(item.name) }), FAIL_PLACE);
   }
@@ -215,7 +253,7 @@ export function ClosetView({
       {...extra}
       className={`card p-2 text-center transition hover:-translate-y-0.5 ${on ? "border-sun! bg-honey" : ""} ${item.type === "furniture" ? "touch-none select-none" : ""}`}
     >
-      <ItemArt type={item.type} assetKey={item.assetKey} className="pointer-events-none h-20" characterSize={70} wearer={wearer} />
+      <ItemArt type={item.type} assetKey={painted(item)} className="pointer-events-none h-20" characterSize={70} wearer={wearer} />
       <span className="mt-1 block text-sm font-bold">
         {on && "✓ "}
         {t(item.name)}
@@ -229,6 +267,7 @@ export function ClosetView({
     .sort((a, b) => SLOT_ORDER.indexOf(a.slot!) - SLOT_ORDER.indexOf(b.slot!) || a.id - b.id);
   const furniture = items.filter((i) => i.type === "furniture");
   const characters = items.filter((i) => i.type === "character");
+  const paintItem = furniture.find((i) => i.id === paintId) ?? furniture[0];
 
   return (
     <>
@@ -255,7 +294,7 @@ export function ClosetView({
           className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-1/2 opacity-90 drop-shadow-lg"
           style={{ left: drag.x, top: drag.y, height: drag.height, aspectRatio: String(furnitureInfo(drag.item.assetKey).aspect) }}
         >
-          <FurnitureArt assetKey={drag.item.assetKey} className="h-full w-full" />
+          <FurnitureArt assetKey={painted(drag.item)} className="h-full w-full" />
         </div>
       )}
 
@@ -300,6 +339,62 @@ export function ClosetView({
           t("아직 가구가 없어요. 상점에서 가구를 사 보세요."),
         )}
       </section>
+
+      {/* 가구 색 (SHOP-05, 2026-10-13): 가진 가구마다 방 테마에 맞춰 색을 고른다. 무료 */}
+      {paintItem && (
+        <section className="mt-8" data-furniture-color-section>
+          <h2 className="mb-1 font-display text-2xl">
+            <IconEmoji name="furniture" emoji="🎨" size={30} className="-mt-1" /> {t("가구 색")}
+          </h2>
+          <p className="mb-3 text-sm text-ink-soft">{t("방 테마에 맞춰 가구 색을 골라요. 무료이고 언제든 바꿀 수 있어요.")}</p>
+          <div className="card flex flex-wrap items-center gap-4 p-4">
+            <div className="grid h-32 w-32 shrink-0 place-items-center rounded-xl bg-cream p-2" data-furniture-color-preview={colors[paintItem.id] ?? "default"}>
+              <FurnitureArt assetKey={painted(paintItem)} className="max-h-full max-w-full object-contain" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("색을 바꿀 가구")}>
+                {furniture.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={item.id === paintItem.id}
+                    onClick={() => setPaintId(item.id)}
+                    className={`rounded-full border-2 px-3 py-1 text-sm font-bold transition ${item.id === paintItem.id ? "border-ink bg-honey" : "border-line bg-paper"}`}
+                  >
+                    {t(item.name)}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label={t("{name} 색", { name: t(paintItem.name) })}>
+                {FURNITURE_COLOR_KEYS.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="radio"
+                    aria-checked={colors[paintItem.id] === key}
+                    aria-label={t(FURNITURE_COLORS[key].name)}
+                    title={t(FURNITURE_COLORS[key].name)}
+                    disabled={pending}
+                    onClick={() => paint(paintItem, key)}
+                    className={`h-10 w-10 rounded-full border-4 transition hover:-translate-y-0.5 ${colors[paintItem.id] === key ? "border-ink" : "border-white shadow-[0_0_0_2px_var(--color-line)]"}`}
+                    style={{ background: FURNITURE_COLORS[key].main }}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                disabled={pending || !colors[paintItem.id]}
+                onClick={() => paint(paintItem, null)}
+                aria-pressed={!colors[paintItem.id]}
+                className="btn mt-3 bg-paper py-1.5 text-sm text-ink"
+              >
+                {t("기본 색")}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 광장 내 집 지붕 색 (TOWN-07): 무료, 배경과 상관없이. 미리 보기는 내 레벨의 집 단계로 (TOWN-11) */}
       <section className="mt-8" data-roof-section>

@@ -30,6 +30,19 @@ const mixHex = (a: string, b: string, t: number) => {
 };
 const PASTEL_LINE = "#7b5a44";
 
+// 가구 색 바꾸기 (SHOP-05): withPaint(색 바꿈표, () => 그림) 안에서 그리면 F·S·L이 표에 있는 색을 바꿔 칠한다
+let PAINT: Record<string, string> | null = null;
+export function withPaint<R>(paint: Record<string, string> | null, draw: () => R): R {
+  const before = PAINT;
+  PAINT = paint;
+  try {
+    return draw();
+  } finally {
+    PAINT = before;
+  }
+}
+const paint = (c: string) => PAINT?.[c.toLowerCase()] ?? c;
+
 let seq = 0;
 /** 그림 하나 안에서만 쓰는 id */
 export const nid = (p: string) => `${p}${(seq++).toString(36)}`;
@@ -55,12 +68,14 @@ export function make(w: number, h: number, draw: () => string, opts: Parameters<
 
 // ───────── 붓 ─────────
 /** 면: 단색 (종이 결은 그림 전체에 한 번에 입힌다 — svg의 grain). op < 1 이면 반투명 덧칠 */
-export const F = (d: string, c: string, op = 1) =>
+export const F = (d: string, c: string, op = 1) => Fill(d, paint(c), op);
+const Fill = (d: string, c: string, op: number) =>
   PASTEL && op >= 1
     ? `<path d="${d}" fill="${mixHex(c, "#ffffff", 0.12)}" opacity=".6"/><path d="${d}" fill="${mixHex(c, "#ffffff", 0.12)}" filter="url(#pz)"/>`
     : op < 1 ? `<path d="${d}" fill="${c}" opacity="${op}" filter="url(#fg)"/>` : `<path d="${d}" fill="${c}"/>`;
 /** 크레용 선: 가는 심(끊기지 않는 선) + 거친 크레용 결 두 번(한 묶음으로 한 번에 거칠게 해 필터 수를 줄인다) */
 export const L = (d: string, w = 5, color = INK) => {
+  color = paint(color);
   if (PASTEL) {
     const c = color === INK ? PASTEL_LINE : color;
     // 가는 선(눈썹·입·무늬)은 결을 넣으면 끊겨서 또렷하게 그린다
@@ -79,7 +94,7 @@ export const S = (d: string, c: string, w = 5, shade?: string) => {
     o += `<clipPath id="${id}"><path d="${d}"/></clipPath><g clip-path="url(#${id})">${F(shade, "#000", PASTEL ? 0.07 : 0.13)}</g>`;
   }
   // 파스텔: 테두리는 면 색을 조금 진하게 한 크레용
-  if (PASTEL) return o + `<path d="${d}" fill="none" stroke="${mixHex(c, "#3a2a1a", 0.28)}" stroke-width="${+(w * 1.5).toFixed(1)}" stroke-linejoin="round" filter="url(#pz)"/>`;
+  if (PASTEL) return o + `<path d="${d}" fill="none" stroke="${mixHex(paint(c), "#3a2a1a", 0.28)}" stroke-width="${+(w * 1.5).toFixed(1)}" stroke-linejoin="round" filter="url(#pz)"/>`;
   return o + L(d, w);
 };
 /** 모양 안에만 그리기 */
@@ -470,6 +485,24 @@ const arcBand = (cx: number, cy: number, R: number, r: number, c: string) =>
 /** 반짝이 별 */
 const twinkle = (x: number, y: number, r: number, c = "#f6d54a") => F(`M${x} ${y - r}q${r * 0.2} ${r * 0.8} ${r} ${r}q${-r * 0.8} ${r * 0.2} ${-r} ${r}q${-r * 0.2} ${-r * 0.8} ${-r} ${-r}q${r * 0.8} ${-r * 0.2} ${r} ${-r}Z`, c);
 
+/** 색을 바꿀 수 있는 가구의 칠할 자리: 그림에 쓴 색 → 고른 색의 어느 톤(main 본색·dark 진한 색·light 옅은 색)으로 바꿀지 */
+export const FURN_PAINT: Record<string, Record<string, "main" | "dark" | "light">> = {
+  "furn.plant": { "#e0784a": "main", "#c9603a": "dark" },
+  "furn.chair": { "#f28fa8": "main" },
+  "furn.lamp": { "#fff1b8": "main" },
+  "furn.desk": { "#c98f5a": "main", "#b07a48": "dark" },
+  "furn.bed": { "#8ccfe8": "main", "#4f8fe0": "dark" },
+  "furn.bookshelf": { "#b07a48": "main", "#c98f5a": "light" },
+  "furn.tv": { "#f2a7a0": "main" },
+  "furn.teddy": { "#c98f5a": "main", "#b07a48": "dark" },
+  "furn.rug": { "#f5b8c8": "main", "#b9dcf0": "light" },
+  "furn.console": { "#d9ccf2": "main" },
+  "furn.rocket": { "#f28fa8": "main", "#8ccfe8": "dark" },
+  "furn.basket": { "#e2b47c": "main", "#c98f5a": "dark" },
+  "furn.cloud": { "#ffffff": "main" },
+  "furn.rainbow": { "#ffffff": "main" },
+};
+
 const FURN_DRAW: Record<string, () => string> = {
   // 책장: 세 칸에 알록달록한 책, 맨 아래 칸엔 작은 화분
   "furn.bookshelf": () =>
@@ -517,7 +550,7 @@ const FURN_DRAW: Record<string, () => string> = {
     S("M66 226l-42 64h52Z", "#f28fa8", 5) + S("M154 226l42 64h-52Z", "#f28fa8", 5) +
     S("M110 20q58 62 50 270H60q-8-208 50-270Z", "#f4efe6", 5, "M134 30q38 80 26 260h-26Z") +
     S("M110 20q32 34 42 76H68q10-42 42-76Z", "#f28fa8", 5) +
-    S(Rc(62, 216, 96, 18, 6), "#8ccfe8", 4) + S(E(110, 152, 32), "#c9c9d6", 5) + S(E(110, 152, 21), "#8ccfe8", 4) + L("M98 142q6-6 14-6", 3, "#ffffff") +
+    S(Rc(62, 216, 96, 18, 6), "#8ccfe8", 4) + S(E(110, 152, 32), "#c9c9d6", 5) + S(E(110, 152, 21), "#9fd6e8", 4) + L("M98 142q6-6 14-6", 3, "#ffffff") +
     S("M84 290h52l-8 14H92Z", "#9a9aa8", 4.5) +
     twinkle(30, 60, 12) + twinkle(196, 120, 10) + twinkle(28, 190, 8, "#c6b0ec"),
   // 꽃바구니: 엮은 바구니에 알록달록한 꽃

@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from "react";
 import { PetArt } from "@/components/pet-art";
 import { faceFrame } from "@/lib/art/characters";
-import { backgroundDataUri, characterDataUri, furnitureDataUri, furnitureInfo } from "@/lib/assets";
+import { backgroundDataUri, characterDataUri, furnitureDataUri, furnitureInfo, parseFurnitureKey } from "@/lib/assets";
 import type { AnimalStage, PetAccessory } from "@/lib/farm";
 import { makeT, type Locale } from "@/lib/i18n";
 
@@ -91,7 +91,8 @@ export function MiniRoom({
         return (
           <div
             key={f.id}
-            data-furniture={f.assetKey}
+            data-furniture={parseFurnitureKey(f.assetKey).assetKey}
+            data-furniture-color={parseFurnitureKey(f.assetKey).color ?? undefined}
             {...furnitureProps?.(f)}
             className={`absolute -translate-x-1/2 -translate-y-1/2 drop-shadow ${furnitureProps ? "cursor-grab touch-none select-none" : ""} ${hiddenFurnitureId === f.id ? "opacity-0" : ""}`}
             style={{
