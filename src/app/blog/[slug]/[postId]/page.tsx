@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CommentSection } from "@/components/blog/comment-section";
 import { DeletePostButton } from "@/components/blog/delete-post-button";
 import { LikeButton } from "@/components/blog/like-button";
+import { PostBody, PostTitle, PostTranslateProvider, TranslateBar } from "@/components/blog/post-translate";
 import { ViewCount } from "@/components/blog/view-count";
 import { ClearDraft } from "@/components/editor/clear-draft";
 import { CharacterBadge } from "@/components/character";
@@ -21,6 +22,7 @@ import {
 import { getViewer } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
 import { categoryLabel } from "@/lib/i18n";
+import { detectPostLanguage } from "@/lib/translate";
 
 async function load(props: PageProps<"/blog/[slug]/[postId]">) {
   const { slug, postId } = await props.params;
@@ -96,6 +98,13 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
         <span>· {blog.nickname}</span>
       </Link>
 
+      {/* 다른 말로 쓴 글이면 제목·본문을 번역해 보여 줄 수 있게 감싼다 (POST-10). 안쪽은 다른 PR과 겹치지 않게 들여쓰기를 그대로 둔다 */}
+      <PostTranslateProvider
+        from={detectPostLanguage(`${post.title}\n${post.contentText}`)}
+        title={post.title}
+        html={post.contentHtml}
+        text={post.contentText}
+      >
       <article className="card p-6 sm:p-10">
         <header className="border-b-2 border-dashed border-line pb-5">
           <div className="mb-2 flex flex-wrap gap-2 text-xs font-bold">
@@ -106,7 +115,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
             )}
             {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">{t("🔒 서로 이웃 공개")}</span>}
           </div>
-          <h1 className="font-display text-3xl leading-snug sm:text-4xl">{post.title}</h1>
+          <PostTitle title={post.title} />
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
             <span>{formatDateTime(post.createdAt, locale)}</span>
             <ViewCount postId={post.id} initial={post.viewCount} isOwner={isOwner} />
@@ -119,8 +128,10 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
           </div>
         </header>
 
+        {/* 다른 말로 쓴 글이면 번역 버튼 (POST-10) */}
+        <TranslateBar />
         {/* 저장할 때 sanitize-html로 정화한 HTML만 넣는다 */}
-        <div className="prose-blog mt-6" dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
+        <PostBody html={post.contentHtml} />
 
         {tagNames.length > 0 && (
           <ul className="mt-8 flex flex-wrap gap-2">
@@ -159,6 +170,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
           )}
         />
       </article>
+      </PostTranslateProvider>
 
       <nav className="mt-6 grid gap-3 sm:grid-cols-2" aria-label={t("이전 글, 다음 글")}>
         {adjacent.prev ? (
