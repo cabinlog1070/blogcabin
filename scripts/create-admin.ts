@@ -71,10 +71,10 @@ async function main() {
         if (taken && taken.ownerId !== user.id) {
           throw new Error(`블로그 주소 ${NOTICE_SLUG}를 이미 다른 회원이 쓰고 있어요. 그 블로그를 먼저 정리해 주세요`);
         }
-        const [character] = await tx.select({ id: items.id }).from(items).where(eq(items.code, "char_boy"));
+        const [character] = await tx.select({ id: items.id }).from(items).where(eq(items.code, "char_girl"));
         const [background] = await tx.select({ id: items.id }).from(items).where(eq(items.code, "bg_meadow"));
         if (!character || !background) throw new Error("아이템이 없어요. 먼저 npm run db:seed 를 실행해 주세요");
-        // 일반 회원과 똑같이 기본 캐릭터 하나 + 초원 (GAME-01)
+        // 기본 캐릭터 하나 + 초원 (GAME-01). 관리자는 여자 주민으로 시작한다
         await tx
           .insert(userItems)
           .values([{ userId: user.id, itemId: character.id }, { userId: user.id, itemId: background.id }])

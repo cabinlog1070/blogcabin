@@ -35,6 +35,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       { kind: "new", text: msg("환경 설정의 기본 정보에서 닉네임을 바꿀 수 있어요. 2~12자이고, 다른 주민이 쓰는 닉네임은 쓸 수 없어요.") },
       { kind: "fixed", text: msg("아이폰(사파리)에서 크레용 그림이 뭉개져 보이던 문제를 고쳤어요.") },
       { kind: "improved", text: msg("비공개 글도 언제나 볼 수 있어요."), admin: true },
+      { kind: "improved", text: msg("관리자 캐릭터가 여자 주민으로 바뀌었어요."), admin: true },
     ],
   },
   {
