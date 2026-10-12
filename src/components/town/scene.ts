@@ -67,6 +67,7 @@ import {
   STUMP_SIZE,
   stumpSvg,
 } from "@/lib/art/props";
+import { softFlowerBlue, softFlowerPink, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
@@ -203,6 +204,10 @@ export function townTextures(data: TownData, t: T) {
   list.set("lamp", toDataUri(lampSvg()));
   list.set("farm", toDataUri(farmSvg()));
   for (const kind of ["round", "pine", "bush", "blossom"] as const) list.set(`tree:${kind}`, toDataUri(treeSvg(kind)));
+  // 둘레 숲: 파스텔 크레용 그림체 (2026-10-12 정지원 님 시안)
+  for (const kind of ["green", "lime", "blossom"] as const) list.set(`soft:${kind}`, toDataUri(softTree(kind)));
+  list.set("soft:flower-blue", toDataUri(softFlowerBlue()));
+  list.set("soft:flower-pink", toDataUri(softFlowerPink()));
   for (const [kind, art] of Object.entries(PROP_ART)) list.set(propKey(kind as PropKind), toDataUri(art.draw()));
   return [...list].map(([key, uri]) => ({ key, uri }));
 }
@@ -943,17 +948,17 @@ export function createTownScene(
           const skip = out < 110 ? 0.05 : out < 260 ? 0.35 : 0.55;
           if (rng.frac() < skip) {
             if (rng.frac() < 0.5) {
-              const kind = rng.pick(["flowers", "flowers", "grass"] as const);
-              const { width, height } = PROP_ART[kind].size;
-              this.add.image(tx, ty, propKey(kind)).setOrigin(0.5, 1).setDisplaySize(width * 0.9, height * 0.9).setDepth(ty);
+              const key = rng.pick(["soft:flower-blue", "soft:flower-pink", "soft:flower-pink"]);
+              const s = rng.realInRange(0.8, 1.05);
+              this.add.image(tx, ty, key).setOrigin(0.5, 1).setDisplaySize(FLOWERS_SIZE.width * s, FLOWERS_SIZE.height * s).setDepth(ty);
             }
             continue;
           }
-          // 소나무 위주로, 꽃나무·덤불을 섞어 밝게
-          const kind = rng.pick(["pine", "pine", "pine", "pine", "pine", "blossom", "blossom", "round", "bush", "bush"]);
-          const scale = kind === "bush" ? rng.realInRange(0.8, 1) : rng.realInRange(0.95, 1.25);
+          // 몽글몽글한 파스텔 나무: 초록 위주로 연두·분홍을 섞는다
+          const kind = rng.pick(["green", "green", "green", "lime", "lime", "blossom"]);
+          const scale = rng.realInRange(0.95, 1.3);
           this.add
-            .image(tx, ty, `tree:${kind}`)
+            .image(tx, ty, `soft:${kind}`)
             .setOrigin(0.5, 1)
             .setDisplaySize(TREE_SIZE.width * scale, TREE_SIZE.height * scale)
             .setDepth(ty);
