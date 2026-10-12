@@ -254,21 +254,18 @@ export const FIREWORK_PALETTES = {
 } as const;
 export type FireworkPalette = keyof typeof FIREWORK_PALETTES;
 
-/** 크레용 불꽃 (240×240): 가운데서 뻗는 굽은 줄기, 몇 줄은 끝이 꼬불꼬불, 둘레에 작은 점 */
+/** 크레용 불꽃 (240×240): 가운데서 곧게 뻗는 줄기 + 둘레에 작은 점 */
 export function softFirework(kind: FireworkPalette): string {
   const cols = FIREWORK_PALETTES[kind];
   return make(240, 240, () => {
     let o = "";
-    const n = 14;
+    // 곧은 줄기만 (꼬불꼬불한 꼬리는 2026-10-12 정지원 님 요청으로 뺐다)
+    const n = 16;
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2;
+      const a = (i / n) * Math.PI * 2 + 0.1; // 딱 가로·세로인 선은 필터 영역이 0이 되어 안 그려진다
       const r0 = 24 + (i % 2) * 8, r1 = 74 + ((i * 5) % 3) * 12;
-      const bend = (((i * 7) % 5) - 2) * 0.05;
-      const p = (r: number, da = 0) => [120 + Math.cos(a + da) * r, 120 + Math.sin(a + da) * r].map((v) => v.toFixed(1)).join(" ");
-      let d = `M${p(r0)}Q${p((r0 + r1) / 2, bend)} ${p(r1, bend * 1.6)}`;
-      // 몇 줄은 끝을 꼬불꼬불하게 (시안의 번개 같은 꼬리)
-      if (i % 5 === 2) d += `Q${p(r1 - 14, bend * 1.6 + 0.22)} ${p(r1 - 6, bend * 1.6 + 0.3)}Q${p(r1 + 2, bend * 1.6 + 0.4)} ${p(r1 - 12, bend * 1.6 + 0.48)}`;
-      o += pastel(`<path d="${d}" fill="none" stroke="${cols[i % 3]}" stroke-width="${i % 3 === 2 ? 7 : 8}" stroke-linecap="round" stroke-linejoin="round"/>`, 3, 81 + i);
+      const p = (r: number) => [120 + Math.cos(a) * r, 120 + Math.sin(a) * r].map((v) => v.toFixed(1)).join(" ");
+      o += pastel(`<path d="M${p(r0)}L${p(r1)}" fill="none" stroke="${cols[i % 3]}" stroke-width="${i % 3 === 2 ? 7 : 8}" stroke-linecap="round"/>`, 3, 81 + i);
     }
     for (let i = 0; i < 9; i++) {
       const a = (i / 9) * Math.PI * 2 + 0.3, r = 104 + Math.sin(i * 2.3) * 8;
