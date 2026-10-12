@@ -166,9 +166,7 @@ const FIXED_PROPS: PropSpot[] = [
   { kind: "crate", x: CENTER.x + 200, y: CENTER.y + 120, s: 0.62, solid: { w: 22, h: 8 } },
   { kind: "stump", x: CENTER.x - 172, y: CENTER.y + 106, s: 0.8, solid: { w: 22, h: 8 } },
   { kind: "crate", x: CENTER.x - 210, y: CENTER.y - 88, s: 0.75, solid: { w: 26, h: 10 } },
-  // 동물 농장 앞 양옆으로 이어지는 울타리
-  { kind: "fence", x: FARM_POS.x - 176, y: FARM_POS.y - 20, s: 1, solid: { w: 80, h: 10 } },
-  { kind: "fence", x: FARM_POS.x + 176, y: FARM_POS.y - 20, s: 1, solid: { w: 80, h: 10 } },
+  // 동물 농장은 그림 안에 동그란 울타리가 있어 따로 울타리를 두지 않는다
 ];
 
 const charKey = (asset: string) => `char:${asset}`;
