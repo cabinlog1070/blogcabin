@@ -174,49 +174,89 @@ export function farm(): string {
   return make(520, 340, () => {
     const cx = 260, cy = 232, rx = 236, ry = 92;
     const WOOD = "#a8743f", RED = "#d9534a", TRIM = "#f4efe6";
-    const at = (a: number) => [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry] as const;
-    // 울타리 반쪽 (뒤: 위쪽 반원, 앞: 아래쪽 반원). 가로대 두 줄 + 기둥
-    const fence = (front: boolean) => {
-      let o = "";
-      for (const dy of [-26, -12]) {
-        const [x0, y0] = at(Math.PI), [x1, y1] = at(0);
-        o += `<path d="M${x0} ${y0 + dy}A${rx} ${ry} 0 0 ${front ? 0 : 1} ${x1} ${y1 + dy}" fill="none" stroke="${WOOD}" stroke-width="7" stroke-linecap="round"/>`;
+    // 손으로 그린 듯 조금씩 흔들리는 값 (같은 그림은 늘 같은 모양)
+    const wob = (i: number, k = 1) => Math.sin(i * 12.9898 + 4.1) * k;
+    const at = (a: number, r = 1) => [cx + Math.cos(a) * rx * r, cy + Math.sin(a) * ry * r] as const;
+    /** 점들을 부드러운 곡선으로 잇는다 (Catmull-Rom) */
+    const smooth = (pts: (readonly [number, number])[], closed = true) => {
+      const n = pts.length, get = (i: number) => pts[closed ? (i + n) % n : Math.max(0, Math.min(n - 1, i))];
+      let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+      for (let i = 0; i < (closed ? n : n - 1); i++) {
+        const [p0, p1, p2, p3] = [get(i - 1), get(i), get(i + 1), get(i + 2)];
+        const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+        d += `C${c1.map((v) => v.toFixed(1)).join(" ")} ${c2.map((v) => v.toFixed(1)).join(" ")} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
       }
-      o = `<g filter="url(#pz)">${o}</g>`;
-      for (let i = 0; i <= 14; i++) {
-        const a = Math.PI + (i / 14) * Math.PI * (front ? -1 : 1);
-        const [x, y] = at(a);
-        if (front && Math.abs(x - cx) < 40) continue; // 앞쪽 가운데는 드나드는 입구
-        o += S(Rc(x - 6, y - 36, 12, 38, 4), WOOD, 3.5);
+      return closed ? d + "Z" : d;
+    };
+    const ring = (r: number, n: number, k: number, seed: number, dx = 0, dy = 0, sx = 1, sy = 1) =>
+      smooth(Array.from({ length: n }, (_, i) => {
+        const a = (i / n) * Math.PI * 2, q = 1 + wob(i + seed, k);
+        return [cx + dx + Math.cos(a) * rx * r * sx * q, cy + dy + Math.sin(a) * ry * r * sy * q] as const;
+      }));
+    // 울타리 반쪽 (뒤: 위쪽 반원, 앞: 아래쪽 반원). 기둥 사이 가로대는 살짝 처진다
+    const fence = (front: boolean) => {
+      const posts = Array.from({ length: 15 }, (_, i) => {
+        const [x, y] = at(Math.PI + (i / 14) * Math.PI * (front ? -1 : 1));
+        return { x, y, h: 36 + wob(i * 3 + (front ? 7 : 1), 4), tilt: wob(i * 5 + (front ? 2 : 9), 3) };
+      });
+      const gate = (x: number) => front && Math.abs(x - cx) < 40; // 앞쪽 가운데는 드나드는 입구
+      let rails = "";
+      for (let i = 0; i < posts.length - 1; i++) {
+        const p = posts[i], q = posts[i + 1];
+        if (gate(p.x) || gate(q.x)) continue;
+        for (const dy of [-26, -12]) rails += `M${p.x.toFixed(1)} ${(p.y + dy).toFixed(1)}Q${((p.x + q.x) / 2).toFixed(1)} ${((p.y + q.y) / 2 + dy + 3).toFixed(1)} ${q.x.toFixed(1)} ${(q.y + dy).toFixed(1)}`;
+      }
+      let o = L(rails, 7, WOOD);
+      for (const p of posts) {
+        if (gate(p.x)) continue;
+        const { x, y, h } = p;
+        o += `<g transform="rotate(${p.tilt.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})">` +
+          S(`M${x - 6} ${y + 2}L${x - 5.5} ${y - h + 6}Q${x - 5} ${y - h} ${x} ${y - h - 1}Q${x + 5} ${y - h} ${x + 5.5} ${y - h + 6}L${x + 6} ${y + 2}Q${x} ${y + 4} ${x - 6} ${y + 2}Z`, WOOD, 3.5) + "</g>";
       }
       return o;
     };
     let o = shadow(cx, cy + ry - 4, rx + 6, 14);
     o += fence(false);
-    // 울타리 안 풀밭과 흙
-    o += F(E(cx, cy, rx - 6, ry - 6), "#b6d98a") + F(E(cx + 30, cy + 26, 120, 40), "#e2c99a");
-    // 헛간: 갈색 지붕 + 빨간 벽 + 흰 X 문
-    o += S(Rc(118, 116, 152, 116), RED, 5, Rc(232, 116, 38, 116));
-    o += clip(Rc(118, 116, 152, 116), [138, 158, 178, 210, 230, 250].map((x) => L(`M${x} 116V232`, 2, "#b5443c")).join(""));
-    o += S(Pg([[98, 130], [194, 50], [290, 130], [274, 138], [194, 70], [114, 138]]), TRIM, 4);
-    o += S(Pg([[106, 126], [194, 56], [282, 126], [268, 126], [194, 72], [120, 126]]), "#8a5a3a", 4);
-    o += S(Pg([[194, 70], [120, 128], [268, 128]]), RED, 4);
-    o += S(Rc(180, 88, 28, 26, 3), TRIM, 3) + S(Rc(184, 92, 20, 18), "#8cc4ea", 2);
-    o += S(Rc(162, 158, 64, 74), TRIM, 4) + S(Rc(168, 164, 52, 68), RED, 3) + L("M168 164l52 68M220 164l-52 68", 5, TRIM);
-    // 건초 더미, 나무통, 물통
-    o += S(Rc(52, 192, 70, 42, 6), "#f0c95a", 4.5, Rc(100, 192, 22, 42)) + L("M58 206h58M58 220h58", 2.5, "#c89a2e");
-    o += S("M282 196h34q6 22 0 44h-34q-6-22 0-44Z", "#b07a48", 4.5) + L("M278 208h42M278 228h42", 3);
-    o += S("M372 236h80l-6 22h-68Z", "#9a6a40", 4.5) + S(E(412, 236, 40, 8), "#8cc4ea", 3);
-    // 병아리
+    // 울타리 안 풀밭과 흙 (가장자리가 울퉁불퉁)
+    o += F(ring(0.96, 18, 0.025, 1), "#b6d98a") + F(ring(0.5, 12, 0.08, 4, 34, 26, 1, 0.9), "#e2c99a");
+    o += L("M70 214q4-8 2-14M76 214q-2-8 4-12M402 210q2-8 0-12M408 210q4-6 2-12M150 262q2-6 0-10", 2.5, "#8cbf62");
+    // 헛간: 벽은 아래로 살짝 퍼지고, 지붕 끝은 부드럽게 휘어 내려온다
+    const wall = "M124 124C122 160 120 200 118 232Q194 238 270 232C268 200 266 160 264 124Z";
+    o += S(wall, RED, 5, "M232 120h50v120h-50Z");
+    o += clip(wall, [142, 162, 182, 206, 226, 246].map((x, i) => L(`M${x} 124q${wob(i, 2).toFixed(1)} 56 ${(-1 + wob(i + 3, 1)).toFixed(1)} 112`, 2, "#b5443c")).join(""));
+    o += S("M194 60Q160 92 124 124H264Q228 92 194 60Z", RED, 4);
+    o += S("M98 136Q96 128 104 124Q150 92 194 50Q238 92 284 124Q292 128 290 136Q284 142 272 136Q232 104 194 68Q156 104 116 136Q104 142 98 136Z", "#8a5a3a", 4);
+    o += L("M114 132Q154 100 194 62Q234 100 274 132", 3, TRIM);
+    o += S("M180 108V96Q180 86 194 86Q208 86 208 96V108Q194 112 180 108Z", TRIM, 3) + S("M184 106V97Q184 90 194 90Q204 90 204 97V106Q194 109 184 106Z", "#8cc4ea", 2) + L("M194 90v17", 2, TRIM);
+    // 문: 위가 둥근 문 + 흰 X
+    o += S("M158 234V182Q158 160 194 158Q230 160 230 182V234Z", TRIM, 4);
+    const door = "M165 234V184Q165 167 194 166Q223 167 223 184V234Z";
+    o += S(door, RED, 3) + clip(door, L("M166 170Q192 200 222 234M222 170Q196 200 166 234", 5, TRIM));
+    // 건초 더미: 둥근 빵 모양 + 지푸라기 결
+    o += S("M50 236C46 216 50 198 66 192Q88 188 110 190C124 194 128 216 124 236Q88 242 50 236Z", "#f0c95a", 4.5, "M104 186h30v60h-30Z");
+    o += L("M58 206q20-4 46 0M56 222q24-3 50 0M114 202q4 10 0 22", 2.5, "#c89a2e") + L("M62 192q-4-6-2-10M92 189q2-7 6-9M122 214q6 0 8-4", 2.5, "#e0b23e");
+    // 나무통: 가운데가 볼록 + 휜 테
+    o += S("M286 240C278 222 278 210 286 194Q302 189 318 194C326 210 326 222 318 240Q302 245 286 240Z", "#b07a48", 4.5, "M308 186h24v64h-24Z");
+    o += L("M282 208Q302 213 322 208M282 226Q302 231 322 226", 3);
+    // 물통: 가장자리가 둥근 여물통
+    o += S("M370 236Q412 230 454 236Q452 252 442 258Q412 263 382 258Q372 252 370 236Z", "#9a6a40", 4.5) + S("M378 237Q412 232 446 237Q412 244 378 237Z", "#8cc4ea", 2.5);
+    // 병아리: 머리와 몸이 이어진 물방울 모양 + 날개 + 머리깃
     const chick = (x: number, y: number) =>
-      shadow(x, y + 20, 18, 4) + S(E(x, y, 20, 18), "#f6d54a", 4) + S(E(x - 8, y + 2, 9, 6), "#eec23a", 2.5) + dot(x + 8, y - 5, 3) + S(Pg([[x + 18, y - 3], [x + 28, y], [x + 18, y + 3]]), "#f29a3a", 2) +
-      L(`M${x - 6} ${y + 17}v6M${x + 6} ${y + 17}v6`, 2.5, "#f29a3a");
-    // 돼지
+      shadow(x, y + 20, 18, 4) +
+      S(`M${x - 20} ${y + 6}C${x - 22} ${y - 6} ${x - 14} ${y - 10} ${x - 6} ${y - 10}C${x - 6} ${y - 22} ${x + 16} ${y - 26} ${x + 18} ${y - 8}C${x + 22} ${y + 6} ${x + 14} ${y + 18} ${x - 2} ${y + 18}C${x - 14} ${y + 18} ${x - 20} ${y + 14} ${x - 20} ${y + 6}Z`, "#f6d54a", 4) +
+      L(`M${x - 12} ${y + 2}q4 10 14 6`, 2.5, "#e0b02e") + L(`M${x + 4} ${y - 20}q-2-8 4-8M${x + 8} ${y - 20}q2-6 7-4`, 2.5, "#e0b02e") +
+      dot(x + 9, y - 10, 2.8) + S(`M${x + 17} ${y - 9}Q${x + 26} ${y - 7} ${x + 17} ${y - 3}Z`, "#f29a3a", 2) + blush(x + 6, y - 3, 4, 2.5) +
+      L(`M${x - 6} ${y + 17}q-1 4-3 6M${x + 6} ${y + 17}q1 4 3 6`, 2.5, "#f29a3a");
+    // 돼지: 콩 모양 몸 + 둥근 머리 + 접힌 귀 + 동그랗게 말린 꼬리
     const pig = (x: number, y: number) =>
-      shadow(x, y + 22, 34, 5) + [-18, -6, 8, 20].map((d) => S(Rc(x + d - 4, y + 8, 9, 16, 3), "#f2a7b5", 2.5)).join("") +
-      S(E(x, y, 34, 22), "#f7b8c4", 4) + S(Pg([[x + 18, y - 22], [x + 26, y - 34], [x + 32, y - 20]]), "#f2a7b5", 2.5) +
-      S(E(x + 34, y - 4, 18, 16), "#f7b8c4", 4) + S(E(x + 46, y, 8, 6), "#f29aaa", 2.5) + dot(x + 44, y, 1.6) + dot(x + 48, y, 1.6) + dot(x + 34, y - 8, 2.6) +
-      L(`M${x - 34} ${y - 4}q-8-4-4-10`, 2.5, "#e88a9c");
+      shadow(x + 6, y + 22, 36, 5) +
+      [-20, -8, 10, 22].map((d) => S(`M${x + d - 5} ${y + 10}Q${x + d - 5} ${y + 24} ${x + d} ${y + 24}Q${x + d + 5} ${y + 24} ${x + d + 5} ${y + 10}Z`, "#f2a7b5", 2.5)).join("") +
+      S(`M${x - 34} ${y + 2}C${x - 36} ${y - 16} ${x - 16} ${y - 22} ${x + 4} ${y - 20}C${x + 22} ${y - 20} ${x + 28} ${y - 6} ${x + 26} ${y + 6}C${x + 24} ${y + 18} ${x + 8} ${y + 20} ${x - 8} ${y + 20}C${x - 26} ${y + 20} ${x - 34} ${y + 14} ${x - 34} ${y + 2}Z`, "#f7b8c4", 4) +
+      S(`M${x + 16} ${y - 4}C${x + 14} ${y - 20} ${x + 30} ${y - 26} ${x + 42} ${y - 18}C${x + 54} ${y - 10} ${x + 52} ${y + 8} ${x + 38} ${y + 12}C${x + 26} ${y + 14} ${x + 16} ${y + 8} ${x + 16} ${y - 4}Z`, "#f7b8c4", 4) +
+      S(`M${x + 24} ${y - 18}Q${x + 22} ${y - 32} ${x + 32} ${y - 30}Q${x + 34} ${y - 22} ${x + 30} ${y - 16}Z`, "#f2a7b5", 2.5) +
+      S(`M${x + 40} ${y + 1}Q${x + 40} ${y - 6} ${x + 47} ${y - 6}Q${x + 54} ${y - 6} ${x + 54} ${y + 1}Q${x + 54} ${y + 7} ${x + 47} ${y + 7}Q${x + 40} ${y + 7} ${x + 40} ${y + 1}Z`, "#f29aaa", 2.5) +
+      dot(x + 45, y + 1, 1.6) + dot(x + 50, y + 1, 1.6) + dot(x + 34, y - 7, 2.6) + blush(x + 30, y + 3, 4, 2.5) +
+      L(`M${x - 33} ${y - 2}c-8 0-9-8-4-9c5-1 5 6 0 6`, 2.5, "#e88a9c");
     o += chick(214, 258) + pig(300, 262);
     o += flowers(84, 262, ["#f28fa8", "#fff"], 6) + flowers(430, 280, ["#f2c230", "#f28fa8"], 6);
     o += fence(true);
