@@ -2,15 +2,20 @@
 // 가구마다 그림 상자 비율이 다르고, 미니룸 높이에 대한 비율(heightPct)로 크기를 정한다.
 // 그래서 휴대폰처럼 좁은 화면에서도 미니룸 높이가 같으면 같은 크기로 보인다.
 // 미니룸은 상자의 가운데를 가구 위치(x·y)에 놓는다 (components/character.tsx의 MiniRoom). DB의 asset_key("furn.chair" 등)로 고른다.
-import { FURN_CANVAS, furniture, pastel } from "./crayon";
+import { FURN_CANVAS, FURN_FLAT, furniture, pastel } from "./crayon";
 
-const HEIGHT_PCT: Record<string, number> = { "furn.plant": 26, "furn.chair": 32, "furn.lamp": 44, "furn.desk": 34, "furn.bed": 34 };
+const HEIGHT_PCT: Record<string, number> = {
+  "furn.plant": 26, "furn.chair": 32, "furn.lamp": 44, "furn.desk": 34, "furn.bed": 34,
+  "furn.bookshelf": 46, "furn.tv": 36, "furn.teddy": 22, "furn.rug": 15, "furn.console": 17,
+  "furn.rocket": 50, "furn.basket": 24, "furn.cloud": 24, "furn.rainbow": 36,
+};
 
 const canvasOf = (assetKey: string): [number, number] => FURN_CANVAS[assetKey] ?? [168, 168];
 
 export function furnitureInfo(assetKey: string) {
   const [w, h] = canvasOf(assetKey);
-  return { heightPct: HEIGHT_PCT[assetKey] ?? 24, aspect: w / h };
+  // flat: 러그처럼 바닥에 까는 가구는 늘 캐릭터·다른 가구 뒤에 놓는다
+  return { heightPct: HEIGHT_PCT[assetKey] ?? 24, aspect: w / h, flat: FURN_FLAT.has(assetKey) };
 }
 
 /** 같은 가구는 한 번만 그린다 */

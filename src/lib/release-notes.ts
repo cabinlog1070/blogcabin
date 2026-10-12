@@ -35,6 +35,16 @@ export const RELEASE_KIND_LABEL: Record<ReleaseChangeKind, string> = {
 
 export const RELEASE_NOTES: ReleaseDay[] = [
   {
+    date: "2026-10-13",
+    versions: [
+      {
+        version: "1.15.0",
+        title: msg("새 가구 9가지"),
+        changes: [{ kind: "new", text: msg("상점에 새 가구 9가지가 들어왔어요. 책장, 티비, 곰인형, 러그, 게임기, 우주선, 꽃바구니, 구름, 무지개로 방을 꾸며 보세요. 러그는 바닥에 깔리고, 구름과 무지개는 방 안에 둥실 떠 있어요.") }],
+      },
+    ],
+  },
+  {
     date: "2026-10-12",
     versions: [
       {

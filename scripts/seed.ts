@@ -41,12 +41,22 @@ const ITEMS: NewItem[] = [
   { code: "av_hat_beanie", type: "avatar", slot: "hat", name: "털모자", description: "방울 달린 포근한 털모자", price: 80, requiredLevel: 2, isStarter: false, assetKey: "avatar.hat.beanie" },
   { code: "av_hat_crown", type: "avatar", slot: "hat", name: "왕관", description: "꾸준히 쓴 사람에게 어울리는 왕관", price: 200, requiredLevel: 5, isStarter: false, assetKey: "avatar.hat.crown" },
 
-  // 가구 (SHOP-05): 미니룸에 끌어다 놓는다 (최대 5개)
+  // 가구 (SHOP-05): 미니룸에 끌어다 놓는다 (한 방에 최대 5개)
   { code: "furn_plant", type: "furniture", name: "화분", description: "방에 생기를 더하는 초록 화분", price: 40, requiredLevel: 1, isStarter: false, assetKey: "furn.plant" },
   { code: "furn_chair", type: "furniture", name: "의자", description: "잠깐 앉아 쉬어 가는 나무 의자", price: 50, requiredLevel: 1, isStarter: false, assetKey: "furn.chair" },
   { code: "furn_lamp", type: "furniture", name: "램프", description: "밤에도 글을 쓸 수 있는 스탠드", price: 80, requiredLevel: 2, isStarter: false, assetKey: "furn.lamp" },
   { code: "furn_desk", type: "furniture", name: "책상", description: "글쓰기에 딱 좋은 책상", price: 120, requiredLevel: 2, isStarter: false, assetKey: "furn.desk" },
   { code: "furn_bed", type: "furniture", name: "침대", description: "푹 쉬고 내일 또 쓰기", price: 200, requiredLevel: 3, isStarter: false, assetKey: "furn.bed" },
+  // 2026-10-13 새 가구 9종 (요청 순서가 아니라 값이 싼 것부터)
+  { code: "furn_basket", type: "furniture", name: "꽃바구니", description: "알록달록한 꽃을 가득 담은 바구니", price: 30, requiredLevel: 1, isStarter: false, assetKey: "furn.basket" },
+  { code: "furn_teddy", type: "furniture", name: "곰인형", description: "리본을 맨 폭신한 곰인형", price: 60, requiredLevel: 1, isStarter: false, assetKey: "furn.teddy" },
+  { code: "furn_rug", type: "furniture", name: "러그", description: "바닥에 깔면 포근해지는 동그란 러그", price: 70, requiredLevel: 1, isStarter: false, assetKey: "furn.rug" },
+  { code: "furn_bookshelf", type: "furniture", name: "책장", description: "좋아하는 책을 꽂아 두는 책장", price: 100, requiredLevel: 2, isStarter: false, assetKey: "furn.bookshelf" },
+  { code: "furn_tv", type: "furniture", name: "티비", description: "더듬이 안테나가 달린 옛날 텔레비전", price: 150, requiredLevel: 3, isStarter: false, assetKey: "furn.tv" },
+  { code: "furn_console", type: "furniture", name: "게임기", description: "친구와 함께 즐기는 게임기", price: 180, requiredLevel: 3, isStarter: false, assetKey: "furn.console" },
+  { code: "furn_cloud", type: "furniture", name: "구름", description: "방 안에 둥실 떠 있는 웃는 구름", price: 260, requiredLevel: 4, isStarter: false, assetKey: "furn.cloud" },
+  { code: "furn_rainbow", type: "furniture", name: "무지개", description: "보기만 해도 기분 좋아지는 무지개", price: 380, requiredLevel: 5, isStarter: false, assetKey: "furn.rainbow" },
+  { code: "furn_rocket", type: "furniture", name: "우주선", description: "언젠가 우주로 날아갈 꼬마 로켓", price: 600, requiredLevel: 6, isStarter: false, assetKey: "furn.rocket" },
 
   // 배경 (초원은 모두에게 기본 지급)
   { code: "bg_meadow", type: "background", name: "초원", description: "모든 이야기가 시작되는 곳", price: 0, requiredLevel: 1, isStarter: true, assetKey: "bg.meadow" },

@@ -99,7 +99,7 @@ export function MiniRoom({
               top: `${f.y}%`,
               height: `${info.heightPct}%`,
               aspectRatio: String(info.aspect),
-              zIndex: f.y > CHARACTER_DEPTH ? 20 + Math.round(f.y) : 1 + Math.round(f.y / 10),
+              zIndex: info.flat ? 0 : f.y > CHARACTER_DEPTH ? 20 + Math.round(f.y) : 1 + Math.round(f.y / 10),
             }}
           >
             <FurnitureArt assetKey={f.assetKey} className="pointer-events-none h-full w-full" />

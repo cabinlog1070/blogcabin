@@ -51,13 +51,13 @@ try {
   const counts = await Promise.all(
     ["shop-avatar", "shop-furniture", "shop-background"].map((id) => page.locator(`section[aria-labelledby="${id}"] article`).count()),
   );
-  check("SHOP-01 꾸미기 12 · 가구 5 · 배경 5", JSON.stringify(counts) === "[12,5,5]", counts.join(","));
+  check("SHOP-01 꾸미기 12 · 가구 14 · 배경 5", JSON.stringify(counts) === "[12,14,5]", counts.join(","));
   const furnNames = async () => page.locator('section[aria-labelledby="shop-furniture"] article h3').allInnerTexts();
-  check("SHOP-01 기본 정렬은 레벨순", (await furnNames()).join(",") === "화분,의자,램프,책상,침대", (await furnNames()).join(","));
+  check("SHOP-01 기본 정렬은 레벨순", (await furnNames()).join(",") === "꽃바구니,화분,의자,곰인형,러그,램프,책장,책상,티비,게임기,침대,구름,무지개,우주선", (await furnNames()).join(","));
   await page.getByLabel("정렬").selectOption({ label: "비싼 순" });
-  check("SHOP-01 비싼 순", (await furnNames()).join(",") === "침대,책상,램프,의자,화분", (await furnNames()).join(","));
+  check("SHOP-01 비싼 순", (await furnNames()).join(",") === "우주선,무지개,구름,침대,게임기,티비,책상,책장,램프,러그,곰인형,의자,화분,꽃바구니", (await furnNames()).join(","));
   await page.getByLabel("정렬").selectOption({ label: "최신순" });
-  check("SHOP-01 최신순", (await furnNames()).join(",") === "침대,책상,램프,의자,화분", (await furnNames()).join(","));
+  check("SHOP-01 최신순", (await furnNames()).join(",") === "우주선,무지개,구름,게임기,티비,책장,러그,곰인형,꽃바구니,침대,책상,램프,의자,화분", (await furnNames()).join(","));
   await page.reload();
   check("SHOP-01 정렬은 기억하지 않음 (새로고침하면 레벨순)", (await page.getByLabel("정렬").inputValue()) === "level");
 
@@ -68,7 +68,7 @@ try {
 
   // 미리 입어 보기 (사지 않고)
   const preview = page.locator("[data-try-on]");
-  const previewSrc = () => preview.locator("img").getAttribute("src");
+  const previewSrc = () => preview.locator("img").first().getAttribute("src");
   const plain = await previewSrc();
   await page.getByRole("button", { name: "밀짚모자 입어 보기" }).click();
   check("미리 입어 보기: 누르면 내 캐릭터가 입음", (await previewSrc()).includes("%23f2d27a") && plain !== (await previewSrc()));
@@ -93,7 +93,7 @@ try {
   await page.reload();
   await page.getByLabel("정렬").selectOption({ label: "보유순" });
   const ownedFirst = await furnNames();
-  check("SHOP-01 보유순 (모두 보유 → 싼 순)", ownedFirst.join(",") === "화분,의자,램프,책상,침대");
+  check("SHOP-01 보유순 (가진 5개가 먼저, 그 안에서 싼 순)", ownedFirst.slice(0, 6).join(",") === "화분,의자,램프,책상,침대,꽃바구니", ownedFirst.join(","));
   await page.screenshot({ path: `${outDir}/a2-shop.png`, fullPage: true });
 
   // ── SHOP-06: 아바타 꾸미기 ──
@@ -180,7 +180,7 @@ try {
   const z = async (code) => Number(await room.locator(`[data-furniture="${code}"]`).evaluate((el) => el.style.zIndex));
   check("SHOP-05 아래쪽에 있는 가구가 앞에 보임", (await z("furn.bed")) > (await z("furn.plant")) && (await z("furn.plant")) > (await z("furn.lamp")));
 
-  // 6번째: 판매 가구가 5종이라, 시험용 가구를 잠깐 만들어 준다
+  // 6번째: 사지 않고 시험용 가구를 잠깐 만들어 준다
   await db.query("INSERT INTO items (code, type, name, price, required_level, is_starter, asset_key) VALUES ($1, 'furniture', '시험 화분', 0, 1, false, 'furn.plant') ON CONFLICT (code) DO NOTHING", [TEMP_CODE]);
   await db.query("INSERT INTO user_items (user_id, item_id) SELECT $1, id FROM items WHERE code = $2", [uid, TEMP_CODE]);
   await page.reload({ waitUntil: "networkidle" });
