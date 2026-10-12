@@ -39,6 +39,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       { kind: "improved", text: msg("글쓰기 도구 모음을 정리했어요. 컴퓨터에서는 두 줄로, 휴대폰에서는 글자·정렬·목록 버튼을 누르면 그 도구가 아랫줄에 펼쳐져요.") },
       { kind: "improved", text: msg("비공개 글도 언제나 볼 수 있어요."), admin: true },
       { kind: "improved", text: msg("관리자 캐릭터가 여자 주민으로 바뀌었어요."), admin: true },
+      { kind: "fixed", text: msg("휴대폰이나 좁은 창에서 회원 관리의 전체 회원 표 글씨가 한 자씩 쪼개지던 문제를 고쳤어요. 좁은 화면에서는 회원마다 카드로 보여요."), admin: true },
     ],
   },
   {
