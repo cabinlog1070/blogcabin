@@ -5,10 +5,15 @@ import { addCategory, deleteCategory, moveCategory, renameCategory, updateBlogIn
 
 const input = "w-full rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun";
 
-export function BlogInfoForm({ title, description }: { title: string; description: string }) {
+export function BlogInfoForm({ nickname, title, description }: { nickname: string; title: string; description: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(updateBlogInfo, {});
   return (
     <form action={action} className="space-y-3">
+      <label className="block">
+        <span className="mb-1 block font-bold">닉네임</span>
+        <input name="nickname" defaultValue={nickname} minLength={2} maxLength={12} required className={input} />
+        <span className="mt-1 block text-sm text-ink-soft">2~12자, 다른 주민과 겹치지 않게 지어 주세요</span>
+      </label>
       <label className="block">
         <span className="mb-1 block font-bold">블로그 이름</span>
         <input name="title" defaultValue={title} maxLength={12} required className={input} />

@@ -8,17 +8,13 @@ import { z } from "zod";
 import { db } from "@/db";
 import { blogs, categories, items, profiles, userItems } from "@/db/schema";
 import { generateInviteCode, INVITE_COOKIE, normalizeInviteCode } from "@/lib/invite";
+import { ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
 import { requireUser } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
 import { grantReward, grantSocialLinkRewardsFor, lockUser } from "@/server/points";
 
 const schema = z.object({
-  nickname: z
-    .string()
-    .trim()
-    .min(2, "닉네임은 2자 이상이에요")
-    .max(12, "닉네임은 12자까지예요")
-    .refine((n) => n !== "관리자", "이 닉네임은 쓸 수 없어요"), // 관리자 계정의 닉네임 (AUTH-08)
+  nickname: nicknameSchema.refine((n) => n !== ADMIN_NICKNAME, "이 닉네임은 쓸 수 없어요"),
   blogTitle: z.string().trim().min(1, "블로그 이름을 적어 주세요").max(12, "블로그 이름은 12자까지예요"),
   slug: z
     .string()
