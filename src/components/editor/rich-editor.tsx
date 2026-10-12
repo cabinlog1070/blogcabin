@@ -78,9 +78,10 @@ function AlignIcon({ align }: { align: Align }) {
   );
 }
 
-// "colors" 자리에 글자색·배경색 버튼이 들어간다. 툴바는 두 줄로 나눈다:
-// 휴대폰은 "row-sm"(정렬)부터, 컴퓨터는 "row-lg"(목록)부터 다음 줄
-const TOOLS: (ToolButton | "sep" | "colors" | "row-sm" | "row-lg")[] = [
+// "colors" 자리에 글자색·배경색 버튼이 들어간다. 줄 나누기:
+// "row"는 언제나 다음 줄 (컴퓨터는 두 줄), "row-sm"은 휴대폰에서만 다음 줄이고 컴퓨터에서는 구분선,
+// "wrap-sm"은 휴대폰에서만 다음 줄 → 휴대폰은 글꼴 / 정렬 / 목록~구분선 / 링크~파일
+const TOOLS: (ToolButton | "sep" | "colors" | "row" | "row-sm" | "wrap-sm")[] = [
   { label: "B", title: "굵게", className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
   { label: "I", title: "기울임", className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
   { label: "U", title: "밑줄", className: "underline underline-offset-2", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
@@ -96,12 +97,13 @@ const TOOLS: (ToolButton | "sep" | "colors" | "row-sm" | "row-lg")[] = [
       active: (e) => (a.value === "left" ? !e.isActive({ textAlign: "center" }) && !e.isActive({ textAlign: "right" }) : e.isActive({ textAlign: a.value })),
     }),
   ),
-  "row-lg",
+  "row",
   { label: "• 목록", title: "글머리 목록", run: (e) => e.chain().focus().toggleBulletList().run(), active: (e) => e.isActive("bulletList") },
   { label: "1. 목록", title: "번호 목록", run: (e) => e.chain().focus().toggleOrderedList().run(), active: (e) => e.isActive("orderedList") },
   { label: "❝ 인용", title: "인용", run: (e) => e.chain().focus().toggleBlockquote().run(), active: (e) => e.isActive("blockquote") },
   { label: "</> 코드", title: "코드 블록", run: (e) => e.chain().focus().toggleCodeBlock().run(), active: (e) => e.isActive("codeBlock") },
   { label: "― 구분선", title: "구분선", run: (e) => e.chain().focus().setHorizontalRule().run() },
+  "wrap-sm",
   {
     label: "🔗 링크",
     title: "링크",
@@ -350,11 +352,15 @@ export function RichEditor({
         {TOOLS.map((tool, i) =>
           tool === "sep" ? (
             <span key={i} className="mx-1 h-5 w-px bg-line" />
-          ) : tool === "row-sm" || tool === "row-lg" ? (
-            // 줄을 넘기는 쪽에서는 너비 100%짜리 빈 칸으로 줄을 바꾸고, 다른 쪽에서는 구분선을 둔다
+          ) : tool === "row" ? (
+            // 너비 100%짜리 빈 칸으로 줄을 바꾼다
+            <span key={i} className="basis-full" aria-hidden="true" />
+          ) : tool === "wrap-sm" ? (
+            <span key={i} className="basis-full sm:hidden" aria-hidden="true" />
+          ) : tool === "row-sm" ? (
             <Fragment key={i}>
-              <span className={`mx-1 h-5 w-px bg-line ${tool === "row-sm" ? "hidden sm:block" : "sm:hidden"}`} />
-              <span className={`basis-full ${tool === "row-sm" ? "sm:hidden" : "hidden sm:block"}`} aria-hidden="true" />
+              <span className="mx-1 hidden h-5 w-px bg-line sm:block" />
+              <span className="basis-full sm:hidden" aria-hidden="true" />
             </Fragment>
           ) : tool === "colors" ? (
             <Fragment key={i}>
