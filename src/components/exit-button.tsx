@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 
 // 광장이 메인이라 다른 곳으로 가는 메뉴는 두지 않는다. 광장 밖에서는 "나가기"로 광장에 돌아온다.
@@ -13,6 +14,7 @@ const LAST_KEY = "bc_nav_last";
 export function ExitButton() {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
   // 이 탭에서 사이트 안 화면을 몇 번 옮겨 다녔는지 센다 (헤더는 모든 화면에 있어서 여기서 센다)
   useEffect(() => {
     try {
@@ -34,17 +36,17 @@ export function ExitButton() {
   };
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <button type="button" onClick={goBack} aria-label="뒤로 가기" title="뒤로 가기" className="btn shrink-0 whitespace-nowrap bg-paper py-1.5 text-sm text-ink max-sm:px-2.5" data-back-button>
+      <button type="button" onClick={goBack} aria-label={t("뒤로 가기")} title={t("뒤로 가기")} className="btn shrink-0 whitespace-nowrap bg-paper py-1.5 text-sm text-ink max-sm:px-2.5" data-back-button>
         <span aria-hidden className="inline-flex items-center gap-1">
           <Icon name="back" size={20} />
-          <span className="hidden sm:inline">뒤로</span>
+          <span className="hidden sm:inline">{t("뒤로")}</span>
         </span>
       </button>
-      <Link href="/town" aria-label="광장으로 나가기" title="광장으로 나가기" className="btn shrink-0 whitespace-nowrap bg-paper py-1.5 text-sm text-ink max-sm:px-2.5">
+      <Link href="/town" aria-label={t("광장으로 나가기")} title={t("광장으로 나가기")} className="btn shrink-0 whitespace-nowrap bg-paper py-1.5 text-sm text-ink max-sm:px-2.5">
         {/* 좁은 화면은 쪽지·레벨·코인·상태창 자리가 모자라 그림만 보인다 */}
         <span aria-hidden className="inline-flex items-center gap-1">
           <Icon name="campfire" size={20} />
-          <span className="hidden sm:inline">광장으로 나가기</span>
+          <span className="hidden sm:inline">{t("광장으로 나가기")}</span>
         </span>
       </Link>
     </div>

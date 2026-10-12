@@ -41,6 +41,12 @@
   --header-h: 58px;
 }
 
+/* 일본어 화면 (src/app/layout.tsx): 가나가 있는 글꼴을 먼저 쓰고, 회원이 쓴 한글은 Noto Sans KR로 보인다 */
+:root:lang(ja) {
+  --font-sans: var(--font-noto-jp), var(--font-noto), "Hiragino Sans", sans-serif;
+  --font-display: var(--font-kosugi), var(--font-noto-jp), var(--font-noto), sans-serif;
+}
+
 body {
   background: var(--color-cream);
   color: var(--color-ink);

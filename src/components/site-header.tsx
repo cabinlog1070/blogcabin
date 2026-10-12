@@ -9,6 +9,7 @@ import { ProfileMenu } from "@/components/profile-menu";
 import { SignOutButton } from "@/components/sign-out-button";
 import { enabledProviders } from "@/lib/auth";
 import { getViewer, getViewerLoginMethods } from "@/server/dal";
+import { getT } from "@/server/i18n";
 import { getNotificationState } from "@/server/notifications";
 import { getWallet, rewardedSocialProviders } from "@/server/points";
 
@@ -20,6 +21,7 @@ import { getWallet, rewardedSocialProviders } from "@/server/points";
  */
 export async function SiteHeader() {
   const viewer = await getViewer();
+  const t = await getT();
   const member = viewer?.profile ? { ...viewer, profile: viewer.profile } : null;
   const [wallet, notice, loginMethods, rewardedSocial] = member
     ? await Promise.all([getWallet(member.userId), getNotificationState(member.userId), getViewerLoginMethods(), rewardedSocialProviders(member.userId)])
@@ -45,15 +47,15 @@ export async function SiteHeader() {
               ratio={wallet.ratio}
               isMax={wallet.isMax}
             />
-            <Link href="/wallet" className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-line bg-paper px-1.5 py-1 text-xs font-bold shadow-sm hover:text-leaf-dark sm:px-2.5 sm:text-sm" title="코인">
+            <Link href="/wallet" className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-line bg-paper px-1.5 py-1 text-xs font-bold shadow-sm hover:text-leaf-dark sm:px-2.5 sm:text-sm" title={t("코인")}>
               <Icon name="coin" size={18} className="size-4 sm:size-[18px]" />
               {wallet.coins.toLocaleString()}
             </Link>
             {member.user.role === "admin" && (
               // 이름은 예전처럼 "👑 관리자" (e2e가 이 이름으로 찾는다)
-              <Link href="/admin" className="inline-flex items-center whitespace-nowrap rounded-full bg-ink px-2 py-1 text-xs font-bold text-cream sm:px-2.5" title="관리자">
+              <Link href="/admin" className="inline-flex items-center whitespace-nowrap rounded-full bg-ink px-2 py-1 text-xs font-bold text-cream sm:px-2.5" title={t("관리자")}>
                 <IconEmoji name="level" emoji="👑" size={18} className="size-4 sm:size-[18px]" />
-                <span className="ml-1 max-sm:hidden"> 관리자</span>
+                <span className="ml-1 max-sm:hidden"> {t("관리자")}</span>
               </Link>
             )}
             <ProfileMenu
@@ -72,7 +74,7 @@ export async function SiteHeader() {
           <SignOutButton />
         ) : (
           <Link href="/" className="btn shrink-0 bg-leaf text-sm text-white">
-            시작하기
+            {t("시작하기")}
           </Link>
         )}
       </div>
