@@ -79,7 +79,8 @@ export async function savePost(_prev: SavePostState, formData: FormData): Promis
   const blogId = viewer.profile.blogId;
   const tagNames = parseTags(input.tags);
 
-  let rewarded = false;
+  // 새 글의 보상 결과: 받았으면 reward, 못 받았으면 그 이유 하나 (글 화면 안내에 쓴다)
+  let rewardResult: "reward" | "private" | "short" | "limit" = "reward";
   const postId = await db.transaction(async (tx) => {
     await lockUser(tx, viewer.userId);
 
@@ -111,8 +112,11 @@ export async function savePost(_prev: SavePostState, formData: FormData): Promis
       id = created.id;
 
       // 새 공개 글이 충분히 길면 보상 (하루 상한은 grantReward가 확인)
-      if (input.visibility === "public" && contentText.length >= POST_REWARD_MIN_LENGTH) {
-        rewarded = (await grantReward(tx, viewer.userId, "post", id)).granted;
+      if (input.visibility === "private") rewardResult = "private";
+      else if (contentText.length < POST_REWARD_MIN_LENGTH) rewardResult = "short";
+      else {
+        const rewarded = (await grantReward(tx, viewer.userId, "post", id)).granted;
+        rewardResult = rewarded ? "reward" : "limit";
         // 글쓰기 보상을 받으면 농장에서 키우는 동물도 함께 자란다 (TOWN-09)
         if (rewarded) await growForPost(tx, viewer.userId);
         // 초대받아 가입한 회원의 첫 보상 조건 글이면 나와 초대한 사람에게 초대 보상 (GAME-09, 하루 상한과 상관없음)
@@ -138,7 +142,7 @@ export async function savePost(_prev: SavePostState, formData: FormData): Promis
   });
 
   revalidatePath("/", "layout");
-  const query = input.postId ? "" : rewarded ? "?new=reward" : "?new=1";
+  const query = input.postId ? "" : `?new=${rewardResult}`;
   redirect(`/@${viewer.profile.blogSlug}/${postId}${query}`);
 }
 

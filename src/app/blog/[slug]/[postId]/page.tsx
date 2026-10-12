@@ -7,7 +7,7 @@ import { ViewCount } from "@/components/blog/view-count";
 import { ClearDraft } from "@/components/editor/clear-draft";
 import { CharacterBadge } from "@/components/character";
 import { formatDateTime } from "@/lib/format";
-import { REWARD_RULES } from "@/lib/game";
+import { POST_REWARD_MIN_LENGTH, REWARD_RULES } from "@/lib/game";
 import { parseId } from "@/lib/ids";
 import {
   canSeePrivatePosts,
@@ -75,7 +75,15 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
             </b>
           ) : (
             <span className="text-ink-soft">
-              {t("(비공개 글, 짧은 글, 또는 오늘 글쓰기 보상 {n}번을 다 받아서 보상은 없어요)", { n: REWARD_RULES.post.dailyLimit })}
+              {/* 보상을 못 받은 실제 이유 하나만 말한다 (savePost가 new=private|short|limit로 넘긴다) */}
+              {sp.new === "private"
+                ? t("(서로 이웃만 보는 비공개 글이라 보상은 없어요)")
+                : sp.new === "limit"
+                  ? t("(오늘 받을 수 있는 글쓰기 보상 {n}번을 이미 다 받아서 보상은 없어요)", { n: REWARD_RULES.post.dailyLimit })
+                  : t("(본문이 {n}자보다 짧아서 보상은 없어요. 지금 {len}자예요)", {
+                      n: POST_REWARD_MIN_LENGTH,
+                      len: post.contentText.length,
+                    })}
             </span>
           )}
         </div>

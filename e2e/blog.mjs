@@ -48,7 +48,7 @@ await a.getByPlaceholder(/태그/).fill("git, merge, 회고");
 await a.screenshot({ path: `${outDir}/10-write.png`, fullPage: true });
 await a.getByRole("button", { name: "발행하기" }).click();
 await a.waitForURL(/\/@tester1\/\d+/);
-const postUrl = a.url().replace("?new=1", "");
+const postUrl = a.url().replace(/\?new=\w+$/, "");
 await a.waitForLoadState("networkidle");
 const after = await coins(a);
 console.log("post:", postUrl, "coins", before, "→", after);
