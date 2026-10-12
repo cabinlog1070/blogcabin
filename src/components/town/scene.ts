@@ -879,14 +879,16 @@ export function createTownScene(
         g.fillStyle(rng.pick([0xcdb07e, 0xeedab0, 0xbd9e6c]), 0.85)
           .fillEllipse(CENTER.x + Math.cos(a) * r, CENTER.y + Math.sin(a) * r, rng.between(3, 8), rng.between(2, 5));
       }
-      // 광장 둘레 풀포기·꽃 (길이 지나가는 곳은 비운다)
-      for (let a = 0; a < 360; a += 7) {
+      // 광장 둘레 꽃 (길이 지나가는 곳은 비운다): 땅을 구운 뒤 분홍·파란 꽃 그림을 땅 바로 위에 심는다
+      const ringFlowers: { x: number; y: number; key: string; s: number }[] = [];
+      for (let a = 0; a < 360; a += 8) {
         if (a % 90 < 16 || a % 90 > 74) continue;
         const rad = Phaser.Math.DegToRad(a + rng.between(-2, 2));
-        const x = CENTER.x + Math.cos(rad) * (PLAZA_RADIUS + 30);
-        const y = CENTER.y + Math.sin(rad) * (PLAZA_RADIUS + 30);
-        g.fillStyle(0x6f9c46).fillCircle(x, y, 8);
-        if (rng.frac() < 0.45) g.fillStyle(rng.pick([0xf3a6b8, 0xf6d77a, 0xfffaf0])).fillCircle(x + rng.between(-3, 3), y - 3, 3.5);
+        const r = PLAZA_RADIUS + 28 + rng.between(-4, 6);
+        ringFlowers.push({
+          x: CENTER.x + Math.cos(rad) * r, y: CENTER.y + Math.sin(rad) * r + 10,
+          key: rng.frac() < 0.4 ? "soft:flower-blue" : "soft:flower-pink", s: rng.realInRange(0.7, 0.9),
+        });
       }
 
       // 들꽃
@@ -903,6 +905,9 @@ export function createTownScene(
       g.generateTexture("ground", WORLD.width, WORLD.height);
       g.destroy();
       this.add.image(0, 0, "ground").setOrigin(0).setDepth(GROUND_DEPTH);
+      for (const f of ringFlowers) {
+        this.add.image(f.x, f.y, f.key).setOrigin(0.5, 1).setDisplaySize(FLOWERS_SIZE.width * f.s, FLOWERS_SIZE.height * f.s).setDepth(GROUND_DEPTH + 1);
+      }
 
       // 둘레 숲 바닥: 광장과 같은 잔디 무늬를 숲 전체에 깐다
       if (!this.textures.exists("forest-floor")) {
