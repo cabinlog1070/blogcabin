@@ -1,15 +1,16 @@
 // 관리자 계정을 만들거나 비밀번호·권한을 갱신한다. 여러 번 실행해도 안전하다.
 // - 다시 실행하면 비밀번호를 새로 쓰고 관리자의 로그인(세션)을 모두 끊는다 → 모든 기기에서 다시 로그인해야 한다
+// - 처음 만들 때 이미 가입한 주민 모두가 관리자를 이웃으로 갖게 한다 (새 주민은 온보딩에서)
 // - 이미 일반 회원이 쓰는 아이디면 아무것도 바꾸지 않고 멈춘다 (일반 회원을 관리자로 올리지 않는다)
 // 아이디·비밀번호는 .env.local(운영은 호스팅 서비스의 환경 변수)의 ADMIN_USERNAME, ADMIN_PASSWORD에서 읽는다.
 // 실행: npm run admin:create
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { config } from "dotenv";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { accounts, blogs, categories, items, profiles, sessions, userItems, users } from "../src/db/schema";
+import { accounts, blogs, categories, follows, items, profiles, sessions, userItems, users } from "../src/db/schema";
 import { generateInviteCode } from "../src/lib/invite";
 
 config({ path: ".env.local" });
@@ -86,6 +87,15 @@ async function main() {
           .values({ ownerId: user.id, slug: NOTICE_SLUG, title: "BlogCabin 공지사항", description: "마을 소식과 업데이트를 알려드려요", backgroundItemId: background.id })
           .returning({ id: blogs.id });
         await tx.insert(categories).values({ blogId: blog.id, name: "공지", position: 0 });
+        // 4. 관리자는 모든 주민의 기본 이웃: 이미 가입한 주민에게 관리자 이웃을 넣는다 (새 주민은 온보딩에서).
+        //    블로그를 처음 만들 때만 넣으므로, 다시 실행해도 이웃을 취소한 주민에게 다시 넣지 않는다
+        const residents = await tx.select({ id: profiles.userId }).from(profiles).where(ne(profiles.userId, user.id));
+        if (residents.length) {
+          await tx
+            .insert(follows)
+            .values(residents.map((r) => ({ followerId: r.id, followeeId: user.id })))
+            .onConflictDoNothing();
+        }
       }
     });
     console.log(`✔ 관리자 계정 준비 완료: ${username}`);

@@ -113,6 +113,13 @@
       "when": 1791766617329,
       "tag": "0015_admin_character_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791767981646,
+      "tag": "0016_admin_default_neighbor",
+      "breakpoints": true
     }
   ]
 }
