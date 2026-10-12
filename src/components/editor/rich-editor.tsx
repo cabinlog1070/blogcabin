@@ -78,14 +78,15 @@ function AlignIcon({ align }: { align: Align }) {
   );
 }
 
-// "colors" 자리에 글자색·배경색 버튼이 들어간다
-const TOOLS: (ToolButton | "sep" | "colors")[] = [
+// "colors" 자리에 글자색·배경색 버튼이 들어간다. 툴바는 두 줄로 나눈다:
+// 휴대폰은 "row-sm"(정렬)부터, 컴퓨터는 "row-lg"(목록)부터 다음 줄
+const TOOLS: (ToolButton | "sep" | "colors" | "row-sm" | "row-lg")[] = [
   { label: "B", title: "굵게", className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
   { label: "I", title: "기울임", className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
   { label: "U", title: "밑줄", className: "underline underline-offset-2", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
   { label: "S", title: "취소선", className: "line-through", run: (e) => e.chain().focus().toggleStrike().run(), active: (e) => e.isActive("strike") },
   "colors",
-  "sep",
+  "row-sm",
   ...ALIGNS.map(
     (a): ToolButton => ({
       label: <AlignIcon align={a.value} />,
@@ -95,7 +96,7 @@ const TOOLS: (ToolButton | "sep" | "colors")[] = [
       active: (e) => (a.value === "left" ? !e.isActive({ textAlign: "center" }) && !e.isActive({ textAlign: "right" }) : e.isActive({ textAlign: a.value })),
     }),
   ),
-  "sep",
+  "row-lg",
   { label: "• 목록", title: "글머리 목록", run: (e) => e.chain().focus().toggleBulletList().run(), active: (e) => e.isActive("bulletList") },
   { label: "1. 목록", title: "번호 목록", run: (e) => e.chain().focus().toggleOrderedList().run(), active: (e) => e.isActive("orderedList") },
   { label: "❝ 인용", title: "인용", run: (e) => e.chain().focus().toggleBlockquote().run(), active: (e) => e.isActive("blockquote") },
@@ -160,7 +161,7 @@ function ColorPicker({
         disabled={!editor}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setOpen((o) => !o)}
-        className={`flex h-8 flex-col items-center justify-center rounded-lg px-2 text-sm font-black transition ${open ? "bg-paper text-ink" : "text-ink-soft hover:bg-paper hover:text-ink"}`}
+        className={`flex h-8 flex-col items-center justify-center rounded-lg px-1 text-sm font-black sm:px-2 transition ${open ? "bg-paper text-ink" : "text-ink-soft hover:bg-paper hover:text-ink"}`}
       >
         <span
           className="leading-none"
@@ -170,8 +171,9 @@ function ColorPicker({
         </span>
         {kind === "color" && <span className="mt-0.5 h-1 w-4 rounded-full" style={{ background: current ?? "var(--color-ink)" }} />}
       </button>
+      {/* 휴대폰에서는 색 버튼이 첫 줄 오른쪽 끝에 있어 색 판을 버튼 오른쪽에 맞춘다 */}
       {open && (
-        <div role="menu" aria-label={title} className="absolute left-0 top-full z-20 mt-1 w-44 rounded-xl border-2 border-line bg-paper p-2 shadow-lg">
+        <div role="menu" aria-label={title} className="absolute right-0 top-full z-20 sm:right-auto sm:left-0 mt-1 w-44 rounded-xl border-2 border-line bg-paper p-2 shadow-lg">
           <div className="grid grid-cols-5 gap-1.5">
             {colors.map((c) => (
               <button
@@ -309,14 +311,14 @@ export function RichEditor({
 
   return (
     <div data-rich-editor className="overflow-hidden rounded-2xl border-2 border-line bg-paper focus-within:border-sun">
-      <div className="flex flex-wrap items-center gap-1 border-b-2 border-line bg-cream/60 p-2" role="toolbar" aria-label="글꼴 도구">
+      <div className="flex flex-wrap items-center gap-0.5 border-b-2 border-line bg-cream/60 p-1.5 sm:gap-1 sm:p-2" role="toolbar" aria-label="글꼴 도구">
         <select
           aria-label="문단 스타일"
           title="문단 스타일"
           disabled={!editor}
           value={state?.block ?? "p"}
           onChange={(e) => editor && setBlockStyle(editor, e.currentTarget.value as BlockStyle)}
-          className={`${SELECT_CLASS} w-24`}
+          className={`${SELECT_CLASS} w-20 sm:w-24`}
         >
           {BLOCK_STYLES.map((b) => (
             <option key={b.value} value={b.value}>
@@ -335,7 +337,7 @@ export function RichEditor({
             const chain = editor.chain().focus();
             (size === DEFAULT_FONT_SIZE ? chain.unsetFontSize() : chain.setFontSize(`${size}px`)).run();
           }}
-          className={`${SELECT_CLASS} w-16`}
+          className={`${SELECT_CLASS} w-14 sm:w-16`}
         >
           {/* 목록에 없는 크기(붙여 넣은 글 등)도 지금 값으로 보이게 */}
           {[...new Set([...FONT_SIZES, state?.fontSize ?? DEFAULT_FONT_SIZE])].sort((a, b) => a - b).map((n) => (
@@ -344,10 +346,16 @@ export function RichEditor({
             </option>
           ))}
         </select>
-        <span className="mx-1 h-5 w-px bg-line" />
+        <span className="mx-1 hidden h-5 w-px bg-line sm:block" />
         {TOOLS.map((tool, i) =>
           tool === "sep" ? (
             <span key={i} className="mx-1 h-5 w-px bg-line" />
+          ) : tool === "row-sm" || tool === "row-lg" ? (
+            // 줄을 넘기는 쪽에서는 너비 100%짜리 빈 칸으로 줄을 바꾸고, 다른 쪽에서는 구분선을 둔다
+            <Fragment key={i}>
+              <span className={`mx-1 h-5 w-px bg-line ${tool === "row-sm" ? "hidden sm:block" : "sm:hidden"}`} />
+              <span className={`basis-full ${tool === "row-sm" ? "sm:hidden" : "hidden sm:block"}`} aria-hidden="true" />
+            </Fragment>
           ) : tool === "colors" ? (
             <Fragment key={i}>
               <ColorPicker editor={editor} kind="color" current={state?.color ?? null} />
@@ -362,7 +370,7 @@ export function RichEditor({
               disabled={!editor}
               onMouseDown={(e) => e.preventDefault()} // 버튼이 포커스를 가져가 커서 위치를 잃지 않게
               onClick={() => editor && tool.run(editor)}
-              className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-bold transition ${tool.className ?? ""} ${
+              className={`flex h-8 min-w-7 items-center justify-center rounded-lg px-1.5 text-sm sm:min-w-8 sm:px-2 font-bold transition ${tool.className ?? ""} ${
                 active?.[i] ? "bg-ink text-cream" : "text-ink-soft hover:bg-paper hover:text-ink"
               }`}
             >
@@ -370,7 +378,7 @@ export function RichEditor({
             </button>
           ),
         )}
-        <span className="mx-1 h-5 w-px bg-line" />
+        <span className="mx-1 hidden h-5 w-px bg-line sm:block" />
         <button
           type="button"
           title="사진 올리기 (PNG·JPG·GIF·WEBP, 10MB까지)"
