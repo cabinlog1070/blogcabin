@@ -2,7 +2,7 @@
 // 앞·뒤·옆(오른쪽을 본다) 모습 × 서 있기(0)·걷기(1·2). 입은 꾸미기는 모습마다 그 방향에 맞게 그린다.
 // 머리카락은 한 덩어리로 그리고 얼굴을 그 위에 얹어, 앞머리 선 = 얼굴 윗선이 되게 한다.
 
-import { E, F, L, Rc, S, SKIN, blush, dot, make, nid, shadow } from "./crayon";
+import { E, F, L, Rc, S, SKIN, blush, dot, make, nid, pastel, shadow } from "./crayon";
 
 export type View = "front" | "back" | "side";
 export type Frame = 0 | 1 | 2;
@@ -172,11 +172,12 @@ export function person(kind: Kind, view: View, frame: Frame, wear: Wear, size: n
     bot: wear.bottom?.color ?? (mq ? BEIGE : kind === "visitor" ? "#6f8fb0" : "#9aa3ad"),
     shoe: wear.shoes?.color ?? (mq ? BEIGE : "#7a4a2a"),
   };
-  return make(288, 288, () => (view === "side" ? side(c) : front(c, view)), { dw: size, dh: size });
+  // 광장 그림과 같은 파스텔 크레용 그림체 (2026-10-12)
+  return pastel(() => make(288, 288, () => (view === "side" ? side(c) : front(c, view)), { dw: size, dh: size }));
 }
 
 // ── 꾸미기 그림 ──
-const recolor = (s: string, c: string) => s.replace(/#262220/g, c);
+const recolor = (s: string, c: string) => s.replace(/#262220|#7b5a44/g, c); // 검은 선·파스텔 갈색 선 둘 다
 const star = (x: number, y: number) => `<path d="M${x} ${y}l3 5l5 1l-5 2l-1 5l-3-4l-5 0l4-4Z" fill="#fff"/>`;
 
 export const WEAR_PIECES = {

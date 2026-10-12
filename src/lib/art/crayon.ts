@@ -63,6 +63,8 @@ export const F = (d: string, c: string, op = 1) =>
 export const L = (d: string, w = 5, color = INK) => {
   if (PASTEL) {
     const c = color === INK ? PASTEL_LINE : color;
+    // 가는 선(눈썹·입·무늬)은 결을 넣으면 끊겨서 또렷하게 그린다
+    if (w <= 3) return `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
     return `<path d="${d}" fill="none" stroke="${c}" stroke-width="${+(w * 0.9).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round" opacity=".8" filter="url(#pz)"/>`;
   }
   const st = (sw: number) => `fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"`;
@@ -91,7 +93,7 @@ export const Rc = (x: number, y: number, w: number, h: number, r = 0) =>
     ? `M${x + r} ${y}h${w - 2 * r}q${r} 0 ${r} ${r}v${h - 2 * r}q0 ${r} ${-r} ${r}h${-(w - 2 * r)}q${-r} 0 ${-r} ${-r}v${-(h - 2 * r)}q0 ${-r} ${r} ${-r}Z`
     : `M${x} ${y}h${w}v${h}h${-w}Z`;
 export const Pg = (pts: (P | [string, string])[]) => "M" + pts.map((p) => p.join(" ")).join(" L") + "Z";
-export const dot = (x: number, y: number, r = 4) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${PASTEL ? PASTEL_LINE : INK}"/>`;
+export const dot = (x: number, y: number, r = 4) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${PASTEL ? "#4a3628" : INK}"/>`; // 파스텔에서도 눈은 또렷하게
 export const blush = (x: number, y: number, rx = 7, ry = 4) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#f59a9a" opacity=".85" filter="url(#fg)"/>`;
 // 일본어(가나)가 든 글자는 일본어 글꼴로 그린다. 그림(SVG)은 이미지로 그려져 웹 글꼴을 못 쓰므로 기기 글꼴을 고른다
 const SVG_FONT_KO = "'Apple SD Gothic Neo','Noto Sans KR',sans-serif";
