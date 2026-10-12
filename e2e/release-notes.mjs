@@ -1,4 +1,4 @@
-// 릴리스 노트: 내 정보 메뉴의 문의하기 바로 아래 항목 → /release-notes, 최신 날짜가 맨 위, 휴대폰 화면
+// 릴리스 노트: 내 정보 메뉴의 문의하기 바로 아래 항목 → /release-notes, 최신 날짜가 맨 위·그날만 펼침, 날짜를 누르면 버전이 펼쳐짐, 휴대폰 화면
 import { chromium } from "@playwright/test";
 import { BASE, collectErrors, loginDev } from "./helpers.mjs";
 
@@ -26,6 +26,14 @@ const dates = await page.locator("[data-release]").evaluateAll((els) => els.map(
 check(`릴리스 노트 화면이 열리고 날짜 묶음이 보인다 (${dates.length}개)`, dates.length > 0);
 check("최신 날짜가 맨 위", dates.every((d, i) => i === 0 || dates[i - 1] > d));
 check("새 기능 표시가 보인다", (await page.getByText("새 기능").count()) > 0);
+const opened = await page.locator("details[data-release]").evaluateAll((els) => els.map((e) => e.open));
+check("가장 최근 날짜만 펼쳐져 있다", opened[0] && opened.slice(1).every((o) => !o));
+const versions = await page.locator("details[data-release]").first().locator("[data-version]").count();
+check(`펼친 날짜 안에 버전이 보인다 (${versions}개)`, versions > 0 && (await page.locator("[data-version]").first().isVisible()));
+check("지금 버전이 보인다", /v\d+\.\d+\.\d+/.test(await page.locator("[data-current-version]").innerText()));
+const second = page.locator("details[data-release]").nth(1);
+await second.locator("summary").click();
+check("날짜를 누르면 그날 버전이 펼쳐진다", (await second.evaluate((e) => e.open)) && (await second.locator("[data-version]").first().isVisible()));
 await page.screenshot({ path: `${outDir}/release-notes-desktop.png`, fullPage: false });
 
 const phone = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2 });
