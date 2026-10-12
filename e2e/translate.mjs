@@ -1,7 +1,6 @@
 // 글 번역 (POST-10): 화면 언어와 다른 말로 쓴 글에만 번역 줄이 뜬다.
 // 브라우저 번역(Translator API)이 있으면 그 자리에서 번역하고, 없으면 파파고 링크를 준다.
 // 시험용 Chromium에 있는 Translator는 번역 모델을 내려받지 못하므로, 없는 브라우저·가짜 Translator(앞에 [ko]를 붙인다)로 바꿔 확인한다.
-// DEEPL_API_KEY 없이 띄운 개발 서버로 실행한다 (키가 있을 때는 e2e/translate-deepl.mjs)
 import { chromium } from "@playwright/test";
 import { config } from "dotenv";
 import pg from "pg";
@@ -100,7 +99,7 @@ await failCtx.addInitScript(() => {
 const failPage = await failCtx.newPage();
 await failPage.goto(url(jaId));
 await failPage.getByRole("button", { name: "한국어로 번역하기" }).click();
-await failPage.getByText("지금은 번역하지 못했어요").waitFor();
+await failPage.getByText("이 브라우저에서 번역하지 못했어요").waitFor();
 check("번역에 실패하면 안내 + 파파고 링크", await failPage.getByRole("link", { name: /파파고로 번역하기/ }).isVisible());
 await failCtx.close();
 

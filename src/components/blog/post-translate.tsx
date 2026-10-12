@@ -1,11 +1,9 @@
 "use client";
-// 글 번역 (POST-10): 글이 지금 화면 언어와 다른 말이면 본문 위에 번역 버튼을 띄운다. 누르면 이 자리에서 제목·본문을 번역하고 원문과 오갈 수 있다.
-// 1) 서버에 DeepL 키가 있으면 서버가 번역한다 (모든 기기, 번역은 저장해 두고 다시 쓴다)
-// 2) 없거나 실패하면 브라우저 번역 기능(Chrome Translator API, 컴퓨터 크롬)
-// 3) 그것도 없으면(사파리·휴대폰 등) 파파고 웹사이트를 새 탭으로 연다
-// 원문은 DB에 그대로 있다.
+// 글 번역 (POST-10): 글이 지금 화면 언어와 다른 말이면 본문 위에 번역 버튼을 띄운다.
+// - 브라우저 번역 기능(Chrome Translator API)이 있으면 이 자리에서 제목·본문을 번역하고 원문과 오갈 수 있다
+// - 없으면(사파리·휴대폰 등) 파파고 웹사이트를 새 탭으로 연다
+// 번역은 주민의 기기·파파고에서 하고 서버는 관여하지 않는다. 원문은 DB에 그대로 있다.
 import { createContext, useContext, useEffect, useState } from "react";
-import { translatePost } from "@/app/blog/actions";
 import { useLocale, useT } from "@/components/i18n";
 import type { Locale } from "@/lib/i18n";
 import { papagoUrl } from "@/lib/translate";
@@ -31,8 +29,6 @@ type State =
   | { kind: "failed" };
 
 type Ctx = {
-  postId: number;
-  server: boolean;
   from: Locale;
   to: Locale;
   title: string;
@@ -44,17 +40,12 @@ type Ctx = {
 const TranslateContext = createContext<Ctx | null>(null);
 
 export function PostTranslateProvider({
-  postId,
-  server,
   from,
   title,
   html,
   text,
   children,
 }: {
-  postId: number;
-  /** 서버 번역(DeepL)을 쓸 수 있는지 */
-  server: boolean;
   /** 글이 쓰인 말 (detectPostLanguage). 화면 언어와 같거나 모르면 null: 번역 버튼을 띄우지 않는다 */
   from: Locale | null;
   title: string;
@@ -64,7 +55,7 @@ export function PostTranslateProvider({
 }) {
   const to = useLocale();
   const [state, setState] = useState<State>({ kind: "idle" });
-  const value = from && from !== to ? { postId, server, from, to, title, html, text, state, setState } : null;
+  const value = from && from !== to ? { from, to, title, html, text, state, setState } : null;
   return <TranslateContext.Provider value={value}>{children}</TranslateContext.Provider>;
 }
 
@@ -106,13 +97,9 @@ export function TranslateBar() {
   const papago = papagoUrl(from, to, `${ctx.title}\n\n${ctx.text}`);
 
   const run = async () => {
+    const api = browserTranslator();
+    if (!api) return;
     setState({ kind: "working", progress: null });
-    if (ctx.server) {
-      const r = await translatePost(ctx.postId, to).catch(() => null);
-      if (r?.ok) return setState({ kind: "done", title: r.title, html: r.html, showing: "translated" });
-    }
-    const api = inBrowser ? browserTranslator() : undefined;
-    if (!api) return setState({ kind: "failed" });
     try {
       // 처음 한 번은 번역 모델을 내려받는다 (버튼을 누른 그 순간에 시작해야 브라우저가 허락한다)
       const translator = await api.create({
@@ -160,7 +147,7 @@ export function TranslateBar() {
       ) : (
         <>
           <span>{t("🌐 {from}로 쓴 글이에요", { from: fromName })}</span>
-          {(ctx.server || inBrowser) && state.kind !== "failed" ? (
+          {inBrowser && state.kind !== "failed" ? (
             <button type="button" className="font-bold text-leaf-dark underline-offset-2 hover:underline" onClick={run}>
               {t("{to}로 번역하기", { to: toName })}
             </button>
@@ -174,7 +161,7 @@ export function TranslateBar() {
               {t("파파고로 번역하기 ↗")}
             </a>
           ) : null}
-          {state.kind === "failed" && <span className="text-berry">{t("지금은 번역하지 못했어요")}</span>}
+          {state.kind === "failed" && <span className="text-berry">{t("이 브라우저에서 번역하지 못했어요")}</span>}
         </>
       )}
     </div>
