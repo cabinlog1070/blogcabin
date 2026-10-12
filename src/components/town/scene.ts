@@ -66,6 +66,7 @@ import {
 } from "@/lib/art/props";
 import { softBush, softCloud, softFlowerBlue, softFlowerPink, softHedge, softMountain, softSun, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
+import { createNightSky } from "./night-sky";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
 
@@ -148,6 +149,8 @@ type PropKind = keyof typeof PROP_ART;
 type PropSpot = { kind: PropKind; x: number; y: number; s?: number; solid?: { w: number; h: number } };
 // 하늘: 예전 빨래대 자리(y 178) 뒤쪽부터는 숲 대신 하늘이 열린다 (2026-10-12 정지원 님). 걸을 수 있는 곳도 이 아래까지
 const HORIZON = 150;
+// 호숫가: 내 집 아래쪽 숲 자리는 호수 (2026-10-12 정지원 님). 걸을 수 있는 곳 아래 가장자리 바로 밑에서 물이 시작한다
+const LAKE_TOP = WORLD.height + 6;
 const FIXED_PROPS: PropSpot[] = [
   // 이정표: 위쪽 길에서 내려온 가운데 길이 광장으로 들어오는 갈림목 (오른쪽 가장자리, 출석 체크 이름표 아래)
   { kind: "signpost", x: CENTER.x + 84, y: CENTER.y - 188, s: 0.8, solid: { w: 12, h: 8 } },
@@ -356,6 +359,8 @@ export function createTownScene(
     private occupied: Rect[] = []; // 그림·이름표가 차지한 영역 (풀밭 소품을 흩어 놓을 때 피한다)
     private stuck: { x: number; y: number; since: number; retried?: boolean } = { x: 0, y: 0, since: 0 }; // 길을 가다 막혔는지 보는 용도
     private touch = false; // 손가락으로 쓰는 화면 (안내 문구를 "탭해서"로)
+    private nightSky: ReturnType<typeof createNightSky> | null = null;
+    private dayOnly: PhaserNS.GameObjects.Image[] = []; // 낮에만 보이는 해·구름
     private glows: { image: PhaserNS.GameObjects.Image; kind: "lamp" | "window" | "fire"; base: number }[] = [];
     private entrances: Entrance[] = [];
     private prompt!: PhaserNS.GameObjects.Text;
@@ -802,6 +807,8 @@ export function createTownScene(
           const alpha = l.kind === "fire" ? 0.22 + 0.4 * sky.lamps : l.base * sky.lamps;
           l.image.setAlpha(alpha).setVisible(alpha > 0.01);
         }
+        this.nightSky?.setNight(sky.lamps);
+        for (const o of this.dayOnly) o.setAlpha(1 - sky.lamps).setVisible(sky.lamps < 0.99);
         this.game.canvas.dataset.sky = sky.phase;
         this.game.canvas.dataset.lamps = sky.lamps > 0.5 ? "on" : "off";
       };
@@ -924,6 +931,95 @@ export function createTownScene(
         .setOrigin(0)
         .setDepth(GROUND_DEPTH - 1);
       this.drawHorizonSky();
+      this.drawLake();
+    }
+
+    /** 아래쪽 호수: 물결치는 물가 + 모래 띠 + 잔물결·연잎, 가운데 길 끝에는 나무 선착장. 그림 한 장으로 구워 밤에는 어두워진다(tint) */
+    private drawLake() {
+      const W = WORLD.width + FOREST * 2, H = WORLD.height + FOREST - LAKE_TOP + 20;
+      if (!this.textures.exists("lake")) {
+        const tex = this.textures.createCanvas("lake", W, H)!;
+        const ctx = tex.getContext();
+        const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-lake"]);
+        const shore = (inset: number) => {
+          ctx.beginPath();
+          ctx.moveTo(0, H);
+          ctx.lineTo(0, inset + 10);
+          for (let x = 0; x <= W; x += 60) ctx.quadraticCurveTo(x + 30, inset + ((x / 60) % 2 ? 2 : 14), x + 60, inset + 8 + Math.sin(x * 0.013) * 6);
+          ctx.lineTo(W, H);
+          ctx.closePath();
+        };
+        // 모래 띠 → 물
+        shore(0);
+        ctx.fillStyle = "#e9d6a6";
+        ctx.fill();
+        shore(16);
+        const water = ctx.createLinearGradient(0, 16, 0, H);
+        water.addColorStop(0, "#a9dbef");
+        water.addColorStop(0.35, "#86c6e6");
+        water.addColorStop(1, "#6aaedb");
+        ctx.fillStyle = water;
+        ctx.fill();
+        // 물가 바로 앞 옅은 띠
+        ctx.strokeStyle = "rgba(255,255,255,0.55)";
+        ctx.lineWidth = 4;
+        shore(22);
+        ctx.stroke();
+        // 잔물결
+        ctx.lineCap = "round";
+        for (let i = 0; i < (W * H) / 9000; i++) {
+          const x = rng.between(0, W), y = rng.between(60, H - 10), l = rng.between(14, 34);
+          ctx.strokeStyle = `rgba(255,255,255,${(0.35 + rng.frac() * 0.35).toFixed(2)})`;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.quadraticCurveTo(x + l / 2, y - 4, x + l, y);
+          ctx.stroke();
+        }
+        // 연잎 (가끔 분홍 꽃)
+        for (let i = 0; i < 26; i++) {
+          const x = rng.between(40, W - 40), y = rng.between(80, H - 40), r = rng.between(9, 15);
+          ctx.fillStyle = "#7fbf5a";
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.arc(x, y, r, 0.35, Math.PI * 2 - 0.1);
+          ctx.closePath();
+          ctx.fill();
+          if (rng.frac() < 0.35) {
+            ctx.fillStyle = "#f7a9c0";
+            ctx.beginPath();
+            ctx.arc(x + 2, y - 3, 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        // 물가 갈대
+        ctx.strokeStyle = "#6f9c46";
+        ctx.lineWidth = 3;
+        for (let x = rng.between(20, 80); x < W; x += rng.between(70, 160)) {
+          if (Math.abs(x - (FOREST + CENTER.x)) < 90) continue; // 선착장 자리는 비운다
+          for (const dx of [-6, 0, 6]) {
+            ctx.beginPath();
+            ctx.moveTo(x + dx, 30);
+            ctx.quadraticCurveTo(x + dx * 1.6, 12, x + dx * 2, -2 + Math.abs(dx));
+            ctx.stroke();
+          }
+          ctx.fillStyle = "#9a6a40";
+          ctx.fillRect(x - 2, -4, 4, 10);
+        }
+        // 나무 선착장: 가운데 길이 호수로 이어진다
+        const dx = FOREST + CENTER.x;
+        ctx.fillStyle = "#7a5236";
+        for (const px of [-30, 28]) for (const py of [70, 130]) ctx.fillRect(dx + px - 3, py - 4, 8, 22);
+        for (let y = 0; y < 132; y += 14) {
+          ctx.fillStyle = y % 28 ? "#c9955f" : "#b98450";
+          ctx.fillRect(dx - 34, y, 68, 12);
+          ctx.strokeStyle = "#8a5a3a";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(dx - 34, y, 68, 12);
+        }
+        tex.refresh();
+      }
+      this.add.image(-FOREST, LAKE_TOP, "lake").setOrigin(0).setDepth(GROUND_DEPTH + 2);
     }
 
     /** 위쪽 하늘: 파스텔 하늘색 + 구름 + 멀리 보이는 언덕. 그림 한 장으로 구워서 밤에는 다른 그림처럼 어두워진다(tint) */
@@ -943,15 +1039,17 @@ export function createTownScene(
         g.destroy();
       }
       this.add.image(-FOREST, -FOREST, "horizon-sky").setOrigin(0).setDepth(GROUND_DEPTH + 2);
-      // 크레용 해와 파란 구름 (정지원 님 시안). 산보다 앞에 띄워 가려지지 않게 한다
-      this.add.image(WORLD.width - 330, HORIZON - 104, "soft:sun").setDisplaySize(118, 118).setDepth(GROUND_DEPTH + 7);
-      for (const [x, y, w] of [[-420, -150, 130], [120, -110, 120], [560, -40, 110], [1080, -120, 128], [1820, -30, 104], [2240, -130, 124]] as const) {
-        this.add.image(x, HORIZON + y, "soft:cloud").setDisplaySize(w, (w * 130) / 240).setDepth(GROUND_DEPTH + 7);
+      // 밤하늘 (별·불꽃놀이): 낮 하늘 위에 겹쳐 두고 밤에만 보인다
+      this.nightSky = createNightSky(this, Phaser, { x: -FOREST, y: -FOREST, w: W, h: HORIZON + FOREST, horizon: HORIZON, depth: GROUND_DEPTH + 3, frontDepth: GROUND_DEPTH + 6.5 });
+      // 크레용 해와 파란 구름 (정지원 님 시안). 산보다 앞에 띄워 가려지지 않게 하고, 밤에는 숨긴다
+      this.dayOnly.push(this.add.image(WORLD.width - 330, HORIZON - 96, "soft:sun").setDisplaySize(80, 80).setDepth(GROUND_DEPTH + 7));
+      for (const [x, y, w] of [[-420, -150, 92], [120, -110, 84], [560, -96, 76], [1080, -120, 90], [1820, -104, 74], [2240, -130, 86]] as const) {
+        this.dayOnly.push(this.add.image(x, HORIZON + y, "soft:cloud").setDisplaySize(w, (w * 130) / 240).setDepth(GROUND_DEPTH + 7));
       }
       // 둘러싼 산 (정지원 님 시안): 종 모양 초록 산을 두 겹(뒤는 옅게)으로 세우고, 발치를 짙은 덤불 줄로 덮는다
       const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-mountains"]);
       const BASE = HORIZON + 6;
-      for (const [key, step, h0, h1, depth] of [["soft:mountain-far", 230, 120, 150, 4], ["soft:mountain", 300, 90, 128, 5]] as const) {
+      for (const [key, step, h0, h1, depth] of [["soft:mountain-far", 200, 70, 92, 4], ["soft:mountain", 260, 50, 74, 5]] as const) {
         for (let x = -FOREST + rng.between(0, step / 2); x < WORLD.width + FOREST + step; x += rng.between(step * 0.8, step * 1.2)) {
           const h = rng.between(h0, h1);
           this.add.image(x, BASE, key).setOrigin(0.5, 1).setDisplaySize((h * 360) / 200, h).setDepth(GROUND_DEPTH + depth);
@@ -977,7 +1075,7 @@ export function createTownScene(
           const tx = x + (row % 2 ? GAP.x / 2 : 0) + rng.between(-20, 20);
           const ty = y + rng.between(-14, 14);
           const inside = tx > -EDGE && tx < WORLD.width + EDGE && ty > 12 && ty < WORLD.height + 60;
-          if (inside || ty < HORIZON + 30) continue; // 하늘 쪽에는 심지 않는다
+          if (inside || ty < HORIZON + 30 || ty > LAKE_TOP - 6) continue; // 하늘·호수 쪽에는 심지 않는다
           // 광장에서 떨어진 거리: 가까운 두 줄은 촘촘히, 그 바깥은 절반쯤 비워 풀밭이 보이게
           const out = Math.max(-tx, tx - WORLD.width, -ty, ty - WORLD.height - 60, 0);
           const skip = out < 110 ? 0.05 : out < 260 ? 0.35 : 0.55;
