@@ -64,7 +64,7 @@ import {
   STUMP_SIZE,
   stumpSvg,
 } from "@/lib/art/props";
-import { softBush, softCloud, softFlowerBlue, softFlowerPink, softHedge, softMountain, softSun, softTree } from "@/lib/art/soft";
+import { crayonGrain, softBush, softCloud, softDock, softFlowerBlue, softFlowerPink, softHedge, softLily, softMountain, softRipple, softShore, softSun, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { createNightSky } from "./night-sky";
 import { lightAt, localHour, mixColor } from "./sky";
@@ -206,6 +206,13 @@ export function townTextures(data: TownData, t: T) {
   list.set("soft:flower-blue", toDataUri(softFlowerBlue()));
   list.set("soft:sun", toDataUri(softSun()));
   list.set("soft:cloud", toDataUri(softCloud()));
+  list.set("soft:cloud-night", toDataUri(softCloud(true)));
+  list.set("soft:grain", toDataUri(crayonGrain()));
+  list.set("soft:shore", toDataUri(softShore()));
+  list.set("soft:dock", toDataUri(softDock()));
+  list.set("soft:lily", toDataUri(softLily()));
+  list.set("soft:lily-flower", toDataUri(softLily(true)));
+  list.set("soft:ripple", toDataUri(softRipple()));
   list.set("soft:mountain", toDataUri(softMountain()));
   list.set("soft:mountain-far", toDataUri(softMountain(true)));
   list.set("soft:hedge", toDataUri(softHedge()));
@@ -934,92 +941,36 @@ export function createTownScene(
       this.drawLake();
     }
 
-    /** 아래쪽 호수: 물결치는 물가 + 모래 띠 + 잔물결·연잎, 가운데 길 끝에는 나무 선착장. 그림 한 장으로 구워 밤에는 어두워진다(tint) */
+    /** 아래쪽 호수 (크레용 그림체): 물 바탕 + 크레용 결, 위에 모래·갈대 물가 띠, 잔물결·연잎, 가운데 길 끝에는 나무 선착장 */
     private drawLake() {
-      const W = WORLD.width + FOREST * 2, H = WORLD.height + FOREST - LAKE_TOP + 20;
+      const W = WORLD.width + FOREST * 2, top = LAKE_TOP + 24, H = WORLD.height + FOREST - top + 20;
       if (!this.textures.exists("lake")) {
-        const tex = this.textures.createCanvas("lake", W, H)!;
+        const tex = this.textures.createCanvas("lake", 8, H)!;
         const ctx = tex.getContext();
-        const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-lake"]);
-        const shore = (inset: number) => {
-          ctx.beginPath();
-          ctx.moveTo(0, H);
-          ctx.lineTo(0, inset + 10);
-          for (let x = 0; x <= W; x += 60) ctx.quadraticCurveTo(x + 30, inset + ((x / 60) % 2 ? 2 : 14), x + 60, inset + 8 + Math.sin(x * 0.013) * 6);
-          ctx.lineTo(W, H);
-          ctx.closePath();
-        };
-        // 모래 띠 → 물
-        shore(0);
-        ctx.fillStyle = "#e9d6a6";
-        ctx.fill();
-        shore(16);
-        const water = ctx.createLinearGradient(0, 16, 0, H);
-        water.addColorStop(0, "#a9dbef");
-        water.addColorStop(0.35, "#86c6e6");
-        water.addColorStop(1, "#6aaedb");
+        const water = ctx.createLinearGradient(0, 0, 0, H);
+        water.addColorStop(0, "#9fd3ec");
+        water.addColorStop(0.4, "#8cc8e8");
+        water.addColorStop(1, "#74b4de");
         ctx.fillStyle = water;
-        ctx.fill();
-        // 물가 바로 앞 옅은 띠
-        ctx.strokeStyle = "rgba(255,255,255,0.55)";
-        ctx.lineWidth = 4;
-        shore(22);
-        ctx.stroke();
-        // 잔물결
-        ctx.lineCap = "round";
-        for (let i = 0; i < (W * H) / 9000; i++) {
-          const x = rng.between(0, W), y = rng.between(60, H - 10), l = rng.between(14, 34);
-          ctx.strokeStyle = `rgba(255,255,255,${(0.35 + rng.frac() * 0.35).toFixed(2)})`;
-          ctx.lineWidth = 2.5;
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.quadraticCurveTo(x + l / 2, y - 4, x + l, y);
-          ctx.stroke();
-        }
-        // 연잎 (가끔 분홍 꽃)
-        for (let i = 0; i < 26; i++) {
-          const x = rng.between(40, W - 40), y = rng.between(80, H - 40), r = rng.between(9, 15);
-          ctx.fillStyle = "#7fbf5a";
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.arc(x, y, r, 0.35, Math.PI * 2 - 0.1);
-          ctx.closePath();
-          ctx.fill();
-          if (rng.frac() < 0.35) {
-            ctx.fillStyle = "#f7a9c0";
-            ctx.beginPath();
-            ctx.arc(x + 2, y - 3, 5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-        // 물가 갈대
-        ctx.strokeStyle = "#6f9c46";
-        ctx.lineWidth = 3;
-        for (let x = rng.between(20, 80); x < W; x += rng.between(70, 160)) {
-          if (Math.abs(x - (FOREST + CENTER.x)) < 90) continue; // 선착장 자리는 비운다
-          for (const dx of [-6, 0, 6]) {
-            ctx.beginPath();
-            ctx.moveTo(x + dx, 30);
-            ctx.quadraticCurveTo(x + dx * 1.6, 12, x + dx * 2, -2 + Math.abs(dx));
-            ctx.stroke();
-          }
-          ctx.fillStyle = "#9a6a40";
-          ctx.fillRect(x - 2, -4, 4, 10);
-        }
-        // 나무 선착장: 가운데 길이 호수로 이어진다
-        const dx = FOREST + CENTER.x;
-        ctx.fillStyle = "#7a5236";
-        for (const px of [-30, 28]) for (const py of [70, 130]) ctx.fillRect(dx + px - 3, py - 4, 8, 22);
-        for (let y = 0; y < 132; y += 14) {
-          ctx.fillStyle = y % 28 ? "#c9955f" : "#b98450";
-          ctx.fillRect(dx - 34, y, 68, 12);
-          ctx.strokeStyle = "#8a5a3a";
-          ctx.lineWidth = 2;
-          ctx.strokeRect(dx - 34, y, 68, 12);
-        }
+        ctx.fillRect(0, 0, 8, H);
         tex.refresh();
       }
-      this.add.image(-FOREST, LAKE_TOP, "lake").setOrigin(0).setDepth(GROUND_DEPTH + 2);
+      const D = GROUND_DEPTH + 2;
+      this.add.image(-FOREST, top, "lake").setOrigin(0).setDisplaySize(W, H).setDepth(D);
+      this.add.tileSprite(-FOREST, top, W, H, "soft:grain").setOrigin(0).setTileScale(0.5).setAlpha(0.55).setDepth(D + 0.1);
+      this.add.tileSprite(-FOREST, LAKE_TOP - 16, W, 45, "soft:shore").setOrigin(0).setTileScale(0.5).setDepth(D + 0.3);
+      const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-lake"]);
+      for (let i = 0; i < 70; i++) {
+        this.add.image(rng.between(-FOREST, WORLD.width + FOREST), rng.between(top + 30, top + H - 30), "soft:ripple").setDisplaySize(32, 8).setDepth(D + 0.2);
+      }
+      for (let i = 0; i < 22; i++) {
+        const x = rng.between(-FOREST, WORLD.width + FOREST);
+        if (Math.abs(x - CENTER.x) < 70) continue;
+        const s = rng.realInRange(0.8, 1.2);
+        this.add.image(x, rng.between(top + 40, top + H - 30), rng.frac() < 0.35 ? "soft:lily-flower" : "soft:lily").setDisplaySize(30 * s, 20 * s).setDepth(D + 0.2);
+      }
+      // 나무 선착장: 가운데 길이 호수로 이어진다
+      this.add.image(CENTER.x, LAKE_TOP - 8, "soft:dock").setOrigin(0.5, 0).setDisplaySize(50, 85).setDepth(D + 0.4);
     }
 
     /** 위쪽 하늘: 파스텔 하늘색 + 구름 + 멀리 보이는 언덕. 그림 한 장으로 구워서 밤에는 다른 그림처럼 어두워진다(tint) */

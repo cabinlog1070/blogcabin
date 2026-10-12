@@ -162,11 +162,12 @@ export function softSun(): string {
 }
 
 /** 크레용 파란 구름 (240×130, 정지원 님 시안): 봉우리 네 개, 위쪽 테두리는 옅게 빛난다 */
-export function softCloud(): string {
+export function softCloud(night = false): string {
   return make(240, 130, () => {
     const d = "M30 104C10 100 8 70 30 62C34 44 52 40 66 46C70 20 104 12 120 36C132 18 166 22 172 48C190 46 200 60 196 70C218 70 230 92 214 106C200 118 176 112 166 108C150 122 120 120 110 108C92 118 54 116 30 104Z";
-    let o = blob(d, "#8ec0ee", "#78b0e8", 7, 31);
-    o += pastel(`<path d="M44 58C48 48 60 46 68 52M78 40C88 26 108 24 116 40M136 36C148 28 164 32 168 46M188 72C196 70 206 76 208 84" fill="none" stroke="#c4e0fa" stroke-width="7" stroke-linecap="round" opacity=".8"/>`, 3, 33);
+    // night = 밤하늘의 보랏빛 구름
+    let o = night ? blob(d, "#8b78c8", "#7a68b8", 7, 31) : blob(d, "#8ec0ee", "#78b0e8", 7, 31);
+    o += pastel(`<path d="M44 58C48 48 60 46 68 52M78 40C88 26 108 24 116 40M136 36C148 28 164 32 168 46M188 72C196 70 206 76 208 84" fill="none" stroke="${night ? "#a99ae0" : "#c4e0fa"}" stroke-width="7" stroke-linecap="round" opacity=".8"/>`, 3, 33);
     o += streaks([[60, 96, 14], [84, 80, 12], [120, 94, 14], [150, 78, 12], [182, 96, 12], [104, 60, 10]]);
     return o;
   });
@@ -194,4 +195,53 @@ export function softHedge(): string {
       .map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="4" ry="7.5" fill="#3f7a2a" opacity=".75"/>`).join(""), 2, 49);
     return o;
   });
+}
+
+/** 크레용 종이 결 타일 (256×256, 가로·세로로 이어 붙여도 이음매가 없다). 물·하늘처럼 넓은 면에 겹쳐 결을 낸다 */
+export function crayonGrain(color = "#ffffff"): string {
+  return make(256, 256, () =>
+    `<filter id="cg" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9 0.35" numOctaves="2" seed="5" stitchTiles="stitch" result="n"/>` +
+    `<feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 2.6 -1.35" result="m"/>` +
+    `<feFlood flood-color="${color}"/><feComposite in2="m" operator="in"/></filter>` +
+    `<rect width="256" height="256" fill="#fff" filter="url(#cg)"/>`);
+}
+
+/** 호숫가 띠 (480×90, 가로로 이어 붙인다): 위는 풀, 가운데 모래, 아래로 물가. 갈대 두 포기 */
+export function softShore(): string {
+  return make(480, 90, () => {
+    let o = blob("M-10 40C40 30 80 50 120 42C170 32 210 50 250 42C300 32 340 50 380 42C420 34 450 44 490 40V96H-10Z", "#ead7a4", "#dcc38a", 6, 51);
+    o += blob("M-10 62C40 54 80 70 120 64C170 56 210 70 250 64C300 56 340 70 380 64C420 58 450 66 490 62V96H-10Z", "#9fd3ec", "#86c2e4", 6, 53);
+    o += streaks([[40, 78, 10], [150, 80, 12], [270, 78, 10], [390, 80, 12]], "#ffffff", 0.6);
+    const reed = (x: number) =>
+      pastel(`<path d="M${x - 8} 46q-4-20-10-34M${x} 46q0-24 2-40M${x + 8} 46q4-18 12-30" fill="none" stroke="#6f9c46" stroke-width="4" stroke-linecap="round"/>`, 2, 55) +
+      blob(`M${x - 3} 6q3-6 6 0v14q-3 4-6 0Z`, "#a0683d", "#8a5a32", 3, 57);
+    return o + reed(90) + reed(330);
+  });
+}
+
+/** 나무 선착장 (100×170): 판자 여러 장 + 물에 잠긴 기둥 네 개 */
+export function softDock(): string {
+  return make(100, 170, () => {
+    let o = "";
+    for (const [x, y] of [[16, 110], [78, 110], [16, 150], [78, 150]]) o += blob(`M${x - 5} ${y}h10v18q-5 3-10 0Z`, "#8a5a3a", "#6f4630", 3, 61);
+    for (let y = 0; y < 156; y += 17) {
+      const w = (y / 17) % 2 ? 0 : 2;
+      o += blob(`M${12 - w} ${y + 1}Q50 ${y - 1} ${88 + w} ${y + 1}L${88 + w} ${y + 15}Q50 ${y + 17} ${12 - w} ${y + 15}Z`, (y / 17) % 2 ? "#c9955f" : "#bf8a55", "#9a6a40", 4, 63 + y);
+    }
+    return o + pastel(`<path d="M30 20v126M70 20v126" stroke="#9a6a40" stroke-width="2.5" stroke-dasharray="2 15" fill="none"/>`, 1, 65);
+  });
+}
+
+/** 연잎 (60×40), flower = 분홍 꽃이 핀 연잎 */
+export function softLily(flower = false): string {
+  return make(60, 40, () => {
+    let o = blob("M30 20L52 16C56 28 44 36 30 36C14 36 4 28 8 18C12 8 26 6 34 8Z", "#8fd27a", "#5fc24f", 4, 71);
+    if (flower) o += blob("M30 18C26 8 34 6 34 14C40 8 44 14 36 20C40 26 32 28 30 22C26 28 18 24 24 18C18 12 26 8 30 18Z", "#f7a9c0", "#f294b2", 3, 73);
+    return o;
+  });
+}
+
+/** 잔물결 (64×16): 흰 크레용 곡선 두 줄 */
+export function softRipple(): string {
+  return make(64, 16, () => pastel(`<path d="M4 10q12-8 24 0M36 12q10-6 22 0" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity=".75"/>`, 2, 77));
 }

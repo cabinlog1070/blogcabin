@@ -53,17 +53,6 @@ export function createNightSky(scene: PhaserNS.Scene, Phaser: typeof PhaserNS, a
       ctx.arc(rng.between(0, W), rng.between(0, H - 60), 0.6 + rng.frac() * 1.4, 0, Math.PI * 2);
       ctx.fill();
     }
-    // 지평선 위 보랏빛 구름: 동그라미 몇 개를 한 모양으로 합쳐 한 번에 칠한다 (겹친 곳이 진해지지 않게)
-    for (let x = rng.between(0, 200); x < W; x += rng.between(260, 420)) {
-      const y = H - rng.between(60, 110), k = rng.realInRange(0.5, 0.8);
-      ctx.fillStyle = `rgba(${rng.between(130, 165)},${rng.between(100, 120)},${rng.between(180, 210)},0.45)`;
-      ctx.beginPath();
-      for (const [dx, dy, r] of [[-40, 8, 22], [-12, -4, 30], [20, 0, 26], [46, 10, 18], [0, 12, 22]]) {
-        ctx.moveTo(x + (dx + r) * k, y + dy * k);
-        ctx.arc(x + dx * k, y + dy * k, r * k, 0, Math.PI * 2);
-      }
-      ctx.fill();
-    }
     tex.refresh();
   }
 
@@ -75,6 +64,12 @@ export function createNightSky(scene: PhaserNS.Scene, Phaser: typeof PhaserNS, a
     return o;
   };
   keep(scene.add.image(X, Y, "night-sky").setOrigin(0).setDepth(depth));
+  keep(scene.add.tileSprite(X, Y, W, H, "soft:grain").setOrigin(0).setTileScale(0.5).setAlpha(0.12) as unknown as PhaserNS.GameObjects.Image);
+  // 지평선 위 보랏빛 크레용 구름
+  for (let x = X + rng.between(0, 200); x < X + W; x += rng.between(260, 420)) {
+    const w = rng.between(70, 100);
+    keep(scene.add.image(x, horizon - rng.between(70, 110), "soft:cloud-night").setDisplaySize(w, (w * 130) / 240).setAlpha(0.85));
+  }
 
   const still = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   // 반짝이는 큰 별
