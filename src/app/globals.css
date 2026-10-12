@@ -118,6 +118,17 @@ body {
   & hr { border: none; border-top: 2px dashed var(--color-line); margin: 2em 0; }
   & img { max-width: 100%; border-radius: 0.8rem; }
 
+  /* 표: 넓으면 표만 옆으로 밀린다 (읽는 화면은 div.table-scroll, 에디터는 Tiptap의 div.tableWrapper) */
+  & .table-scroll, & .tableWrapper { overflow-x: auto; margin: 1em 0; }
+  & table { width: 100%; border-collapse: collapse; line-height: 1.6; }
+  & th, & td { position: relative; min-width: 4.5rem; padding: 0.45rem 0.7rem; border: 1px solid var(--color-line); vertical-align: top; text-align: left; }
+  & th { background: var(--color-honey); font-weight: 700; }
+  & td { background: var(--color-paper); }
+  & th > p, & td > p { margin: 0; }
+  & th > p + p, & td > p + p { margin-top: 0.4em; }
+  /* 에디터에서 여러 칸을 끌어서 골랐을 때 */
+  & .selectedCell::after { content: ""; position: absolute; inset: 0; background: var(--color-sun); opacity: 0.25; pointer-events: none; }
+
   /* 파일 카드 (POST-09): 아이콘·이름·크기는 data 속성으로 그린다. 글자가 아니라서 보상 글자 수에 들어가지 않는다 */
   & a[data-file] {
     display: flex; align-items: center; gap: 0.75rem; max-width: 30rem; margin: 0.8em 0; padding: 0.7rem 1rem;
