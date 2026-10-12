@@ -1,11 +1,10 @@
 // 광장 위쪽 밤하늘 (2026-10-12 정지원 님 시안): 남색 하늘에 별·보라 구름, 산 아래 마을 불빛, 반짝이는 별과 별똥별,
-// 그리고 밤마다 터지는 불꽃놀이 (동그란 불꽃 + 토끼·고양이 얼굴 불꽃). 낮에는 보이지 않는다.
+// 그리고 밤마다 터지는 크레용 불꽃놀이 (알록달록 불꽃 + 가끔 토끼·고양이 얼굴). 불꽃 그림은 soft.ts. 낮에는 보이지 않는다.
 // 밤하늘은 레이어 하나에 모아 낮·밤에 따라 한 번에 보이고 사라진다 (레이어 속 그림은 하늘색으로 물들이지 않는다).
 import type * as PhaserNS from "phaser";
 
 type Area = { x: number; y: number; w: number; h: number; horizon: number; depth: number; frontDepth: number };
 
-const FIREWORK_COLORS = [0xff8fd0, 0xffd27a, 0x8ff5c8, 0xc9a2ff, 0x9fd8ff, 0xffb38a];
 
 export function createNightSky(scene: PhaserNS.Scene, Phaser: typeof PhaserNS, area: Area) {
   const { x: X, y: Y, w: W, h: H, horizon, depth } = area;
@@ -88,60 +87,26 @@ export function createNightSky(scene: PhaserNS.Scene, Phaser: typeof PhaserNS, a
     return bottom - top > 30 ? { left: v.x + 60, right: v.right - 60, top, bottom } : null;
   };
 
-  /** 불꽃 하나: 꼬리를 끌며 올라가서 터진다. shape가 있으면 그 모양 점들로 퍼진다 */
-  const burst = (shape?: [number, number][]) => {
+  /** 불꽃 하나: 작은 크레용 점이 올라가서, 크레용으로 그은 불꽃 그림(정지원 님 시안)이 활짝 퍼졌다가 흘러내리며 사라진다 */
+  const burst = (key: string) => {
     const sky = visibleSky();
     if (!sky || night < 0.5) return;
     scene.game.canvas.dataset.fireworks = String(Number(scene.game.canvas.dataset.fireworks ?? 0) + 1); // e2e 확인용
     const cx = rng.between(sky.left, sky.right), cy = rng.between(sky.top + 20, sky.bottom);
-    const color = rng.pick(FIREWORK_COLORS);
-    const scale = Math.min(1, (sky.bottom - sky.top + 40) / 120);
-    const spark = (x: number, y: number, size: number) =>
-      keep(scene.add.image(x, y, "spark").setDisplaySize(size, size).setTint(color).setBlendMode(Phaser.BlendModes.ADD), front);
-    const rocket = spark(cx, horizon - 10, 7);
+    const size = Math.min(130, (sky.bottom - sky.top + 60) * 0.9) * rng.realInRange(0.8, 1.1);
+    const rocket = keep(scene.add.image(cx, horizon - 10, "spark").setDisplaySize(7, 7).setTint(0xfff1b8), front);
     scene.tweens.add({
       targets: rocket, y: cy, duration: 650, ease: "Quad.easeOut",
       onComplete: () => {
         rocket.destroy();
-        const flash = spark(cx, cy, 70 * scale).setAlpha(0.5);
-        scene.tweens.add({ targets: flash, alpha: 0, duration: 500, onComplete: () => flash.destroy() });
-        // 동그란 불꽃: 바깥·가운데·안쪽 세 겹으로 퍼지는 빛줄기 (시안처럼 꽉 찬 꽃 모양)
-        const points: [number, number][] = shape ?? [[1, 32], [0.68, 22], [0.38, 12]].flatMap(([k, n]) =>
-          Array.from({ length: n }, (_, i) => {
-            const a = (i / n) * Math.PI * 2 + k;
-            return [Math.cos(a) * k, Math.sin(a) * k] as [number, number];
-          }));
-        const r = (shape ? 34 : 50 + rng.between(0, 16)) * scale;
-        for (const [px, py] of points) {
-          const p = spark(cx, cy, shape ? 6 : 6.5);
-          if (!shape) p.setDisplaySize(13, 4).setRotation(Math.atan2(py, px)); // 퍼지는 방향으로 길쭉한 빛줄기
-          scene.tweens.add({
-            targets: p, x: cx + px * r, y: cy + py * r + (shape ? 0 : 6 * scale), duration: shape ? 700 : 900, ease: "Cubic.easeOut",
-            onComplete: () => scene.tweens.add({ targets: p, alpha: 0, y: p.y + 8, duration: shape ? 1100 : 700, delay: shape ? 500 : 0, onComplete: () => p.destroy() }),
-          });
-        }
+        const fw = keep(scene.add.image(cx, cy, key).setDisplaySize(size * 0.25, size * 0.25).setRotation(rng.realInRange(-0.4, 0.4)), front);
+        scene.tweens.add({
+          targets: fw, displayWidth: size, displayHeight: size, duration: 450, ease: "Cubic.easeOut",
+          onComplete: () => scene.tweens.add({ targets: fw, alpha: 0, y: cy + 10, delay: 600, duration: 800, onComplete: () => fw.destroy() }),
+        });
       },
     });
   };
-
-  // 토끼·고양이 얼굴 불꽃: 얼굴 둘레 + 귀 + 눈을 점으로
-  const ring = (cx: number, cy: number, rx: number, ry: number, n: number, a0 = 0, a1 = Math.PI * 2): [number, number][] =>
-    Array.from({ length: n }, (_, i) => {
-      const a = a0 + ((a1 - a0) * i) / n;
-      return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry];
-    });
-  const BUNNY: [number, number][] = [
-    ...ring(0, 0.25, 1, 0.75, 22),
-    ...ring(-0.42, -0.95, 0.2, 0.55, 10, Math.PI * 0.85, Math.PI * 2.15),
-    ...ring(0.42, -0.95, 0.2, 0.55, 10, Math.PI * 0.85, Math.PI * 2.15),
-    [-0.35, 0.15], [0.35, 0.15], [-0.08, 0.45], [0, 0.5], [0.08, 0.45],
-  ];
-  const CAT: [number, number][] = [
-    ...ring(0, 0.2, 1, 0.78, 22),
-    [-0.85, -0.35], [-0.78, -0.75], [-0.62, -1.05], [-0.4, -0.7], [-0.2, -0.6],
-    [0.85, -0.35], [0.78, -0.75], [0.62, -1.05], [0.4, -0.7], [0.2, -0.6],
-    [-0.35, 0.1], [0.35, 0.1], [-0.1, 0.42], [0, 0.36], [0.1, 0.42],
-  ];
 
   /** 별똥별 */
   const meteor = () => {
@@ -158,8 +123,7 @@ export function createNightSky(scene: PhaserNS.Scene, Phaser: typeof PhaserNS, a
     const tick = (now: number) => {
       if (now >= nextBurst) {
         nextBurst = now + 900;
-        if (rng.frac() < 0.12) burst(rng.pick([BUNNY, CAT]));
-        else burst();
+        burst(rng.frac() < 0.12 ? rng.pick(["fw:bunny", "fw:cat"]) : rng.pick(["fw:warm", "fw:cool", "fw:pink"]));
       }
       if (now >= nextMeteor) {
         nextMeteor = now + 6000;

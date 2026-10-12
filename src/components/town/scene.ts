@@ -64,7 +64,7 @@ import {
   STUMP_SIZE,
   stumpSvg,
 } from "@/lib/art/props";
-import { crayonGrain, softBush, softCloud, softDock, softFlowerBlue, softFlowerPink, softHedge, softLily, softMountain, softRipple, softShore, softSun, softTree } from "@/lib/art/soft";
+import { crayonGrain, softBush, softFirework, softFireworkFace, softCloud, softDock, softFlowerBlue, softFlowerPink, softHedge, softLily, softMountain, softRipple, softShore, softSun, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { createNightSky } from "./night-sky";
 import { lightAt, localHour, mixColor } from "./sky";
@@ -207,6 +207,9 @@ export function townTextures(data: TownData, t: T) {
   list.set("soft:sun", toDataUri(softSun()));
   list.set("soft:cloud", toDataUri(softCloud()));
   list.set("soft:cloud-night", toDataUri(softCloud(true)));
+  for (const k of ["warm", "cool", "pink"] as const) list.set(`fw:${k}`, toDataUri(softFirework(k)));
+  list.set("fw:bunny", toDataUri(softFireworkFace("bunny")));
+  list.set("fw:cat", toDataUri(softFireworkFace("cat")));
   list.set("soft:grain", toDataUri(crayonGrain()));
   list.set("soft:shore", toDataUri(softShore()));
   list.set("soft:dock", toDataUri(softDock()));

@@ -245,3 +245,49 @@ export function softLily(flower = false): string {
 export function softRipple(): string {
   return make(64, 16, () => pastel(`<path d="M4 10q12-8 24 0M36 12q10-6 22 0" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity=".75"/>`, 2, 77));
 }
+
+/** 불꽃놀이 색 묶음 (정지원 님 시안: 빨강·주황·노랑, 보라·하늘·노랑) */
+export const FIREWORK_PALETTES = {
+  warm: ["#e8352e", "#e8792e", "#f2cf3e"],
+  cool: ["#6f62e0", "#6ab4f0", "#f2cf3e"],
+  pink: ["#f06aa6", "#b98cf0", "#7fe0b8"],
+} as const;
+export type FireworkPalette = keyof typeof FIREWORK_PALETTES;
+
+/** 크레용 불꽃 (240×240): 가운데서 뻗는 굽은 줄기, 몇 줄은 끝이 꼬불꼬불, 둘레에 작은 점 */
+export function softFirework(kind: FireworkPalette): string {
+  const cols = FIREWORK_PALETTES[kind];
+  return make(240, 240, () => {
+    let o = "";
+    const n = 14;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const r0 = 24 + (i % 2) * 8, r1 = 74 + ((i * 5) % 3) * 12;
+      const bend = (((i * 7) % 5) - 2) * 0.05;
+      const p = (r: number, da = 0) => [120 + Math.cos(a + da) * r, 120 + Math.sin(a + da) * r].map((v) => v.toFixed(1)).join(" ");
+      let d = `M${p(r0)}Q${p((r0 + r1) / 2, bend)} ${p(r1, bend * 1.6)}`;
+      // 몇 줄은 끝을 꼬불꼬불하게 (시안의 번개 같은 꼬리)
+      if (i % 5 === 2) d += `Q${p(r1 - 14, bend * 1.6 + 0.22)} ${p(r1 - 6, bend * 1.6 + 0.3)}Q${p(r1 + 2, bend * 1.6 + 0.4)} ${p(r1 - 12, bend * 1.6 + 0.48)}`;
+      o += pastel(`<path d="${d}" fill="none" stroke="${cols[i % 3]}" stroke-width="${i % 3 === 2 ? 7 : 8}" stroke-linecap="round" stroke-linejoin="round"/>`, 3, 81 + i);
+    }
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + 0.3, r = 104 + Math.sin(i * 2.3) * 8;
+      o += pastel(`<circle cx="${(120 + Math.cos(a) * r).toFixed(1)}" cy="${(120 + Math.sin(a) * r).toFixed(1)}" r="5" fill="${cols[(i + 1) % 3]}"/>`, 2, 101 + i);
+    }
+    return o;
+  });
+}
+
+/** 얼굴 모양 크레용 불꽃 (240×240): 토끼·고양이 얼굴을 짧은 크레용 선으로 */
+export function softFireworkFace(face: "bunny" | "cat"): string {
+  const c = face === "bunny" ? "#f06aa6" : "#8a7cf0";
+  return make(240, 240, () => {
+    const st = `fill="none" stroke="${c}" stroke-width="9" stroke-linecap="round" stroke-dasharray="10 9"`;
+    let o = pastel(`<ellipse cx="120" cy="142" rx="74" ry="58" ${st}/>`, 3, 111);
+    o += face === "bunny"
+      ? pastel(`<path d="M86 92C74 52 78 18 92 18C106 18 106 56 102 88M154 92C166 52 162 18 148 18C134 18 134 56 138 88" ${st}/>`, 3, 113)
+      : pastel(`<path d="M62 112L58 58L104 88M178 112L182 58L136 88" ${st} stroke-linejoin="round"/>`, 3, 113);
+    o += pastel(`<circle cx="94" cy="136" r="7" fill="${c}"/><circle cx="146" cy="136" r="7" fill="${c}"/><path d="M110 158q10 10 20 0" fill="none" stroke="${c}" stroke-width="6" stroke-linecap="round"/>`, 2, 115);
+    return o + pastel(`<circle cx="36" cy="60" r="4" fill="#f2cf3e"/><circle cx="206" cy="70" r="4" fill="#f2cf3e"/><circle cx="214" cy="190" r="4" fill="${c}"/>`, 2, 117);
+  });
+}
