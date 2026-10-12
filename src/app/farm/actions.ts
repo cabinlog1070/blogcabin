@@ -1,7 +1,7 @@
 "use server";
 
 import { randomInt } from "node:crypto";
-import { and, eq, gt, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gt, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { animalCares, animalSpecies, farmItems, pointLedger, profiles, userAnimals } from "@/db/schema";
@@ -12,9 +12,12 @@ import {
   EGG_PRICE,
   levelEggLevels,
   MAX_ACTIVE_ANIMALS,
+  MAX_NEST_EGGS,
   PET_ACCESSORIES,
+  PET_COLORS,
   PET_NAME_MAX,
   type PetAccessory,
+  type PetColor,
   pickWeighted,
   POTION_GROWTH,
   petDisplayName,
@@ -26,13 +29,14 @@ import type { Locale, T } from "@/lib/i18n";
 import { parseId } from "@/lib/ids";
 import { requireMember } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
-import { addGrowth, countActive, type GrowthResult } from "@/server/farm";
+import { addGrowth, countAnimals, type GrowthResult } from "@/server/farm";
 import { getLocale, getT } from "@/server/i18n";
 import { getWallet, grantReward, lockUser, type Tx } from "@/server/points";
 
 export type FarmResult = { ok: true; text: string } | { ok: false; text: string };
 
-const full = (t: T) => t("한 번에 {n}마리까지 키울 수 있어요. 다 키운 뒤에 새 알을 받아 주세요", { n: MAX_ACTIVE_ANIMALS });
+const full = (t: T) => t("풀밭에서는 한 번에 {n}마리까지 키울 수 있어요. 다 키운 뒤에 부화시켜 주세요", { n: MAX_ACTIVE_ANIMALS });
+const nestFull = (t: T) => t("알 둥지에는 알을 {n}개까지 놓을 수 있어요. 먼저 부화시켜 주세요", { n: MAX_NEST_EGGS });
 
 /** 결과 문구에 넣을 펫 이름: 기본 이름(종류 이름)이면 번역한다 */
 async function shownPetName(tx: Tx | typeof db, t: T, name: string, speciesId: number | null) {
@@ -49,7 +53,7 @@ export async function claimEgg(kind: "starter" | "level", level?: number): Promi
   try {
     const result = await db.transaction(async (tx): Promise<FarmResult> => {
       await lockUser(tx, viewer.userId);
-      if ((await countActive(tx, viewer.userId)) >= MAX_ACTIVE_ANIMALS) return { ok: false, text: full(t) };
+      if ((await countAnimals(tx, viewer.userId, "egg")) >= MAX_NEST_EGGS) return { ok: false, text: nestFull(t) };
       if (kind === "level") {
         const wallet = await getWallet(viewer.userId, tx);
         if (!level || !levelEggLevels(wallet.level).includes(level)) return { ok: false, text: t("아직 받을 수 없는 알이에요") };
@@ -76,7 +80,7 @@ export async function buyEgg(): Promise<FarmResult> {
   const t = await getT();
   const result = await db.transaction(async (tx): Promise<FarmResult> => {
     await lockUser(tx, viewer.userId);
-    if ((await countActive(tx, viewer.userId)) >= MAX_ACTIVE_ANIMALS) return { ok: false, text: full(t) };
+    if ((await countAnimals(tx, viewer.userId, "egg")) >= MAX_NEST_EGGS) return { ok: false, text: nestFull(t) };
     const wallet = await getWallet(viewer.userId, tx);
     if (wallet.coins < EGG_PRICE) return { ok: false, text: t("코인이 {n}개 부족해요", { n: EGG_PRICE - wallet.coins }) };
     const [egg] = await tx.insert(userAnimals).values({ userId: viewer.userId, source: "shop" }).returning({ id: userAnimals.id });
@@ -100,7 +104,18 @@ function growthText(t: T, locale: Locale, base: string, { grown, leveled }: Grow
   return base;
 }
 
-/** 알 부화: 종류는 비중에 따라 랜덤, 성별도 랜덤, 이름은 종류 이름 */
+/** 알 하나 부화: 종류는 비중에 따라 랜덤, 성별도 랜덤, 이름은 종류 이름. 부화한 종류 (내 알이 아니면 null) */
+async function hatchOne(tx: Tx, userId: string, id: number, species: (typeof animalSpecies.$inferSelect)[]) {
+  const sp = pickWeighted(species, randomInt(1_000_000) / 1_000_000);
+  const [hatched] = await tx
+    .update(userAnimals)
+    .set({ status: "growing", speciesId: sp.id, hatchedAt: new Date(), name: sp.name, gender: randomInt(2) ? "male" : "female" })
+    .where(and(eq(userAnimals.id, id), eq(userAnimals.userId, userId), eq(userAnimals.status, "egg")))
+    .returning({ id: userAnimals.id });
+  return hatched ? sp : null;
+}
+
+/** 알 부화 (풀밭 자리가 있어야 한다) */
 export async function hatchEgg(animalId: number): Promise<FarmResult> {
   const viewer = await requireMember();
   const t = await getT();
@@ -111,14 +126,40 @@ export async function hatchEgg(animalId: number): Promise<FarmResult> {
     await lockUser(tx, viewer.userId);
     const species = await tx.select().from(animalSpecies);
     if (!species.length) return { ok: false, text: t("동물 종류가 없어요. npm run db:seed 를 실행해 주세요") };
-    const sp = pickWeighted(species, randomInt(1_000_000) / 1_000_000);
-    const [hatched] = await tx
-      .update(userAnimals)
-      .set({ status: "growing", speciesId: sp.id, hatchedAt: new Date(), name: sp.name, gender: randomInt(2) ? "male" : "female" })
-      .where(and(eq(userAnimals.id, id), eq(userAnimals.userId, viewer.userId), eq(userAnimals.status, "egg")))
-      .returning({ id: userAnimals.id });
-    if (!hatched) return { ok: false, text: t("부화시킬 수 있는 알이 아니에요") };
+    if ((await countAnimals(tx, viewer.userId, "growing")) >= MAX_ACTIVE_ANIMALS) return { ok: false, text: full(t) };
+    const sp = await hatchOne(tx, viewer.userId, id, species);
+    if (!sp) return { ok: false, text: t("부화시킬 수 있는 알이 아니에요") };
     return { ok: true, text: t("🐣 {subject} 태어났어요!", { subject: withJosa(locale, t(sp.name), "이", "가") }) };
+  });
+  revalidatePath("/farm");
+  return result;
+}
+
+/** 둥지의 알 한 번에 부화: 풀밭 남은 자리만큼 오래된 알부터 */
+export async function hatchAllEggs(): Promise<FarmResult> {
+  const viewer = await requireMember();
+  const t = await getT();
+  const result = await db.transaction(async (tx): Promise<FarmResult> => {
+    await lockUser(tx, viewer.userId);
+    const species = await tx.select().from(animalSpecies);
+    if (!species.length) return { ok: false, text: t("동물 종류가 없어요. npm run db:seed 를 실행해 주세요") };
+    const room = MAX_ACTIVE_ANIMALS - (await countAnimals(tx, viewer.userId, "growing"));
+    if (room <= 0) return { ok: false, text: full(t) };
+    const eggs = await tx
+      .select({ id: userAnimals.id })
+      .from(userAnimals)
+      .where(and(eq(userAnimals.userId, viewer.userId), eq(userAnimals.status, "egg")))
+      .orderBy(asc(userAnimals.id))
+      .limit(room);
+    if (!eggs.length) return { ok: false, text: t("부화시킬 알이 없어요") };
+    const names: string[] = [];
+    for (const egg of eggs) {
+      const sp = await hatchOne(tx, viewer.userId, egg.id, species);
+      if (sp) names.push(t(sp.name));
+    }
+    const left = (await countAnimals(tx, viewer.userId, "egg"));
+    const text = t("🐣 {n}마리가 태어났어요! {names}", { n: names.length, names: names.join(", ") });
+    return { ok: true, text: left > 0 ? `${text} · ${t("풀밭이 꽉 차서 알 {n}개는 둥지에 남았어요", { n: left })}` : text };
   });
   revalidatePath("/farm");
   return result;
@@ -283,4 +324,21 @@ export async function setPetAccessory(animalId: number, accessory: PetAccessory)
   revalidatePath("/farm");
   const name = row.name ? await shownPetName(db, t, row.name, row.speciesId) : "";
   return { ok: true, text: t("🎀 {name} 꾸미기를 바꿨어요", { name }) };
+}
+
+/** 펫 색 바꾸기 (무료): 기본·갈색·노란색·빨간색·검정색·흰색·분홍색 */
+export async function setPetColor(animalId: number, color: PetColor): Promise<FarmResult> {
+  const viewer = await requireMember();
+  const t = await getT();
+  const id = parseId(animalId);
+  if (id === null || !PET_COLORS.some((c) => c.value === color)) return { ok: false, text: t("잘못된 요청이에요") };
+  const [row] = await db
+    .update(userAnimals)
+    .set({ color })
+    .where(and(eq(userAnimals.id, id), eq(userAnimals.userId, viewer.userId), ne(userAnimals.status, "egg")))
+    .returning({ name: userAnimals.name, speciesId: userAnimals.speciesId });
+  if (!row) return { ok: false, text: t("꾸밀 수 있는 동물이 아니에요") };
+  revalidatePath("/farm");
+  const name = row.name ? await shownPetName(db, t, row.name, row.speciesId) : "";
+  return { ok: true, text: t("🎨 {name} 색을 바꿨어요", { name }) };
 }

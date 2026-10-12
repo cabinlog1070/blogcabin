@@ -87,6 +87,9 @@ export const animalGender = enumText(ANIMAL_GENDERS);
 // 펫 꾸미기 (무료): 없음·리본·꽃·스카프. 그림은 src/lib/art/animals.ts
 export const PET_ACCESSORIES = ["none", "ribbon", "flower", "scarf"] as const;
 export const petAccessory = enumText(PET_ACCESSORIES);
+// 펫 색 (무료, 2026-10-12): default = 동물마다 정해진 색. 그림은 src/lib/art/crayon-animals.ts
+export const PET_COLORS = ["default", "brown", "yellow", "red", "black", "white", "pink"] as const;
+export const petColor = enumText(PET_COLORS);
 export const FARM_ITEM_KINDS = ["potion"] as const;
 export const farmItemKind = enumText(FARM_ITEM_KINDS);
 // 알림 종류 (GAME-08). pet_level_up = 내 동물 레벨업 (TOWN-09, ref_id = 동물 ID)
@@ -654,6 +657,7 @@ export const userAnimals = pgTable(
     name: text("name"),
     gender: animalGender("gender"),
     accessory: petAccessory("accessory").notNull().default("none"),
+    color: petColor("color").notNull().default("default"),
     carried: boolean("carried").notNull().default(false), // 데리고 다니는 펫 (회원당 한 마리)
     createdAt: createdAt(),
     hatchedAt: timestamp("hatched_at", { withTimezone: true }), // 만난 날
@@ -687,6 +691,7 @@ export const userAnimals = pgTable(
     check("user_animals_source_check", oneOf(t.source, EGG_SOURCES)),
     check("user_animals_gender_check", oneOf(t.gender, ANIMAL_GENDERS)),
     check("user_animals_accessory_check", oneOf(t.accessory, PET_ACCESSORIES)),
+    check("user_animals_color_check", oneOf(t.color, PET_COLORS)),
     check(
       "user_animals_level_check",
       sql`(${t.source} = 'level') = (${t.sourceLevel} IS NOT NULL)`,

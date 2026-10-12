@@ -2,11 +2,11 @@ import type { HTMLAttributes } from "react";
 import { PetArt } from "@/components/pet-art";
 import { faceFrame } from "@/lib/art/characters";
 import { backgroundDataUri, characterDataUri, furnitureDataUri, furnitureInfo } from "@/lib/assets";
-import type { AnimalStage, PetAccessory } from "@/lib/farm";
+import type { AnimalStage, PetAccessory, PetColor } from "@/lib/farm";
 import { makeT, type Locale } from "@/lib/i18n";
 
 /** 미니룸에서 캐릭터 옆에 서 있는 펫 (데리고 다니는 펫, TOWN-09) */
-export type RoomPet = { name: string; assetKey: string; stage: AnimalStage; accessory: PetAccessory };
+export type RoomPet = { name: string; assetKey: string; stage: AnimalStage; accessory: PetAccessory; color?: PetColor };
 
 /** 동그란 캐릭터 얼굴 (헤더, 댓글, 글 목록). 전신 그림에서 얼굴 부분만 확대해 담는다 (faceFrame) */
 export function CharacterBadge({ asset, size = 36 }: { asset: string; size?: number }) {
@@ -113,7 +113,7 @@ export function MiniRoom({
           <CharacterArt asset={characterAsset} size={128} className="h-[16.5cqw] w-[16.5cqw] drop-shadow-md" />
           {pet && (
             <span className="-ml-2 mb-1 drop-shadow" data-room-pet={pet.name} title={t("{name} (함께 다니는 펫)", { name: pet.name })}>
-              <PetArt assetKey={pet.assetKey} stage={pet.stage} accessory={pet.accessory} size={72} className="h-[9.5cqw] w-[9.5cqw]" style={{ transform: "scaleX(-1)" }} />
+              <PetArt assetKey={pet.assetKey} stage={pet.stage} accessory={pet.accessory} color={pet.color} size={72} className="h-[9.5cqw] w-[9.5cqw]" style={{ transform: "scaleX(-1)" }} />
             </span>
           )}
         </div>

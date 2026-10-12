@@ -8,7 +8,9 @@ import {
   type CareAction,
   levelEggLevels,
   MAX_ACTIVE_ANIMALS,
+  MAX_NEST_EGGS,
   type PetAccessory,
+  type PetColor,
   type PetGender,
   petLevel,
   POST_GROWTH,
@@ -27,6 +29,7 @@ export type FarmAnimal = {
   speciesName: string | null;
   gender: PetGender | null;
   accessory: PetAccessory;
+  color: PetColor;
   carried: boolean;
   assetKey: string | null;
   growExp: number | null;
@@ -54,6 +57,7 @@ export async function getFarm(userId: string, level: number) {
       name: userAnimals.name,
       gender: userAnimals.gender,
       accessory: userAnimals.accessory,
+      color: userAnimals.color,
       carried: userAnimals.carried,
       speciesName: animalSpecies.name,
       assetKey: animalSpecies.assetKey,
@@ -82,6 +86,7 @@ export async function getFarm(userId: string, level: number) {
     speciesName: r.speciesName,
     gender: r.gender,
     accessory: r.accessory,
+    color: r.color,
     carried: r.carried,
     assetKey: r.assetKey,
     growExp: r.growExp,
@@ -126,7 +131,9 @@ export async function getFarm(userId: string, level: number) {
     active,
     grown,
     freeEggs,
-    slotsLeft: MAX_ACTIVE_ANIMALS - active.length,
+    // 알 둥지 자리(부화 전 알)와 풀밭 자리(키우는 동물)는 따로 센다
+    nestLeft: MAX_NEST_EGGS - active.filter((a) => a.status === "egg").length,
+    fieldLeft: MAX_ACTIVE_ANIMALS - active.filter((a) => a.status === "growing").length,
     potions: potion?.quantity ?? 0,
     species: species as SpeciesCard[],
     displayedId: profile?.displayedAnimalId ?? null,
@@ -134,15 +141,16 @@ export async function getFarm(userId: string, level: number) {
 }
 
 /** 다른 화면에 보이는 펫 (광장에서 따라다니는 펫, 미니룸 옆 펫, 프로필 전시 카드) */
-export type PetShowcase = { id: number; name: string; assetKey: string; stage: ReturnType<typeof animalStage>; accessory: PetAccessory; level: number };
+export type PetShowcase = { id: number; name: string; assetKey: string; stage: ReturnType<typeof animalStage>; accessory: PetAccessory; color: PetColor; level: number };
 
-function toShowcase(r: { id: number; name: string | null; assetKey: string; growth: number; growExp: number; maxLevel: number; accessory: PetAccessory }): PetShowcase {
+function toShowcase(r: { id: number; name: string | null; assetKey: string; growth: number; growExp: number; maxLevel: number; accessory: PetAccessory; color: PetColor }): PetShowcase {
   return {
     id: r.id,
     name: r.name ?? "",
     assetKey: r.assetKey,
     stage: animalStage(r.growth, r.growExp),
     accessory: r.accessory,
+    color: r.color,
     level: petLevel(r.growth, r.growExp, r.maxLevel),
   };
 }
@@ -155,6 +163,7 @@ const showcaseColumns = {
   growExp: animalSpecies.growExp,
   maxLevel: animalSpecies.maxLevel,
   accessory: userAnimals.accessory,
+  color: userAnimals.color,
   speciesName: animalSpecies.name,
 };
 
@@ -184,12 +193,12 @@ export async function getDisplayedCard(userId: string): Promise<(PetShowcase & {
   return row ? shownName({ ...toShowcase(row), grownAt: row.grownAt }, row.speciesName) : null;
 }
 
-/** 키우는 중인 알·동물 수 (다 키운 동물은 빼고) */
-export async function countActive(tx: Tx, userId: string) {
+/** 둥지의 알 수(egg) 또는 풀밭에서 키우는 동물 수(growing). 다 키운 동물은 세지 않는다 */
+export async function countAnimals(tx: Tx, userId: string, status: "egg" | "growing") {
   const [{ n }] = await tx
     .select({ n: sql<number>`COUNT(*)::int` })
     .from(userAnimals)
-    .where(and(eq(userAnimals.userId, userId), inArray(userAnimals.status, ["egg", "growing"])));
+    .where(and(eq(userAnimals.userId, userId), eq(userAnimals.status, status)));
   return n;
 }
 

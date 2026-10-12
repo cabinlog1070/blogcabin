@@ -190,7 +190,7 @@ export function townTextures(data: TownData, t: T) {
     list.set(houseKey(h.stage, roof), toDataUri(houseSvg(h.stage, roof)));
   }
   const pet = data.player?.pet;
-  if (pet) list.set("pet", toAnimalDataUri(animalSvg(pet.assetKey, pet.stage, PET_SIZE * 2, pet.accessory)));
+  if (pet) list.set("pet", toAnimalDataUri(animalSvg(pet.assetKey, pet.stage, PET_SIZE * 2, pet.accessory, pet.color)));
   list.set("board", toDataUri(boardSvg(t)));
   list.set("attendance", toDataUri(attendanceSvg(t)));
   list.set("shop", toDataUri(shopSvg(t)));

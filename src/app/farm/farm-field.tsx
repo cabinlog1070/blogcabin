@@ -5,9 +5,9 @@ import { useT } from "@/components/i18n";
 import { PetArt } from "@/components/pet-art";
 import { eggSvg, toAnimalDataUri } from "@/lib/art/animals";
 import { barnSvg, FENCE_H_TILE, FENCE_V_TILE, GRASS_TILE, haySvg, nestSvg, svgUri } from "@/lib/art/farm";
-import type { AnimalStage, PetAccessory } from "@/lib/farm";
+import type { AnimalStage, PetAccessory, PetColor } from "@/lib/farm";
 
-export type FieldPet = { id: number; name: string; assetKey: string; stage: AnimalStage; accessory: PetAccessory };
+export type FieldPet = { id: number; name: string; assetKey: string; stage: AnimalStage; accessory: PetAccessory; color: PetColor };
 export type FieldEgg = { id: number };
 
 // 펫이 돌아다니는 풀밭 영역 (농장 크기에 대한 비율). 위쪽은 둥지·헛간 자리
@@ -17,12 +17,17 @@ const PET_SIZE = 92;
 
 type Walker = { x: number; y: number; tx: number; ty: number; wait: number; facing: 1 | -1; moving: boolean };
 
-/** 처음 자리: 서버와 브라우저가 같은 값을 그리도록 순서로 정한다 (하이드레이션 불일치 방지) */
+/** 처음 자리: 서버와 브라우저가 같은 값을 그리도록 순서로 정한다 (하이드레이션 불일치 방지).
+ *  한 줄에 5마리까지, 많으면 두 줄로 엇갈려 선다 (최대 10마리) */
 function startSpot(i: number, n: number) {
-  const col = (i + 0.5) / Math.max(n, 1);
+  const perRow = Math.min(Math.max(n, 1), 5);
+  const rows = Math.ceil(Math.max(n, 1) / perRow);
+  const row = Math.floor(i / perRow), inRow = Math.min(perRow, n - row * perRow);
+  const col = ((i % perRow) + (row % 2 ? 0.75 : 0.5)) / Math.max(inRow, 1);
+  const ys = rows === 1 ? [i % 2 ? 0.75 : 0.35] : [0.3, 0.85];
   return {
-    x: AREA.left + (AREA.right - AREA.left) * col,
-    y: AREA.top + (AREA.bottom - AREA.top) * (i % 2 ? 0.75 : 0.35),
+    x: AREA.left + (AREA.right - AREA.left) * Math.min(col, 0.98),
+    y: AREA.top + (AREA.bottom - AREA.top) * (rows === 1 ? ys[0] : ys[row] + (i % 2 ? 0.06 : -0.06)),
   };
 }
 
@@ -39,6 +44,7 @@ export function FarmField({
   walkingPet,
   onPet,
   onEgg,
+  onHatchAll,
   onDecorate,
 }: {
   pets: FieldPet[];
@@ -46,6 +52,7 @@ export function FarmField({
   walkingPet: FieldPet | null; // 데리고 다니는 펫 (농장에는 없고 "산책 중")
   onPet: (id: number) => void;
   onEgg: (id: number) => void;
+  onHatchAll: (() => void) | null; // 둥지 알 한 번에 부화 (풀밭이 꽉 차면 null)
   onDecorate: () => void;
 }) {
   const t = useT();
@@ -143,7 +150,7 @@ export function FarmField({
       {/* 알 둥지 */}
       <div className="absolute left-[6%] top-[12%] z-[4] w-[clamp(150px,26vw,240px)]" data-nest>
         <img src={svgUri(nestSvg())} alt="" aria-hidden className="pointer-events-none w-full" />
-        <div className="absolute inset-x-[10%] bottom-[41%] flex items-end justify-center gap-0.5">
+        <div className={`absolute inset-x-[8%] flex flex-wrap-reverse items-end justify-center ${eggs.length > 5 ? "bottom-[36%] gap-x-0" : "bottom-[41%] gap-0.5"}`}>
           {eggs.map((e) => (
             <button
               key={e.id}
@@ -153,13 +160,30 @@ export function FarmField({
               className="transition-transform hover:-translate-y-1 focus-visible:-translate-y-1"
               aria-label={t("알 살펴보기")}
             >
-              <img src={toAnimalDataUri(eggSvg(96))} alt="" width={54} height={54} className="pointer-events-none max-sm:h-11 max-sm:w-11" />
+              <img
+                src={toAnimalDataUri(eggSvg(96))}
+                alt=""
+                width={54}
+                height={54}
+                className={`pointer-events-none ${eggs.length > 5 ? "h-[clamp(26px,3.6vw,38px)] w-[clamp(26px,3.6vw,38px)] -my-1" : "max-sm:h-11 max-sm:w-11"}`}
+              />
             </button>
           ))}
         </div>
         <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/85 px-2 text-xs font-bold text-ink-soft">
           🥚 {t("알 둥지")} {eggs.length > 0 ? eggs.length : ""}
         </span>
+        {eggs.length > 1 && (
+          <button
+            type="button"
+            onClick={onHatchAll ?? undefined}
+            disabled={!onHatchAll}
+            data-hatch-all
+            className="btn absolute -bottom-12 left-1/2 -translate-x-1/2 whitespace-nowrap bg-leaf px-3 py-1 text-xs text-white"
+          >
+            🐣 {t("모두 부화시키기")}
+          </button>
+        )}
       </div>
       {/* eslint-enable @next/next/no-img-element */}
 
@@ -183,7 +207,7 @@ export function FarmField({
           >
             <span className="pet-body block">
               <span data-pet-img className="block transition-transform duration-150">
-                <PetArt assetKey={p.assetKey} stage={p.stage} accessory={p.accessory} size={PET_SIZE} className="pointer-events-none drop-shadow-sm max-sm:h-[70px] max-sm:w-[70px]" />
+                <PetArt assetKey={p.assetKey} stage={p.stage} accessory={p.accessory} color={p.color} size={PET_SIZE} className="pointer-events-none drop-shadow-sm max-sm:h-[70px] max-sm:w-[70px]" />
               </span>
             </span>
             <span className="-mt-1 max-w-28 truncate rounded-full bg-white/90 px-2 text-xs font-bold text-ink shadow-sm group-hover:bg-sun group-focus-visible:bg-sun">
@@ -207,9 +231,9 @@ export function FarmField({
           type="button"
           onClick={() => onPet(walkingPet.id)}
           data-walking-pet={walkingPet.id}
-          className="absolute left-[6%] top-[46%] z-[6] flex items-center gap-1 rounded-full bg-white/90 py-0.5 pl-1 pr-3 text-xs font-bold shadow max-sm:top-[30%]"
+          className="absolute left-[6%] top-[46%] z-[6] flex items-center gap-1 rounded-full bg-white/90 py-0.5 pl-1 pr-3 text-xs font-bold shadow max-sm:bottom-[4.5rem] max-sm:top-auto"
         >
-          <PetArt assetKey={walkingPet.assetKey} stage={walkingPet.stage} accessory={walkingPet.accessory} size={30} />
+          <PetArt assetKey={walkingPet.assetKey} stage={walkingPet.stage} accessory={walkingPet.accessory} color={walkingPet.color} size={30} />
           🐾 {t("{name} 산책 중", { name: walkingPet.name })}
         </button>
       )}

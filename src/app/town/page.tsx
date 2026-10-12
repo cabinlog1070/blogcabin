@@ -45,7 +45,7 @@ export default async function TownPage(props: PageProps<"/town">) {
       ? {
           nickname: member.profile.nickname,
           characterAsset: member.profile.characterAsset,
-          pet: pet ? { name: pet.name, assetKey: pet.assetKey, stage: pet.stage, accessory: pet.accessory } : null,
+          pet: pet ? { name: pet.name, assetKey: pet.assetKey, stage: pet.stage, accessory: pet.accessory, color: pet.color } : null,
         }
       : null,
     myHouse,

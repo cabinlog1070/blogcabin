@@ -2,8 +2,10 @@
 // 종류별 숫자(성장치, 보상)는 animal_species 테이블에 있다 (scripts/seed.ts)
 import { LOCALE_TAGS, msg, type Locale, type T } from "@/lib/i18n";
 
-/** 한 번에 키울 수 있는 알·동물 수 (다 키운 동물은 세지 않는다) */
-export const MAX_ACTIVE_ANIMALS = 5;
+/** 풀밭에서 한 번에 키울 수 있는 동물 수 (알과 다 키운 동물은 세지 않는다) */
+export const MAX_ACTIVE_ANIMALS = 10;
+/** 알 둥지에 놓을 수 있는 알 수 (부화 전 알) */
+export const MAX_NEST_EGGS = 10;
 /** 레벨 보상 알: 이 레벨마다 하나 */
 export const EGG_LEVEL_EVERY = 5;
 /** 상점(농장)에서 알 하나 값 */
@@ -38,6 +40,18 @@ export const PET_ACCESSORIES: { value: PetAccessory; label: string }[] = [
   { value: "ribbon", label: msg("🎀 리본") },
   { value: "flower", label: msg("🌼 꽃") },
   { value: "scarf", label: msg("🧣 스카프") },
+];
+
+/** 펫 색 (무료, 2026-10-12): 기본은 동물마다 정해진 색. 고르면 몸 색이 바뀐다. 그림은 src/lib/art/crayon-animals.ts */
+export type PetColor = "default" | "brown" | "yellow" | "red" | "black" | "white" | "pink";
+export const PET_COLORS: { value: PetColor; label: string }[] = [
+  { value: "default", label: msg("기본") },
+  { value: "brown", label: msg("갈색") },
+  { value: "yellow", label: msg("노란색") },
+  { value: "red", label: msg("빨간색") },
+  { value: "black", label: msg("검정색") },
+  { value: "white", label: msg("흰색") },
+  { value: "pink", label: msg("분홍색") },
 ];
 
 /**

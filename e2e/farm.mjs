@@ -1,6 +1,6 @@
 // TOWN-09 동물 농장: 울타리 친 풀밭과 돌아다니는 펫, 펫 상태창(이름·성별·만난 날·레벨·경험치), 이름 바꾸기,
 // 돌보기(밥·쓰다듬기)와 물약, 펫 레벨업 알림(쪽지), 데리고 다니기(광장·미니룸, 한 마리만), 카드 도감, 프로필 전시, 펫 꾸미기,
-// 알 사기, 5마리 제한, 글쓰기 연동
+// 알 사기, 알 둥지 10개 제한, 글쓰기 연동 (한 번에 부화·10마리·펫 색·새 동물은 e2e/farm-ten.mjs)
 // 사용: 개발 서버를 띄운 상태에서 node e2e/farm.mjs <스크린샷 폴더> (실행마다 새 회원)
 import { chromium } from "@playwright/test";
 import { config } from "dotenv";
@@ -55,6 +55,8 @@ check("펫 꾸미기 버튼이 농장 가운데 아래", Math.abs(deco.x + deco.
 // ── 첫 알 → 둥지 → 부화 → 상태창 ──
 await page.getByRole("button", { name: /농장 첫 알/ }).click();
 await page.getByRole("status").getByText("알을 받았어요").waitFor();
+// 결과 문구가 화면이 다시 그려지기 전에 뜰 수 있어 알이 놓일 때까지 기다린다
+await page.locator("[data-nest] [data-egg-id]").first().waitFor();
 check("첫 알을 받으면 둥지에 알이 놓인다", (await page.locator("[data-nest] [data-egg-id]").count()) === 1);
 await page.locator("[data-nest] [data-egg-id]").click();
 await dialog().getByRole("button", { name: /부화시키기/ }).click();
@@ -90,6 +92,7 @@ await st.getByLabel("펫 이름").fill("콩이");
 await st.getByRole("button", { name: "저장" }).click();
 await page.getByRole("status").getByText("이름을 콩이로 바꿨어요").waitFor();
 await st.locator("[data-pet-name]").waitFor();
+await st.locator("[data-pet-name]", { hasText: "콩이" }).waitFor({ timeout: 5000 }).catch(() => {});
 check("이름 바꾸기 → DB와 상태창", (await animals())[0].name === "콩이" && (await st.locator("[data-pet-name]").innerText()) === "콩이");
 await page.screenshot({ path: `${outDir}/c2-pet-popup.png` });
 await page.keyboard.press("Escape");
@@ -119,6 +122,7 @@ await openPet("콩이");
 await act(/밥 주기/, /밥 주기 완료/);
 await act(/쓰다듬기/, /쓰다듬기 완료/);
 check("밥·쓰다듬기 → 성장 15", (await animals())[0].growth === 15, `성장 ${(await animals())[0].growth}`);
+await dialog().getByRole("button", { name: /완료/ }).nth(1).waitFor({ timeout: 5000 }).catch(() => {});
 check("돌본 버튼은 '완료'로 막힌다", (await dialog().getByRole("button", { name: /완료/ }).count()) === 2);
 const careExp = await one("SELECT COALESCE(SUM(exp_delta),0)::int AS n, COUNT(*)::int AS c FROM point_ledger WHERE user_id = $1 AND reason = 'farm_care'", [uid]);
 check("돌보기마다 주인 경험치 +2 기록", careExp.c === 2 && careExp.n === 4, `${careExp.c}회 ${careExp.n}`);
@@ -215,7 +219,7 @@ await page.reload();
 await closeLevelUp();
 check("헤더 코인에 보상 반영", (await coins(page)) - coinsBeforeGrown === sp.reward_coins, `${coinsBeforeGrown} → ${await coins(page)}`);
 const book = page.locator("[data-card-book]");
-check("카드 도감: 모은 종류는 색칠, 나머지는 실루엣", (await book.locator('[data-collected="true"]').count()) === 1 && (await book.locator('[data-collected="false"]').count()) === 4);
+check("카드 도감: 모은 종류는 색칠, 나머지는 실루엣", (await book.locator('[data-collected="true"]').count()) === 1 && (await book.locator('[data-collected="false"]').count()) === 17);
 check("카드 도감에 콩이 카드", await book.locator(`[data-card-id="${hatched.id}"]`).getByText("콩이").isVisible());
 check("다 키운 펫도 계속 데리고 다닌다", (await animals())[0].carried === true);
 
@@ -250,11 +254,12 @@ const accs = Object.fromEntries((await animals()).map((a) => [a.id, a.accessory]
 check("펫 꾸미기 저장 (콩이 리본, 둘째 스카프)", accs[hatched.id] === "ribbon" && accs[second.id] === "scarf");
 await page.reload();
 await page.getByRole("button", { name: /펫 꾸미기/ }).click();
-check("새로고침해도 꾸미기가 남아 있다", (await page.locator(`[data-decorate-pet="${hatched.id}"] [aria-pressed="true"]`).innerText()).includes("리본"));
+check("새로고침해도 꾸미기가 남아 있다", (await page.locator(`[data-decorate-pet="${hatched.id}"] [aria-pressed="true"]`).first().innerText()).includes("리본")); // 첫 줄은 꾸미기, 둘째 줄은 색
 await page.keyboard.press("Escape");
 await go(`/@${slug}`);
 check("블로그 홈 프로필에 전시 카드", await page.locator(`[data-displayed-card="${hatched.id}"]`).getByText("콩이").isVisible());
-check("블로그 미니룸 펫은 꾸미기를 한 그림 (리본)", decodeURIComponent((await page.locator('[data-room-pet="콩이"] img').getAttribute("src")) ?? "").includes("#f37c9e"));
+// 파스텔 그림체는 리본 색을 섞어 칠해서 색 대신 리본 모양(목의 나비)으로 찾는다
+check("블로그 미니룸 펫은 꾸미기를 한 그림 (리본)", decodeURIComponent((await page.locator('[data-room-pet="콩이"] img').getAttribute("src")) ?? "").includes("M128 176l-22-14v28Z"));
 await page.screenshot({ path: `${outDir}/c6-blog-profile-card.png` });
 
 // ── 농장 전체 화면 (데스크톱): 펫 여러 마리 + 둥지의 알 ──
@@ -275,7 +280,11 @@ await page.getByRole("button", { name: /알 사기/ }).click();
 await page.getByRole("status").getByText("알을 샀어요").waitFor();
 await page.reload();
 check("알 사기 → 코인 −100", e0 - (await coins(page)) === 100, `${e0} → ${await coins(page)}`);
-check("알·키우는 동물 5마리면 알 버튼이 막힌다", await page.getByRole("button", { name: /알 사기/ }).isDisabled());
+// 알 둥지는 10개까지 (2026-10-12, 키우는 동물과 따로 센다): 둥지를 채우면 알 버튼이 막힌다
+const nestNow = (await one("SELECT COUNT(*)::int AS n FROM user_animals WHERE user_id = $1 AND status = 'egg'", [uid])).n;
+for (let i = nestNow; i < 10; i++) await db.query("INSERT INTO user_animals (user_id, source) VALUES ($1, 'shop')", [uid]);
+await page.reload();
+check("알 둥지에 알 10개면 알 버튼이 막힌다", await page.getByRole("button", { name: /알 사기/ }).isDisabled());
 
 // ── 휴대폰 375px: 가로 스크롤 없이 농장이 보인다 ──
 const mctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });

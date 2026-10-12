@@ -65,6 +65,20 @@ const SPECIES: (typeof animalSpecies.$inferInsert)[] = [
   { code: "piglet", name: "아기 돼지", assetKey: "animal.piglet", growExp: 120, maxLevel: 7, rewardExp: 110, rewardCoins: 50, hatchWeight: 20 },
   { code: "calf", name: "송아지", assetKey: "animal.calf", growExp: 160, maxLevel: 8, rewardExp: 160, rewardCoins: 80, hatchWeight: 12 },
   { code: "lamb", name: "아기 양", assetKey: "animal.lamb", growExp: 220, maxLevel: 10, rewardExp: 220, rewardCoins: 110, hatchWeight: 5 },
+  // 2026-10-12 새 동물 13종 (흔한 순서). 드래곤·유니콘은 아주 드물게
+  { code: "hamster", name: "햄스터", assetKey: "animal.hamster", growExp: 70, maxLevel: 5, rewardExp: 60, rewardCoins: 25, hatchWeight: 26 },
+  { code: "cat", name: "고양이", assetKey: "animal.cat", growExp: 90, maxLevel: 6, rewardExp: 80, rewardCoins: 30, hatchWeight: 24 },
+  { code: "mole", name: "두더지", assetKey: "animal.mole", growExp: 100, maxLevel: 6, rewardExp: 90, rewardCoins: 40, hatchWeight: 20 },
+  { code: "raccoon", name: "너구리", assetKey: "animal.raccoon", growExp: 120, maxLevel: 7, rewardExp: 110, rewardCoins: 50, hatchWeight: 16 },
+  { code: "turtle", name: "거북이", assetKey: "animal.turtle", growExp: 130, maxLevel: 7, rewardExp: 120, rewardCoins: 55, hatchWeight: 15 },
+  { code: "monkey", name: "원숭이", assetKey: "animal.monkey", growExp: 140, maxLevel: 7, rewardExp: 130, rewardCoins: 60, hatchWeight: 14 },
+  { code: "fox", name: "여우", assetKey: "animal.fox", growExp: 160, maxLevel: 8, rewardExp: 160, rewardCoins: 80, hatchWeight: 11 },
+  { code: "bear", name: "곰", assetKey: "animal.bear", growExp: 180, maxLevel: 8, rewardExp: 180, rewardCoins: 90, hatchWeight: 10 },
+  { code: "wolf", name: "늑대", assetKey: "animal.wolf", growExp: 200, maxLevel: 9, rewardExp: 200, rewardCoins: 100, hatchWeight: 8 },
+  { code: "tiger", name: "호랑이", assetKey: "animal.tiger", growExp: 240, maxLevel: 10, rewardExp: 240, rewardCoins: 120, hatchWeight: 6 },
+  { code: "dino", name: "공룡", assetKey: "animal.dino", growExp: 260, maxLevel: 11, rewardExp: 260, rewardCoins: 130, hatchWeight: 4 },
+  { code: "unicorn", name: "유니콘", assetKey: "animal.unicorn", growExp: 300, maxLevel: 12, rewardExp: 300, rewardCoins: 150, hatchWeight: 3 },
+  { code: "dragon", name: "드래곤", assetKey: "animal.dragon", growExp: 320, maxLevel: 12, rewardExp: 320, rewardCoins: 160, hatchWeight: 2 },
 ];
 
 async function main() {

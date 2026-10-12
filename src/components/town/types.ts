@@ -10,7 +10,7 @@ export type TownHouse = {
 };
 
 /** 데리고 다니는 펫 (TOWN-09): 광장에서 내 캐릭터 뒤를 따라온다 */
-export type TownPet = { name: string; assetKey: string; stage: "baby" | "teen" | "adult"; accessory: "none" | "ribbon" | "flower" | "scarf" };
+export type TownPet = { name: string; assetKey: string; stage: "baby" | "teen" | "adult"; accessory: "none" | "ribbon" | "flower" | "scarf"; color?: "default" | "brown" | "yellow" | "red" | "black" | "white" | "pink" };
 
 export type TownData = {
   player: { nickname: string; characterAsset: string; pet: TownPet | null } | null; // null = 로그인하지 않은 방문자
