@@ -7,7 +7,7 @@ import { categoryLabel } from "@/lib/i18n";
 
 const input = "w-full rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun";
 
-export function BlogInfoForm({ nickname, title, description }: { nickname: string; title: string; description: string }) {
+export function BlogInfoForm({ nickname, title, description, statusMessage }: { nickname: string; title: string; description: string; statusMessage: string | null }) {
   const [state, action, pending] = useActionState<FormState, FormData>(updateBlogInfo, {});
   const t = useT();
   return (
@@ -25,6 +25,11 @@ export function BlogInfoForm({ nickname, title, description }: { nickname: strin
       <label className="block">
         <span className="mb-1 block font-bold">{t("소개")}</span>
         <textarea name="description" defaultValue={description} maxLength={160} rows={2} className={input} placeholder={t("어떤 이야기를 쓰는 블로그인가요?")} />
+      </label>
+      <label className="block">
+        <span className="mb-1 block font-bold">{t("상태 메시지")}</span>
+        <input name="statusMessage" defaultValue={statusMessage ?? ""} maxLength={30} className={input} placeholder={t("오늘 기분이나 하고 싶은 말")} />
+        <span className="mt-1 block text-sm text-ink-soft">{t("30자까지. 나를 즐겨찾기한 이웃이 광장에서 내 캐릭터에 다가오면 말풍선으로 보여요")}</span>
       </label>
       <div className="flex items-center justify-end gap-3">
         {state.error && <span className="text-sm text-berry">{state.error}</span>}

@@ -300,9 +300,15 @@ export const profiles = pgTable(
     }),
     // 초대 보상을 준 시각. NULL에서 한 번만 바뀌므로 친구 1명당 한 번만 지급된다 (GAME-09)
     inviteRewardedAt: timestamp("invite_rewarded_at", { withTimezone: true }),
+    // 상태 메시지 (TOWN-12): 즐겨찾기한 이웃의 광장에서 내 캐릭터에 가까이 오면 머리 위 말풍선으로 보인다. 비우면 NULL
+    statusMessage: text("status_message"),
     createdAt: createdAt(),
   },
   (t) => [
+    check(
+      "profiles_status_message_check",
+      sql`char_length(${t.statusMessage}) BETWEEN 1 AND 30`,
+    ),
     check(
       "profiles_nickname_check",
       sql`char_length(${t.nickname}) BETWEEN 2 AND 12`,

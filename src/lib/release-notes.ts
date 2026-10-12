@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.15.0",
+        title: msg("광장을 돌아다니는 이웃"),
+        changes: [
+          { kind: "new", text: msg("즐겨찾기한 이웃이 데리고 다니는 펫과 함께 광장을 돌아다녀요. 캠프파이어 의자에 앉아 쉬거나 기타를 치고, 그 옆에서 노래를 부르고, 펫을 쓰다듬고, 꽃에 물을 주고, 마시멜로를 구워 먹기도 해요.") },
+          { kind: "new", text: msg("블로그 관리에서 상태 메시지를 적어 두면, 이웃이 광장에서 내 캐릭터에게 다가왔을 때 머리 위에 말풍선으로 떠올라요.") },
+        ],
+      },
+      {
         version: "1.14.0",
         title: msg("크레용으로 다시 그린 마을"),
         changes: [

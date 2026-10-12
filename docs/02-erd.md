@@ -1,7 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
+- 버전: 1.1 (2026-10-12, 광장 이웃 주민(TOWN-12): 상태 메시지 `profiles.status_message`(1~30자, 비우면 NULL). 마이그레이션 `0017_profile_status_message`)
+- 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
 - 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
 - 0.8 (2026-10-08, PostgreSQL enum 타입 12개를 text + CHECK로 바꿈(마이그레이션 `0010_enums_to_text`). 같은 구조를 Crowfoot 문서 673 "BlogCabin ERD"(https://crowfoot.java21.net/workspaces/43/models/673)로 그려 운영 DB에 배포했다)
 - 0.7 (2026-10-08, 배치 D: 방문자 수 `blog_visits`(BLOG-06), 글 조회 기록 `post_views`(POST-06), 로그인 시도 제한 `login_attempts`(NF-10), 즐겨찾는 이웃 `follows.is_favorite`(TOWN-08), 지붕 색 `blogs.roof_color`(TOWN-07), 친구 초대 `profiles.invite_code`·`invited_by`·`invite_rewarded_at`와 원장 사유 `invite`·`invited`(GAME-09), 회원 탈퇴를 위한 `comments.author_id` NULL 허용(AUTH-06). 마이그레이션 `0009_batch_d`)
@@ -96,6 +97,7 @@ erDiagram
         text invite_code UK "초대 코드 6자리 (0·O·1·I 없음)"
         text invited_by FK "나를 초대한 회원 (SET NULL)"
         timestamptz invite_rewarded_at "초대 보상을 준 시각 (한 번만)"
+        text status_message "상태 메시지 1~30자 (광장 말풍선, TOWN-12)"
         timestamptz created_at
     }
     blogs {

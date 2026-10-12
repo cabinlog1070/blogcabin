@@ -1,0 +1,2 @@
+ALTER TABLE "profiles" ADD COLUMN "status_message" text;--> statement-breakpoint
+ALTER TABLE "profiles" ADD CONSTRAINT "profiles_status_message_check" CHECK (char_length("profiles"."status_message") BETWEEN 1 AND 30);
