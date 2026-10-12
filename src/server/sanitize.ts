@@ -23,7 +23,7 @@ function options(known?: KnownAttachments): sanitizeHtml.IOptions {
     allowedAttributes: {
       a: ["href", "target", "rel", "data-file", "data-name", "data-size", "data-size-label", "data-ext", "aria-label"],
       img: ["src", "alt"],
-      div: ["data-slider"], // 사진 슬라이드 <div data-slider> (에디터의 image-slider.ts)
+      div: ["data-slider", "data-row"], // 사진 슬라이드 <div data-slider>, 나란히 놓기 <div data-row> (에디터의 image-slider.ts)
       p: ["style"],
       h1: ["style"],
       h2: ["style"],

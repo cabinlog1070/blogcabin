@@ -170,6 +170,11 @@ body {
   & .slider-bar { display: block; height: 4px; margin: 0.6rem auto 0; width: min(60%, 18rem); background: var(--color-line); border-radius: 999px; overflow: hidden; }
   & .slider-bar > span { display: block; height: 100%; background: var(--color-ink); border-radius: 999px; transition: transform 0.2s; }
 
+  /* 사진 나란히 놓기: 한 줄에 5장까지 같은 크기 칸으로 (넘치는 부분은 잘라 칸을 채운다) */
+  & div[data-row] { display: flex; gap: 0.4rem; margin: 1em 0; }
+  & div[data-row]:empty { display: none; }
+  & div[data-row] > img { flex: 1 1 0; min-width: 0; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 0.6rem; }
+
   /* 에디터에서 고른 사진·파일 카드 표시 */
   & img.ProseMirror-selectednode, & a[data-file].ProseMirror-selectednode { outline: 3px solid var(--color-sun); outline-offset: 2px; }
 }
@@ -179,6 +184,11 @@ body {
 .tiptap div[data-slider] {
   flex-wrap: wrap; gap: 0.5rem; overflow: visible; padding: 0.6rem; border: 2px dashed var(--color-line);
 }
+.tiptap div[data-row] { flex-wrap: wrap; padding: 0.6rem; border: 2px dashed var(--color-line); border-radius: 0.8rem; }
+.tiptap div[data-row]::before {
+  content: attr(data-label); flex-basis: 100%; font-size: 0.8rem; font-weight: 700; color: var(--color-ink-soft);
+}
+.tiptap div[data-row].ProseMirror-selectednode { outline: 3px solid var(--color-sun); outline-offset: 2px; }
 .tiptap div[data-slider]::before {
   content: attr(data-label); flex-basis: 100%; font-size: 0.8rem; font-weight: 700; color: var(--color-ink-soft);
 }

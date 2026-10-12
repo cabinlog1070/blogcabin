@@ -62,6 +62,8 @@ if (failed) process.exit(1);
   expect("보통 링크는 새 탭", out, out.includes('target="_blank"') && out.includes('rel="noopener noreferrer nofollow"'));
   out = s(`<div data-slider="" data-label="🎞" style="x" onclick="x()"><img src="/files/${KEY}" alt=""><img src="https://evil.example/x.png"></div>`);
   expect("사진 슬라이드 남김", out, out === `<div data-slider><img src="/files/${KEY}" alt="" /></div>`);
+  out = s(`<div data-row="" data-label="▥" class="x"><img src="/files/${KEY}" alt=""><img src="/files/${KEY}" alt=""></div>`);
+  expect("사진 나란히 남김", out, out === `<div data-row><img src="/files/${KEY}" alt="" /><img src="/files/${KEY}" alt="" /></div>`);
   out = sanitizePostHtml(`<img src="/files/${"b".repeat(32)}">`);
   expect("known 없으면 형식만 확인", out, out === `<img src="/files/${"b".repeat(32)}" />`);
   if (bad) process.exit(1);
