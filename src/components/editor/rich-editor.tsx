@@ -12,8 +12,9 @@ import { useT } from "@/components/i18n";
 import { attachmentPath, FILE_TYPES, IMAGE_TYPES } from "@/lib/attachments";
 import { msg, type T } from "@/lib/i18n";
 import { FileCard } from "./file-card";
+import { ImageRow, ImageSlider, ROW_MAX } from "./image-slider";
 import { DEFAULT_LINE_HEIGHT, LINE_HEIGHTS, LineHeight } from "./line-height";
-import { filesFrom, useAttachmentUpload } from "./use-attachment-upload";
+import { filesFrom, useAttachmentUpload, type ImageGroup } from "./use-attachment-upload";
 
 const IMAGE_ACCEPT = Object.keys(IMAGE_TYPES).map((e) => `.${e}`).join(",");
 const FILE_ACCEPT = Object.keys(FILE_TYPES).map((e) => `.${e}`).join(",");
@@ -107,7 +108,7 @@ function AlignIcon({ align }: { align: Align }) {
 }
 
 // "colors" 자리에 글자색·배경색 버튼, "lineHeight" 자리에 줄 간격 고르기가 들어간다.
-// 컴퓨터는 "row"에서 줄을 바꿔 두 줄 (글꼴·정렬 / 줄 간격·목록부터)
+// 컴퓨터는 "row"에서 줄을 바꿔 두 줄 (글꼴·정렬·되돌리기 / 줄 간격·목록·사진·파일)
 const TOOLS: (ToolButton | "sep" | "colors" | "row" | "lineHeight")[] = [
   { label: "B", title: msg("굵게"), group: "font", className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
   { label: "I", title: msg("기울임"), group: "font", className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
@@ -125,6 +126,9 @@ const TOOLS: (ToolButton | "sep" | "colors" | "row" | "lineHeight")[] = [
       active: (e) => (a.value === "left" ? !e.isActive({ textAlign: "center" }) && !e.isActive({ textAlign: "right" }) : e.isActive({ textAlign: a.value })),
     }),
   ),
+  "sep",
+  { label: "↶", title: msg("되돌리기"), className: "max-sm:ml-auto", run: (e) => e.chain().focus().undo().run() },
+  { label: "↷", title: msg("다시 실행"), run: (e) => e.chain().focus().redo().run() },
   "row",
   "lineHeight",
   "sep",
@@ -146,9 +150,6 @@ const TOOLS: (ToolButton | "sep" | "colors" | "row" | "lineHeight")[] = [
     },
     active: (e) => e.isActive("link"),
   },
-  "sep",
-  { label: "↶", title: msg("되돌리기"), className: "max-sm:ml-auto", run: (e) => e.chain().focus().undo().run() },
-  { label: "↷", title: msg("다시 실행"), run: (e) => e.chain().focus().redo().run() },
 ];
 
 const SELECT_CLASS =
@@ -254,6 +255,8 @@ export function RichEditor({
     extensions: [
       PostImage.configure({ inline: false, allowBase64: false }), // 사진 (POST-07)
       FileCard, // 파일 카드 (POST-09)
+      ImageSlider.configure({ label: t("🎞 슬라이드 · 읽을 때 옆으로 넘겨 봐요") }), // 사진 슬라이드
+      ImageRow.configure({ label: t("▥ 나란히 · 한 줄에 {n}장까지", { n: ROW_MAX }) }), // 사진 나란히 놓기
       StarterKit.configure({ heading: { levels: [2, 3] }, link: { openOnClick: false, autolink: true } }),
       TextStyle, // 글자 크기·색을 <span style>로 담는다
       FontSize,
@@ -321,9 +324,11 @@ export function RichEditor({
   }, []);
   const imageInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const pick = (input: HTMLInputElement | null) => {
+  const sliderInput = useRef<HTMLInputElement>(null);
+  const rowInput = useRef<HTMLInputElement>(null);
+  const pick = (input: HTMLInputElement | null, group?: ImageGroup) => {
     if (!input) return;
-    upload(filesFrom(input.files));
+    upload(filesFrom(input.files), undefined, group);
     input.value = ""; // 같은 파일을 다시 고를 수 있게
   };
 
@@ -461,22 +466,44 @@ export function RichEditor({
           title={t("사진 올리기 (PNG·JPG·GIF·WEBP, 10MB까지)")}
           disabled={!editor || !!progress}
           onClick={() => imageInput.current?.click()}
-          className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
+          className="rounded-lg px-1.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
         >
           <span className="max-sm:hidden">{t("🖼 사진")}</span>
           <span className="text-base sm:hidden">🖼</span>
         </button>
         <button
           type="button"
+          title={t("사진 여러 장을 옆으로 넘겨 보는 슬라이드로 넣기 (슬라이드 사진을 고른 채 누르면 그 슬라이드에 더해요)")}
+          disabled={!editor || !!progress}
+          onClick={() => sliderInput.current?.click()}
+          className="rounded-lg px-1.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
+        >
+          <span className="max-sm:hidden">{t("🎞 슬라이드")}</span>
+          <span className="text-base sm:hidden">🎞</span>
+        </button>
+        <button
+          type="button"
+          title={t("사진을 한 줄에 {n}장까지 나란히 넣기 (나란히 놓은 사진을 고른 채 누르면 그 줄에 더해요)", { n: ROW_MAX })}
+          disabled={!editor || !!progress}
+          onClick={() => rowInput.current?.click()}
+          className="rounded-lg px-1.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
+        >
+          <span className="max-sm:hidden">{t("▥ 나란히")}</span>
+          <span className="text-base sm:hidden">▥</span>
+        </button>
+        <button
+          type="button"
           title={t("파일 올리기 (PDF·한글·오피스·ZIP 등, 30MB까지)")}
           disabled={!editor || !!progress}
           onClick={() => fileInput.current?.click()}
-          className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
+          className="rounded-lg px-1.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
         >
           <span className="max-sm:hidden">{t("📎 파일")}</span>
           <span className="text-base sm:hidden">📎</span>
         </button>
         <input ref={imageInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("사진 고르기")} onChange={(e) => pick(e.currentTarget)} />
+        <input ref={sliderInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("슬라이드 사진 고르기")} onChange={(e) => pick(e.currentTarget, "imageSlider")} />
+        <input ref={rowInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("나란히 놓을 사진 고르기")} onChange={(e) => pick(e.currentTarget, "imageRow")} />
         <input ref={fileInput} type="file" accept={FILE_ACCEPT} multiple hidden aria-label={t("파일 고르기")} onChange={(e) => pick(e.currentTarget)} />
       </div>
       {(progress || errors.length > 0) && (

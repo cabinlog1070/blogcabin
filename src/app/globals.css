@@ -138,9 +138,62 @@ body {
     content: attr(data-name) "\A" attr(data-size-label) " · 내려받기";
     white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 700; line-height: 1.5;
   }
+  /* 사진 슬라이드: 한 장씩 가로로 넘긴다 (휴대폰은 손가락으로, 컴퓨터는 post-sliders.tsx의 화살표로) */
+  & div[data-slider] {
+    display: flex; align-items: center; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
+    scrollbar-width: none; margin: 1em 0; border-radius: 0.8rem; background: var(--color-cream); outline: none;
+  }
+  & div[data-slider]::-webkit-scrollbar { display: none; }
+  & div[data-slider]:empty { display: none; }
+  & div[data-slider] > img {
+    flex: 0 0 100%; width: 100%; height: auto; max-height: min(28rem, 70vh); object-fit: contain;
+    scroll-snap-align: center; scroll-snap-stop: always; border-radius: 0;
+  }
+  & .slider-frame { position: relative; margin: 1em 0; }
+  & .slider-frame > div[data-slider] { margin: 0; }
+  & .slider-frame > div[data-slider]:focus-visible { outline: 3px solid var(--color-sun); outline-offset: 2px; }
+  & .slider-prev, & .slider-next {
+    position: absolute; top: calc(50% - 1.6rem); width: 2.6rem; height: 3.2rem; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--color-line); background: var(--color-paper); color: var(--color-ink); font-size: 1.8rem; line-height: 1;
+    border-radius: 0.6rem; box-shadow: var(--shadow-pop); opacity: 0.92; cursor: pointer;
+  }
+  & .slider-prev:hover, & .slider-next:hover { border-color: var(--color-sun); opacity: 1; }
+  & .slider-prev { left: 0.5rem; }
+  & .slider-next { right: 0.5rem; }
+  & .slider-prev[hidden], & .slider-next[hidden] { display: none; }
+  /* 휴대폰(마우스가 없는 기기)은 손가락으로 넘기니 화살표를 숨긴다 */
+  @media (hover: none) { & .slider-prev, & .slider-next { display: none; } }
+  & .slider-count {
+    position: absolute; top: 0.6rem; right: 0.6rem; padding: 0.1rem 0.55rem; border-radius: 999px;
+    background: var(--color-ink); color: var(--color-cream); font-size: 0.8rem; font-weight: 700; opacity: 0.85;
+  }
+  & .slider-bar { display: block; height: 4px; margin: 0.6rem auto 0; width: min(60%, 18rem); background: var(--color-line); border-radius: 999px; overflow: hidden; }
+  & .slider-bar > span { display: block; height: 100%; background: var(--color-ink); border-radius: 999px; transition: transform 0.2s; }
+
+  /* 사진 나란히 놓기: 한 줄에 5장까지 같은 크기 칸으로 (넘치는 부분은 잘라 칸을 채운다) */
+  & div[data-row] { display: flex; gap: 0.4rem; margin: 1em 0; }
+  & div[data-row]:empty { display: none; }
+  & div[data-row] > img { flex: 1 1 0; min-width: 0; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 0.6rem; }
+
   /* 에디터에서 고른 사진·파일 카드 표시 */
   & img.ProseMirror-selectednode, & a[data-file].ProseMirror-selectednode { outline: 3px solid var(--color-sun); outline-offset: 2px; }
 }
+
+/* 에디터 안의 사진 슬라이드: 넘기지 않고 작은 사진을 나란히 보여 고르고 지우기 쉽게 한다.
+   data-label 안내는 에디터에서만 붙는다 (저장할 때 빠진다) */
+.tiptap div[data-slider] {
+  flex-wrap: wrap; gap: 0.5rem; overflow: visible; padding: 0.6rem; border: 2px dashed var(--color-line);
+}
+.tiptap div[data-row] { flex-wrap: wrap; padding: 0.6rem; border: 2px dashed var(--color-line); border-radius: 0.8rem; }
+.tiptap div[data-row]::before {
+  content: attr(data-label); flex-basis: 100%; font-size: 0.8rem; font-weight: 700; color: var(--color-ink-soft);
+}
+.tiptap div[data-row].ProseMirror-selectednode { outline: 3px solid var(--color-sun); outline-offset: 2px; }
+.tiptap div[data-slider]::before {
+  content: attr(data-label); flex-basis: 100%; font-size: 0.8rem; font-weight: 700; color: var(--color-ink-soft);
+}
+.tiptap div[data-slider] > img { flex: 0 0 auto; width: auto; height: 8rem; max-width: 45%; object-fit: cover; border-radius: 0.5rem; }
+.tiptap div[data-slider].ProseMirror-selectednode { outline: 3px solid var(--color-sun); outline-offset: 2px; }
 
 /* 에디터가 비어 있을 때 안내 문구 (POST-01, #17)
    Tiptap Placeholder는 data-placeholder 속성만 붙이고 글자는 그리지 않는다 */

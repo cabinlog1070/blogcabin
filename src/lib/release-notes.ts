@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.10.0",
+        title: msg("사진 슬라이드·나란히 놓기"),
+        changes: [
+          { kind: "new", text: msg("글쓰기에서 🎞 슬라이드 버튼으로 사진 여러 장을 한 번에 넣으면, 읽을 때 컴퓨터는 화살표로, 휴대폰은 손가락으로 옆으로 넘겨 볼 수 있어요.") },
+          { kind: "new", text: msg("글쓰기에서 ▥ 나란히 버튼으로 사진을 한 줄에 5장까지 나란히 놓을 수 있어요.") },
+        ],
+      },
+      {
         version: "1.9.5",
         title: msg("일본어 화면 글쓰기 이름"),
         changes: [
