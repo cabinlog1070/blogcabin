@@ -38,7 +38,7 @@ const editorCards = () => page.locator(".ProseMirror a[data-file]").count();
 const idle = () => page.getByText(/올리는 중/).waitFor({ state: "detached", timeout: 30000 }).catch(() => {});
 
 // 1) 버튼으로 사진 두 장을 한 번에
-await page.getByLabel("사진 고르기").setInputFiles([file("광장.png", PHOTO, "image/png"), file("점.png", PNG, "image/png")]);
+await page.getByLabel("사진 고르기", { exact: true }).setInputFiles([file("광장.png", PHOTO, "image/png"), file("점.png", PNG, "image/png")]);
 await page.waitForFunction(() => document.querySelectorAll(".ProseMirror img").length >= 2, null, { timeout: 30000 });
 await idle();
 check("버튼: 사진 2장을 한 번에", (await editorImages()) === 2);
@@ -83,7 +83,7 @@ await page.waitForTimeout(300);
 check("붙여 넣은 위험한 파일 카드는 카드가 되지 않음", (await editorCards()) === 2 && !(await page.locator('.ProseMirror a[href^="javascript:"]').count()));
 
 // 4) 받지 않는 파일: 확장자만 바꾼 SVG(서버가 거부), 10MB 넘는 사진(브라우저가 거부), .exe(브라우저가 거부)
-await page.getByLabel("사진 고르기").setInputFiles([file("가짜.png", SVG, "image/png"), file("큰사진.png", BIG, "image/png")]);
+await page.getByLabel("사진 고르기", { exact: true }).setInputFiles([file("가짜.png", SVG, "image/png"), file("큰사진.png", BIG, "image/png")]);
 await page.getByText(/가짜\.png: 사진 파일이 아니에요/).waitFor({ timeout: 30000 });
 await idle();
 const notice = await page.getByRole("status").innerText();

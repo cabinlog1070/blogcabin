@@ -12,6 +12,7 @@ import { useT } from "@/components/i18n";
 import { attachmentPath, FILE_TYPES, IMAGE_TYPES } from "@/lib/attachments";
 import { msg, type T } from "@/lib/i18n";
 import { FileCard } from "./file-card";
+import { ImageSlider } from "./image-slider";
 import { DEFAULT_LINE_HEIGHT, LINE_HEIGHTS, LineHeight } from "./line-height";
 import { filesFrom, useAttachmentUpload } from "./use-attachment-upload";
 
@@ -254,6 +255,7 @@ export function RichEditor({
     extensions: [
       PostImage.configure({ inline: false, allowBase64: false }), // 사진 (POST-07)
       FileCard, // 파일 카드 (POST-09)
+      ImageSlider.configure({ label: t("🎞 슬라이드 · 읽을 때 옆으로 넘겨 봐요") }), // 사진 슬라이드
       StarterKit.configure({ heading: { levels: [2, 3] }, link: { openOnClick: false, autolink: true } }),
       TextStyle, // 글자 크기·색을 <span style>로 담는다
       FontSize,
@@ -321,9 +323,10 @@ export function RichEditor({
   }, []);
   const imageInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const pick = (input: HTMLInputElement | null) => {
+  const sliderInput = useRef<HTMLInputElement>(null);
+  const pick = (input: HTMLInputElement | null, slider = false) => {
     if (!input) return;
-    upload(filesFrom(input.files));
+    upload(filesFrom(input.files), undefined, slider);
     input.value = ""; // 같은 파일을 다시 고를 수 있게
   };
 
@@ -468,6 +471,16 @@ export function RichEditor({
         </button>
         <button
           type="button"
+          title={t("사진 여러 장을 옆으로 넘겨 보는 슬라이드로 넣기 (슬라이드 사진을 고른 채 누르면 그 슬라이드에 더해요)")}
+          disabled={!editor || !!progress}
+          onClick={() => sliderInput.current?.click()}
+          className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
+        >
+          <span className="max-sm:hidden">{t("🎞 슬라이드")}</span>
+          <span className="text-base sm:hidden">🎞</span>
+        </button>
+        <button
+          type="button"
           title={t("파일 올리기 (PDF·한글·오피스·ZIP 등, 30MB까지)")}
           disabled={!editor || !!progress}
           onClick={() => fileInput.current?.click()}
@@ -477,6 +490,7 @@ export function RichEditor({
           <span className="text-base sm:hidden">📎</span>
         </button>
         <input ref={imageInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("사진 고르기")} onChange={(e) => pick(e.currentTarget)} />
+        <input ref={sliderInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("슬라이드 사진 고르기")} onChange={(e) => pick(e.currentTarget, true)} />
         <input ref={fileInput} type="file" accept={FILE_ACCEPT} multiple hidden aria-label={t("파일 고르기")} onChange={(e) => pick(e.currentTarget)} />
       </div>
       {(progress || errors.length > 0) && (

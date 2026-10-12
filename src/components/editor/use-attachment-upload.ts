@@ -28,7 +28,8 @@ async function uploadOne(file: File): Promise<Uploaded> {
 
 /**
  * 버튼·붙여 넣기·끌어다 놓기로 고른 파일들을 차례로 올려 본문에 넣는다 (POST-07 사진, POST-09 파일).
- * 사진은 <img>, 나머지는 파일 카드. 형식·크기가 맞지 않는 파일은 건너뛰고 문구로 알려준다
+ * 사진은 <img>, 나머지는 파일 카드. 형식·크기가 맞지 않는 파일은 건너뛰고 문구로 알려준다.
+ * slider면 사진을 다 올린 뒤 슬라이드 하나로 묶어 넣는다 (커서가 슬라이드 안이면 그 슬라이드 끝에 더한다)
  */
 export function useAttachmentUpload(editor: Editor | null) {
   const t = useT();
@@ -37,7 +38,7 @@ export function useAttachmentUpload(editor: Editor | null) {
   const busy = useRef(false);
 
   const upload = useCallback(
-    async (files: File[], at?: number) => {
+    async (files: File[], at?: number, slider = false) => {
       if (!editor || !files.length) return;
       if (busy.current) {
         const busyMessage = t(BUSY_MESSAGE);
@@ -60,27 +61,41 @@ export function useAttachmentUpload(editor: Editor | null) {
         pos = transaction.mapping.map(pos);
       };
       editor.on("transaction", track);
+      // 방금 넣은 것 바로 뒤로 커서를 옮긴다. 글자 자리로 옮겨 두어야 다음 글자가 사진을 덮어쓰지 않는다
+      const insert = (content: Parameters<Editor["commands"]["insertContentAt"]>[1], at = pos) => {
+        editor.chain().insertContentAt(Math.min(at, editor.state.doc.content.size), content).run();
+        pos = editor.state.selection.to;
+        const $end = editor.state.doc.resolve(pos);
+        const next = TextSelection.findFrom($end, 1, true) ?? TextSelection.findFrom($end, -1, true);
+        if (next) editor.view.dispatch(editor.state.tr.setSelection(next));
+      };
+      const sliderImages: { type: "image"; attrs: { src: string; alt: string } }[] = [];
       try {
         for (const [i, file] of ok.entries()) {
           setProgress({ done: i, total: ok.length });
           try {
             const up = await uploadOne(file);
             if (editor.isDestroyed) return;
+            if (slider && up.kind === "image") {
+              sliderImages.push({ type: "image", attrs: { src: up.url, alt: "" } });
+              continue;
+            }
             const node =
               up.kind === "image"
                 ? { type: "image", attrs: { src: up.url, alt: "" } }
                 : { type: "fileCard", attrs: { href: up.url, name: up.name, size: up.size } };
-            editor.chain().insertContentAt(Math.min(pos, editor.state.doc.content.size), node).run();
-            // 방금 넣은 것 바로 뒤. 커서를 글자 자리로 옮겨 두어야 다음 글자가 사진을 덮어쓰지 않는다
-            pos = editor.state.selection.to;
-            const $end = editor.state.doc.resolve(pos);
-            const next = TextSelection.findFrom($end, 1, true) ?? TextSelection.findFrom($end, -1, true);
-            if (next) editor.view.dispatch(editor.state.tr.setSelection(next));
+            insert(node);
           } catch (err) {
             // 서버가 돌려준 문구(ATTACH_MESSAGES의 한국어)도 화면 언어로 바꾼다
             problems.push(`${file.name}: ${t(err instanceof Error ? err.message : ATTACH_MESSAGES.failed)}`);
             setErrors([...problems]);
           }
+        }
+        if (sliderImages.length && !editor.isDestroyed) {
+          const $at = editor.state.doc.resolve(Math.min(pos, editor.state.doc.content.size));
+          if ($at.parent.type.name === "imageSlider") insert(sliderImages, $at.end());
+          // 한 장뿐이면 넘길 것이 없으니 보통 사진으로
+          else insert(sliderImages.length > 1 ? { type: "imageSlider", content: sliderImages } : sliderImages[0]);
         }
       } finally {
         editor.off("transaction", track);

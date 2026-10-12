@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CommentSection } from "@/components/blog/comment-section";
 import { DeletePostButton } from "@/components/blog/delete-post-button";
 import { LikeButton } from "@/components/blog/like-button";
+import { PostSliders } from "@/components/blog/post-sliders";
 import { ViewCount } from "@/components/blog/view-count";
 import { ClearDraft } from "@/components/editor/clear-draft";
 import { CharacterBadge } from "@/components/character";
@@ -121,6 +122,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
 
         {/* 저장할 때 sanitize-html로 정화한 HTML만 넣는다 */}
         <div className="prose-blog mt-6" dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
+        <PostSliders />
 
         {tagNames.length > 0 && (
           <ul className="mt-8 flex flex-wrap gap-2">
