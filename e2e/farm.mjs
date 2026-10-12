@@ -55,6 +55,8 @@ check("펫 꾸미기 버튼이 농장 가운데 아래", Math.abs(deco.x + deco.
 // ── 첫 알 → 둥지 → 부화 → 상태창 ──
 await page.getByRole("button", { name: /농장 첫 알/ }).click();
 await page.getByRole("status").getByText("알을 받았어요").waitFor();
+// 결과 문구가 화면이 다시 그려지기 전에 뜰 수 있어 알이 놓일 때까지 기다린다
+await page.locator("[data-nest] [data-egg-id]").first().waitFor();
 check("첫 알을 받으면 둥지에 알이 놓인다", (await page.locator("[data-nest] [data-egg-id]").count()) === 1);
 await page.locator("[data-nest] [data-egg-id]").click();
 await dialog().getByRole("button", { name: /부화시키기/ }).click();
@@ -90,6 +92,7 @@ await st.getByLabel("펫 이름").fill("콩이");
 await st.getByRole("button", { name: "저장" }).click();
 await page.getByRole("status").getByText("이름을 콩이로 바꿨어요").waitFor();
 await st.locator("[data-pet-name]").waitFor();
+await st.locator("[data-pet-name]", { hasText: "콩이" }).waitFor({ timeout: 5000 }).catch(() => {});
 check("이름 바꾸기 → DB와 상태창", (await animals())[0].name === "콩이" && (await st.locator("[data-pet-name]").innerText()) === "콩이");
 await page.screenshot({ path: `${outDir}/c2-pet-popup.png` });
 await page.keyboard.press("Escape");
@@ -119,6 +122,7 @@ await openPet("콩이");
 await act(/밥 주기/, /밥 주기 완료/);
 await act(/쓰다듬기/, /쓰다듬기 완료/);
 check("밥·쓰다듬기 → 성장 15", (await animals())[0].growth === 15, `성장 ${(await animals())[0].growth}`);
+await dialog().getByRole("button", { name: /완료/ }).nth(1).waitFor({ timeout: 5000 }).catch(() => {});
 check("돌본 버튼은 '완료'로 막힌다", (await dialog().getByRole("button", { name: /완료/ }).count()) === 2);
 const careExp = await one("SELECT COALESCE(SUM(exp_delta),0)::int AS n, COUNT(*)::int AS c FROM point_ledger WHERE user_id = $1 AND reason = 'farm_care'", [uid]);
 check("돌보기마다 주인 경험치 +2 기록", careExp.c === 2 && careExp.n === 4, `${careExp.c}회 ${careExp.n}`);
@@ -254,7 +258,8 @@ check("새로고침해도 꾸미기가 남아 있다", (await page.locator(`[dat
 await page.keyboard.press("Escape");
 await go(`/@${slug}`);
 check("블로그 홈 프로필에 전시 카드", await page.locator(`[data-displayed-card="${hatched.id}"]`).getByText("콩이").isVisible());
-check("블로그 미니룸 펫은 꾸미기를 한 그림 (리본)", decodeURIComponent((await page.locator('[data-room-pet="콩이"] img').getAttribute("src")) ?? "").includes("#f48caa"));
+// 파스텔 그림체는 리본 색을 섞어 칠해서 색 대신 리본 모양(목의 나비)으로 찾는다
+check("블로그 미니룸 펫은 꾸미기를 한 그림 (리본)", decodeURIComponent((await page.locator('[data-room-pet="콩이"] img').getAttribute("src")) ?? "").includes("M128 176l-22-14v28Z"));
 await page.screenshot({ path: `${outDir}/c6-blog-profile-card.png` });
 
 // ── 농장 전체 화면 (데스크톱): 펫 여러 마리 + 둥지의 알 ──
