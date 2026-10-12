@@ -7,21 +7,23 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
 import { blogs, categories, items, profiles, userItems } from "@/db/schema";
+import { msg, type T } from "@/lib/i18n";
 import { generateInviteCode, INVITE_COOKIE, normalizeInviteCode } from "@/lib/invite";
 import { ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
 import { requireUser } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
+import { getT } from "@/server/i18n";
 import { grantReward, grantSocialLinkRewardsFor, lockUser } from "@/server/points";
 
 const schema = z.object({
-  nickname: nicknameSchema.refine((n) => n !== ADMIN_NICKNAME, "이 닉네임은 쓸 수 없어요"),
-  blogTitle: z.string().trim().min(1, "블로그 이름을 적어 주세요").max(12, "블로그 이름은 12자까지예요"),
+  nickname: nicknameSchema.refine((n) => n !== ADMIN_NICKNAME, msg("이 닉네임은 쓸 수 없어요")),
+  blogTitle: z.string().trim().min(1, msg("블로그 이름을 적어 주세요")).max(12, msg("블로그 이름은 12자까지예요")),
   slug: z
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9_]{3,12}$/, "주소는 영문 소문자, 숫자, _ 로 3~12자예요"), // DB는 20자까지 받지만 화면에서는 12자로 줄였다 (2026-10-08)
-  characterId: z.coerce.number().int().positive("캐릭터를 골라 주세요"),
+    .regex(/^[a-z0-9_]{3,12}$/, msg("주소는 영문 소문자, 숫자, _ 로 3~12자예요")), // DB는 20자까지 받지만 화면에서는 12자로 줄였다 (2026-10-08)
+  characterId: z.coerce.number().int().positive(msg("캐릭터를 골라 주세요")),
 });
 type Field = keyof z.infer<typeof schema> | "inviteCode";
 
@@ -37,6 +39,7 @@ const RESERVED_SLUGS = new Set(["admin", "api", "town", "feed", "shop", "closet"
 export async function completeOnboarding(_prev: OnboardingState, formData: FormData): Promise<OnboardingState> {
   const viewer = await requireUser();
   if (viewer.profile) redirect("/town");
+  const t = await getT();
 
   const raw = Object.fromEntries(
     ["nickname", "blogTitle", "slug", "characterId", "inviteCode"].map((k) => [k, String(formData.get(k) ?? "")]),
@@ -48,19 +51,19 @@ export async function completeOnboarding(_prev: OnboardingState, formData: FormD
     const errors: OnboardingState["errors"] = {};
     for (const issue of parsed.success ? [] : parsed.error.issues) {
       const key = issue.path[0] as Field;
-      errors[key] ??= issue.message;
+      errors[key] ??= t(issue.message);
     }
-    if (inviteCode === null) errors.inviteCode = "없는 초대 코드예요";
+    if (inviteCode === null) errors.inviteCode = t("없는 초대 코드예요");
     return { errors, values: raw };
   }
   const input = parsed.data;
   if (RESERVED_SLUGS.has(input.slug)) {
-    return { errors: { slug: "이 주소는 쓸 수 없어요" }, values: raw };
+    return { errors: { slug: t("이 주소는 쓸 수 없어요") }, values: raw };
   }
 
   // 내 초대 코드는 무작위라 아주 드물게 남과 겹칠 수 있다 → 겹치면(UNIQUE 위반) 새 코드로 몇 번 더 시도한다
   for (let attempt = 1; ; attempt++) {
-    const result = await createResident(viewer.userId, input, inviteCode, raw);
+    const result = await createResident(t, viewer.userId, input, inviteCode, raw);
     if (result !== "RETRY_INVITE_CODE") {
       if (result) return result;
       break;
@@ -79,6 +82,7 @@ export async function completeOnboarding(_prev: OnboardingState, formData: FormD
 
 /** 온보딩 한 번에 필요한 것을 모두 한 트랜잭션으로 만든다. 성공하면 undefined */
 async function createResident(
+  t: T,
   userId: string,
   input: z.infer<typeof schema>,
   inviteCode: string,
@@ -126,19 +130,19 @@ async function createResident(
           backgroundItemId: background.id,
         })
         .returning({ id: blogs.id });
-      await tx.insert(categories).values({ blogId: blog.id, name: "일상", position: 0 });
+      await tx.insert(categories).values({ blogId: blog.id, name: t("일상"), position: 0 });
       await grantReward(tx, userId, "signup");
     });
   } catch (err) {
     const constraint = uniqueViolation(err);
-    if (constraint?.includes("nickname")) return { errors: { nickname: "이미 있는 닉네임이에요" }, values: raw };
-    if (constraint?.includes("slug")) return { errors: { slug: "이미 있는 주소예요" }, values: raw };
+    if (constraint?.includes("nickname")) return { errors: { nickname: t("이미 있는 닉네임이에요") }, values: raw };
+    if (constraint?.includes("slug")) return { errors: { slug: t("이미 있는 주소예요") }, values: raw };
     if (constraint?.includes("invite_code")) return "RETRY_INVITE_CODE";
     if (err instanceof Error && err.message === "INVALID_CHARACTER") {
-      return { errors: { characterId: "고를 수 없는 캐릭터예요" }, values: raw };
+      return { errors: { characterId: t("고를 수 없는 캐릭터예요") }, values: raw };
     }
     if (err instanceof Error && err.message === "INVALID_INVITE") {
-      return { errors: { inviteCode: "없는 초대 코드예요" }, values: raw };
+      return { errors: { inviteCode: t("없는 초대 코드예요") }, values: raw };
     }
     throw err;
   }

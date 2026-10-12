@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { parseId } from "@/lib/ids";
+import { getT } from "@/server/i18n";
 
 /** 페이지 번호. hrefFor(n)이 각 페이지 주소를 만든다 */
-export function Pagination({ page, pageCount, hrefFor }: { page: number; pageCount: number; hrefFor: (n: number) => string }) {
+export async function Pagination({ page, pageCount, hrefFor }: { page: number; pageCount: number; hrefFor: (n: number) => string }) {
   if (pageCount <= 1) return null;
+  const t = await getT();
   const pages = Array.from({ length: pageCount }, (_, i) => i + 1).filter(
     (n) => n === 1 || n === pageCount || Math.abs(n - page) <= 2,
   );
   return (
-    <nav className="mt-6 flex flex-wrap justify-center gap-1.5" aria-label="페이지">
+    <nav className="mt-6 flex flex-wrap justify-center gap-1.5" aria-label={t("페이지")}>
       {pages.map((n, i) => (
         <span key={n} className="flex items-center gap-1.5">
           {i > 0 && pages[i - 1] !== n - 1 && <span className="text-ink-soft">…</span>}

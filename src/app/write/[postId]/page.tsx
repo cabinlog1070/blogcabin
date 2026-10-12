@@ -6,8 +6,12 @@ import { PostForm } from "@/components/editor/post-form";
 import { parseId } from "@/lib/ids";
 import { getPost, getPostTags } from "@/server/blog";
 import { requireMember } from "@/server/dal";
+import { getT } from "@/server/i18n";
 
-export const metadata = { title: "글 고치기" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("글 고치기") };
+}
 
 export default async function EditPostPage(props: PageProps<"/write/[postId]">) {
   const viewer = await requireMember();

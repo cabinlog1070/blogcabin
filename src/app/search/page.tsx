@@ -6,8 +6,12 @@ import { Pagination, parsePage } from "@/components/pagination";
 import { parseSearchQuery } from "@/lib/search";
 import { searchBlogs, searchPosts } from "@/server/blog";
 import { requireMember } from "@/server/dal";
+import { getT } from "@/server/i18n";
 
-export const metadata = { title: "마을 검색" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("마을 검색") };
+}
 
 /**
  * 마을 검색 결과 (BLOG-07). 검색창은 내 블로그 홈에만 있고, 결과는 이 화면에서 본다.
@@ -15,6 +19,9 @@ export const metadata = { title: "마을 검색" };
  */
 export default async function SearchPage(props: PageProps<"/search">) {
   const viewer = await requireMember();
+  const t = await getT();
+  // 검색어 자리({q})를 기준으로 문장을 나눠 검색어만 굵게 보여 준다
+  const [foundBefore, foundAfter = ""] = t("마을 전체의 공개 글과 블로그에서 {q}를 찾았어요.").split("{q}");
   const sp = await props.searchParams;
   const query = parseSearchQuery(sp.q);
   const page = parsePage(sp.page);
@@ -26,29 +33,31 @@ export default async function SearchPage(props: PageProps<"/search">) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-        <h1 className="font-display text-3xl">🔍 마을 검색</h1>
+        <h1 className="font-display text-3xl">{t("🔍 마을 검색")}</h1>
         <Link href={`/@${viewer.profile.blogSlug}`} className="text-sm text-ink-soft hover:text-ink">
-          ← 내 블로그로
+          {t("← 내 블로그로")}
         </Link>
       </div>
       <SearchBox key={query.kind === "ok" ? query.q : ""} defaultValue={query.kind === "ok" ? query.q : ""} initialError={query.kind === "empty"} />
 
       {query.kind === "ok" && (
         <p className="mt-4 text-sm text-ink-soft">
-          마을 전체의 공개 글과 블로그에서 <b className="text-ink">&apos;{query.q}&apos;</b>를 찾았어요.
+          {foundBefore}
+          <b className="text-ink">&apos;{query.q}&apos;</b>
+          {foundAfter}
         </p>
       )}
 
       {empty && (
         <div className="card mt-6 p-10 text-center text-ink-soft" data-search-empty>
           <p className="text-4xl">🔍</p>
-          <p className="mt-2">&apos;{query.kind === "ok" ? query.q : ""}&apos;에 맞는 글이나 블로그가 없어요</p>
+          <p className="mt-2">{t("'{q}'에 맞는 글이나 블로그가 없어요", { q: query.kind === "ok" ? query.q : "" })}</p>
         </div>
       )}
 
       {blogs && blogs.length > 0 && (
-        <section className="mt-6" aria-label="블로그" data-search-blogs>
-          <h2 className="mb-3 font-display text-xl">블로그</h2>
+        <section className="mt-6" aria-label={t("블로그")} data-search-blogs>
+          <h2 className="mb-3 font-display text-xl">{t("블로그")}</h2>
           <ul className="grid gap-2 sm:grid-cols-2">
             {blogs.map((b) => (
               <li key={b.slug}>
@@ -68,9 +77,9 @@ export default async function SearchPage(props: PageProps<"/search">) {
       )}
 
       {posts && posts.total > 0 && (
-        <section className="mt-8" aria-label="글" data-search-posts>
+        <section className="mt-8" aria-label={t("글")} data-search-posts>
           <h2 className="mb-3 font-display text-xl">
-            글 <span className="text-base text-ink-soft">{posts.total}개</span>
+            {t("글")} <span className="text-base text-ink-soft">{t("{n}개", { n: posts.total })}</span>
           </h2>
           <div className="grid gap-4">
             {posts.items.map((p) => (

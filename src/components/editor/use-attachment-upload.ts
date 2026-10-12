@@ -3,11 +3,13 @@
 import { TextSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import { useCallback, useRef, useState } from "react";
+import { useT } from "@/components/i18n";
 import { ATTACH_MESSAGES, attachmentKind, attachmentProblem } from "@/lib/attachments";
+import { msg } from "@/lib/i18n";
 
 type Uploaded = { key: string; url: string; kind: "image" | "file"; name: string; size: number };
 
-export const BUSY_MESSAGE = "다른 파일을 올리는 중이에요. 끝난 뒤 다시 넣어 주세요";
+export const BUSY_MESSAGE = msg("다른 파일을 올리는 중이에요. 끝난 뒤 다시 넣어 주세요");
 
 /** 파일 하나를 /api/uploads로 올린다. 실패하면 보여줄 문구를 담아 던진다 */
 async function uploadOne(file: File): Promise<Uploaded> {
@@ -29,6 +31,7 @@ async function uploadOne(file: File): Promise<Uploaded> {
  * 사진은 <img>, 나머지는 파일 카드. 형식·크기가 맞지 않는 파일은 건너뛰고 문구로 알려준다
  */
 export function useAttachmentUpload(editor: Editor | null) {
+  const t = useT();
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const busy = useRef(false);
@@ -37,13 +40,14 @@ export function useAttachmentUpload(editor: Editor | null) {
     async (files: File[], at?: number) => {
       if (!editor || !files.length) return;
       if (busy.current) {
-        setErrors((prev) => [...prev.filter((e) => e !== BUSY_MESSAGE), BUSY_MESSAGE]);
+        const busyMessage = t(BUSY_MESSAGE);
+        setErrors((prev) => [...prev.filter((e) => e !== busyMessage), busyMessage]);
         return;
       }
       const problems: string[] = [];
       const ok = files.filter((f) => {
         const problem = attachmentProblem(f.name, f.size);
-        if (problem) problems.push(`${f.name}: ${problem}`);
+        if (problem) problems.push(`${f.name}: ${t(problem)}`);
         return !problem;
       });
       setErrors(problems);
@@ -73,7 +77,8 @@ export function useAttachmentUpload(editor: Editor | null) {
             const next = TextSelection.findFrom($end, 1, true) ?? TextSelection.findFrom($end, -1, true);
             if (next) editor.view.dispatch(editor.state.tr.setSelection(next));
           } catch (err) {
-            problems.push(`${file.name}: ${err instanceof Error ? err.message : ATTACH_MESSAGES.failed}`);
+            // 서버가 돌려준 문구(ATTACH_MESSAGES의 한국어)도 화면 언어로 바꾼다
+            problems.push(`${file.name}: ${t(err instanceof Error ? err.message : ATTACH_MESSAGES.failed)}`);
             setErrors([...problems]);
           }
         }
@@ -88,7 +93,7 @@ export function useAttachmentUpload(editor: Editor | null) {
       const root = editor.view.dom.closest("[data-rich-editor]");
       if (!active || active === document.body || root?.contains(active)) editor.commands.focus();
     },
-    [editor],
+    [editor, t],
   );
 
   return { upload, progress, errors, clearErrors: () => setErrors([]) };

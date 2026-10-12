@@ -1,4 +1,5 @@
 // 상점 규칙 (SHOP-01, SHOP-05). DB를 쓰지 않는 순수 계산만 둔다 (화면과 서버 어디서나 import 가능)
+import { msg } from "@/lib/i18n";
 
 export type ItemType = "character" | "background" | "furniture" | "avatar";
 
@@ -11,12 +12,12 @@ export function isForSale(item: { type: ItemType; isStarter: boolean }): boolean
 export const MAX_FURNITURE = 5;
 
 export const SORTS = [
-  { key: "level", label: "레벨순" },
-  { key: "popular", label: "인기순" },
-  { key: "price_desc", label: "비싼 순" },
-  { key: "price_asc", label: "싼 순" },
-  { key: "newest", label: "최신순" },
-  { key: "owned", label: "보유순" },
+  { key: "level", label: msg("레벨순") },
+  { key: "popular", label: msg("인기순") },
+  { key: "price_desc", label: msg("비싼 순") },
+  { key: "price_asc", label: msg("싼 순") },
+  { key: "newest", label: msg("최신순") },
+  { key: "owned", label: msg("보유순") },
 ] as const;
 export type SortKey = (typeof SORTS)[number]["key"];
 

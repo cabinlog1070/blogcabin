@@ -4,8 +4,12 @@ import { categories } from "@/db/schema";
 import { PostForm } from "@/components/editor/post-form";
 import { draftStorageKey } from "@/lib/draft";
 import { requireMember } from "@/server/dal";
+import { getT } from "@/server/i18n";
 
-export const metadata = { title: "글쓰기" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("글쓰기") };
+}
 
 export default async function WritePage() {
   const viewer = await requireMember();

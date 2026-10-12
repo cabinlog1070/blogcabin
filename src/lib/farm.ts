@@ -1,5 +1,6 @@
 // 동물 농장 규칙 (TOWN-09). DB를 쓰지 않는 순수 계산만 둔다
 // 종류별 숫자(성장치, 보상)는 animal_species 테이블에 있다 (scripts/seed.ts)
+import { LOCALE_TAGS, msg, type Locale, type T } from "@/lib/i18n";
 
 /** 한 번에 키울 수 있는 알·동물 수 (다 키운 동물은 세지 않는다) */
 export const MAX_ACTIVE_ANIMALS = 5;
@@ -13,8 +14,8 @@ export const POST_GROWTH = 10;
 /** 하루 한 번씩 하는 돌보기. 물 주기는 2026-10-08에 물약으로 바뀌었다 (DB 값 water는 옛 기록용) */
 export type CareAction = "feed" | "pet";
 export const CARE_ACTIONS: { action: CareAction; label: string; emoji: string; growth: number }[] = [
-  { action: "feed", label: "밥 주기", emoji: "🥕", growth: 10 },
-  { action: "pet", label: "쓰다듬기", emoji: "🤲", growth: 5 },
+  { action: "feed", label: msg("밥 주기"), emoji: "🥕", growth: 10 },
+  { action: "pet", label: msg("쓰다듬기"), emoji: "🤲", growth: 5 },
 ];
 
 /** 물약: 코인으로 사서 하나 쓰면 성장 +30. 하루 횟수 제한은 없지만 가진 것만 쓸 수 있다 */
@@ -29,14 +30,14 @@ export function cleanPetName(raw: string): string | null {
 }
 
 export type PetGender = "male" | "female";
-export const GENDER_LABEL: Record<PetGender, string> = { male: "♂ 수컷", female: "♀ 암컷" };
+export const GENDER_LABEL: Record<PetGender, string> = { male: msg("♂ 수컷"), female: msg("♀ 암컷") };
 
 export type PetAccessory = "none" | "ribbon" | "flower" | "scarf";
 export const PET_ACCESSORIES: { value: PetAccessory; label: string }[] = [
-  { value: "none", label: "없음" },
-  { value: "ribbon", label: "🎀 리본" },
-  { value: "flower", label: "🌼 꽃" },
-  { value: "scarf", label: "🧣 스카프" },
+  { value: "none", label: msg("없음") },
+  { value: "ribbon", label: msg("🎀 리본") },
+  { value: "flower", label: msg("🌼 꽃") },
+  { value: "scarf", label: msg("🧣 스카프") },
 ];
 
 /**
@@ -64,13 +65,13 @@ export function petLevelProgress(growth: number, growExp: number, maxLevel: numb
   return { level, current: growth - base, needed: next - base, ratio: (growth - base) / (next - base), isMax: false };
 }
 
-/** 만난 날 표시: YYYY. MM. DD. (한국 시간) */
-export function formatMetDate(date: Date): string {
-  return new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+/** 만난 날 표시: YYYY. MM. DD. (한국 시간, 일본어 화면은 YYYY/MM/DD) */
+export function formatMetDate(date: Date, locale: Locale = "ko"): string {
+  return new Intl.DateTimeFormat(LOCALE_TAGS[locale], { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
 export type AnimalStage = "baby" | "teen" | "adult";
-export const STAGE_LABEL: Record<AnimalStage, string> = { baby: "아기", teen: "청소년", adult: "어른" };
+export const STAGE_LABEL: Record<AnimalStage, string> = { baby: msg("아기"), teen: msg("청소년"), adult: msg("어른") };
 
 /** 성장치로 단계 계산: 1/3 미만 아기, 다 자라기 전까지 청소년, 다 자라면 어른 */
 export function animalStage(growth: number, growExp: number): AnimalStage {
@@ -108,4 +109,14 @@ export function josa(name: string, withFinal: string, withoutFinal: string): str
 /** 이름 뒤에 주격 조사 (토끼가, 송아지가, 병아리가 / 곰이) */
 export function subject(name: string): string {
   return josa(name, "이", "가");
+}
+
+/** 문장에 넣을 이름: 한국어는 받침에 맞는 조사를 붙이고, 일본어는 이름만 (조사는 번역문에 있다) */
+export function withJosa(locale: Locale, name: string, withFinal: string, withoutFinal: string): string {
+  return locale === "ko" ? josa(name, withFinal, withoutFinal) : name;
+}
+
+/** 펫 이름 표시: 바꾸지 않은 기본 이름(= 종류 이름)은 번역하고, 회원이 지은 이름은 그대로 둔다 */
+export function petDisplayName(t: T, name: string, speciesName: string | null | undefined): string {
+  return speciesName && name === speciesName ? t(name) : name;
 }

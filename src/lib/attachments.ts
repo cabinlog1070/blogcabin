@@ -1,5 +1,7 @@
 // 글 첨부(사진·파일) 규칙: 브라우저와 서버가 같은 값을 쓴다 (POST-07 사진, POST-09 파일)
 
+import { makeT, msg, type T } from "@/lib/i18n";
+
 export type AttachmentKind = "image" | "file";
 
 /** 사진: 확장자 → 저장·응답할 형식 */
@@ -43,13 +45,13 @@ export const attachmentUrl = (key: string) => `/files/${key}`;
 export const ATTACHMENT_URL_RE = /^\/files\/([a-f0-9]{32})$/;
 
 export const ATTACH_MESSAGES = {
-  type: "올릴 수 없는 형식이에요. 사진은 PNG·JPG·GIF·WEBP, 파일은 PDF·한글·워드·엑셀·파워포인트·키노트·ZIP·TXT·CSV·MD·JSON·MP3·MP4만 올릴 수 있어요",
-  imageSize: "사진은 10MB까지 올릴 수 있어요",
-  fileSize: "파일은 30MB까지 올릴 수 있어요",
-  empty: "빈 파일은 올릴 수 없어요",
-  notImage: "사진 파일이 아니에요. PNG·JPG·GIF·WEBP 사진만 올릴 수 있어요",
-  login: "로그인한 회원만 올릴 수 있어요",
-  failed: "올리지 못했어요. 다시 시도해 주세요",
+  type: msg("올릴 수 없는 형식이에요. 사진은 PNG·JPG·GIF·WEBP, 파일은 PDF·한글·워드·엑셀·파워포인트·키노트·ZIP·TXT·CSV·MD·JSON·MP3·MP4만 올릴 수 있어요"),
+  imageSize: msg("사진은 10MB까지 올릴 수 있어요"),
+  fileSize: msg("파일은 30MB까지 올릴 수 있어요"),
+  empty: msg("빈 파일은 올릴 수 없어요"),
+  notImage: msg("사진 파일이 아니에요. PNG·JPG·GIF·WEBP 사진만 올릴 수 있어요"),
+  login: msg("로그인한 회원만 올릴 수 있어요"),
+  failed: msg("올리지 못했어요. 다시 시도해 주세요"),
 } as const;
 
 /** 확장자 (소문자, 점 없이). 없으면 "" */
@@ -95,7 +97,9 @@ export function attachmentPath(url: string | null | undefined, origin: string): 
 }
 
 /** 파일 카드의 화면 읽기용 이름 */
-export const fileCardLabel = (name: string, size: number) => `${name} 내려받기 (${formatBytes(size)})`;
+// 글 HTML에 저장되는 문구라 기본은 한국어로 둔다 (화면 언어로 바꾸려면 t를 넘긴다)
+export const fileCardLabel = (name: string, size: number, t: T = makeT("ko")) =>
+  t("{name} 내려받기 ({size})", { name, size: formatBytes(size) });
 
 /** 파일 이름에서 경로·제어 문자를 빼고 길이를 줄인다 */
 export function cleanFileName(name: string): string {

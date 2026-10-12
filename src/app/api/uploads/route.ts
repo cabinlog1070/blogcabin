@@ -15,10 +15,13 @@ import {
   FILE_TYPES,
   IMAGE_TYPES,
 } from "@/lib/attachments";
+import { msg } from "@/lib/i18n";
 import { getViewer } from "@/server/dal";
+import { getT } from "@/server/i18n";
 import { saveAttachment } from "@/server/storage";
 
-const fail = (status: number, error: string) => Response.json({ error }, { status });
+/** 실패 응답. 문구는 보는 사람의 화면 언어로 바꿔 보낸다 */
+const fail = async (status: number, error: string) => Response.json({ error: (await getT())(error) }, { status });
 
 /** 파일 앞부분으로 진짜 사진인지 확인한다 (확장자만 바꾼 SVG·HTML 등을 막는다) */
 function isRealImage(bytes: Uint8Array, ext: string) {
@@ -41,7 +44,7 @@ export async function POST(request: Request) {
   } catch {
     originHost = null;
   }
-  if (!originHost || !expected || originHost !== expected) return fail(403, "잘못된 요청이에요");
+  if (!originHost || !expected || originHost !== expected) return fail(403, msg("잘못된 요청이에요"));
 
   const viewer = await getViewer();
   if (!viewer?.profile) return fail(401, ATTACH_MESSAGES.login);

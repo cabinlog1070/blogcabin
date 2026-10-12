@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { animalSvg, toAnimalDataUri } from "@/lib/art/animals";
 import { formatMetDate, type AnimalStage, type PetAccessory } from "@/lib/farm";
+import { makeT, type Locale } from "@/lib/i18n";
 
 /** 농장 펫 그림 (코드로 그린 SVG). 꾸미기(리본·꽃·스카프)를 함께 그린다 */
 export function PetArt({
@@ -33,20 +34,23 @@ export function PetArt({
   );
 }
 
-/** 다 키운 동물 카드 (카드 도감, 블로그 프로필 전시) */
+/** 다 키운 동물 카드 (카드 도감, 블로그 프로필 전시). 서버·브라우저 어디서나 그리므로 화면 언어는 locale로 받는다 */
 export function PetCard({
   pet,
   speciesName,
   grownAt,
   size = "md",
   className = "",
+  locale = "ko",
 }: {
   pet: { name: string; assetKey: string; accessory: PetAccessory; level: number };
   speciesName?: string;
   grownAt?: Date | null;
   size?: "sm" | "md";
   className?: string;
+  locale?: Locale;
 }) {
+  const t = makeT(locale);
   const art = size === "sm" ? 60 : 84;
   return (
     <div
@@ -61,7 +65,7 @@ export function PetCard({
       </div>
       <span className="mt-1 max-w-full truncate font-display text-sm">{pet.name}</span>
       {speciesName && <span className="text-[11px] text-ink-soft">{speciesName}</span>}
-      {grownAt && <span className="whitespace-nowrap text-[10px] text-ink-soft">{formatMetDate(grownAt)}{size === "md" && " 다 자람"}</span>}
+      {grownAt && <span className="whitespace-nowrap text-[10px] text-ink-soft">{formatMetDate(grownAt, locale)}{size === "md" && ` ${t("다 자람")}`}</span>}
     </div>
   );
 }

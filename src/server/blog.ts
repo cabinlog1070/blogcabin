@@ -1,5 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { msg } from "@/lib/i18n";
 import { likePattern, SEARCH_BLOG_LIMIT } from "@/lib/search";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
@@ -148,7 +149,7 @@ function baseList(where: SQL | undefined, orderFirst?: SQL, order: SQL[] = [desc
     .orderBy(...(orderFirst ? [desc(orderFirst)] : []), ...order);
 }
 
-export const POST_SORTS = { latest: "최신순", oldest: "오래된순", popular: "인기순" } as const;
+export const POST_SORTS = { latest: msg("최신순"), oldest: msg("오래된순"), popular: msg("인기순") } as const;
 export type PostSort = keyof typeof POST_SORTS;
 
 const SORT_ORDER: Record<PostSort, SQL[]> = {

@@ -3,6 +3,7 @@ import { PetArt } from "@/components/pet-art";
 import { faceFrame } from "@/lib/art/characters";
 import { backgroundDataUri, characterDataUri, furnitureDataUri, furnitureInfo } from "@/lib/assets";
 import type { AnimalStage, PetAccessory } from "@/lib/farm";
+import { makeT, type Locale } from "@/lib/i18n";
 
 /** 미니룸에서 캐릭터 옆에 서 있는 펫 (데리고 다니는 펫, TOWN-09) */
 export type RoomPet = { name: string; assetKey: string; stage: AnimalStage; accessory: PetAccessory };
@@ -61,6 +62,7 @@ export function MiniRoom({
   furnitureProps,
   hiddenFurnitureId,
   pet,
+  locale = "ko",
 }: {
   characterAsset: string;
   backgroundAsset: string;
@@ -70,7 +72,10 @@ export function MiniRoom({
   furnitureProps?: (f: RoomFurniture) => HTMLAttributes<HTMLDivElement>;
   hiddenFurnitureId?: number | null;
   pet?: RoomPet | null;
+  /** 화면 언어 (서버·브라우저 어디서나 그리므로 받아서 쓴다) */
+  locale?: Locale;
 }) {
+  const t = makeT(locale);
   return (
     <div
       // isolate: 가구 z-index(최대 120)가 이 방 안에서만 겨루게 한다. 없으면 body에 뜨는 헤더 메뉴(z-40)를 덮는다
@@ -107,7 +112,7 @@ export function MiniRoom({
           {pet && <span className="w-[8cqw]" aria-hidden />}
           <CharacterArt asset={characterAsset} size={128} className="h-[16.5cqw] w-[16.5cqw] drop-shadow-md" />
           {pet && (
-            <span className="-ml-2 mb-1 drop-shadow" data-room-pet={pet.name} title={`${pet.name} (함께 다니는 펫)`}>
+            <span className="-ml-2 mb-1 drop-shadow" data-room-pet={pet.name} title={t("{name} (함께 다니는 펫)", { name: pet.name })}>
               <PetArt assetKey={pet.assetKey} stage={pet.stage} accessory={pet.accessory} size={72} className="h-[9.5cqw] w-[9.5cqw]" style={{ transform: "scaleX(-1)" }} />
             </span>
           )}

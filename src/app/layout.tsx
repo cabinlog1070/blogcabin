@@ -24,9 +24,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
-  const fonts = locale === "ja" ? `${kosugi.variable} ${notoJp.variable}` : "";
+  const fonts = locale === "ja" ? ` ${kosugi.variable} ${notoJp.variable}` : "";
   return (
-    <html lang={LOCALE_TAGS[locale].slice(0, 2)} className={`${jua.variable} ${noto.variable} ${fonts} h-full antialiased`}>
+    <html lang={LOCALE_TAGS[locale].slice(0, 2)} className={`${jua.variable} ${noto.variable}${fonts} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <LocaleProvider locale={locale}>
           <SiteHeader />
