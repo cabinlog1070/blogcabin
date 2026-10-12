@@ -65,8 +65,9 @@ const SPECIES: (typeof animalSpecies.$inferInsert)[] = [
   { code: "piglet", name: "아기 돼지", assetKey: "animal.piglet", growExp: 120, maxLevel: 7, rewardExp: 110, rewardCoins: 50, hatchWeight: 20 },
   { code: "calf", name: "송아지", assetKey: "animal.calf", growExp: 160, maxLevel: 8, rewardExp: 160, rewardCoins: 80, hatchWeight: 12 },
   { code: "lamb", name: "아기 양", assetKey: "animal.lamb", growExp: 220, maxLevel: 10, rewardExp: 220, rewardCoins: 110, hatchWeight: 5 },
-  // 2026-10-12 새 동물 13종 (흔한 순서). 드래곤·유니콘은 아주 드물게
+  // 2026-10-12 새 동물 14종 (흔한 순서). 드래곤·유니콘은 아주 드물게
   { code: "hamster", name: "햄스터", assetKey: "animal.hamster", growExp: 70, maxLevel: 5, rewardExp: 60, rewardCoins: 25, hatchWeight: 26 },
+  { code: "puppy", name: "강아지", assetKey: "animal.puppy", growExp: 90, maxLevel: 6, rewardExp: 80, rewardCoins: 30, hatchWeight: 24 },
   { code: "cat", name: "고양이", assetKey: "animal.cat", growExp: 90, maxLevel: 6, rewardExp: 80, rewardCoins: 30, hatchWeight: 24 },
   { code: "mole", name: "두더지", assetKey: "animal.mole", growExp: 100, maxLevel: 6, rewardExp: 90, rewardCoins: 40, hatchWeight: 20 },
   { code: "raccoon", name: "너구리", assetKey: "animal.raccoon", growExp: 120, maxLevel: 7, rewardExp: 110, rewardCoins: 50, hatchWeight: 16 },

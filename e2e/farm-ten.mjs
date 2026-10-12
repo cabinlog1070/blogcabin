@@ -1,4 +1,4 @@
-// 동물 농장 2026-10-12: 알 둥지 10개, [모두 부화시키기], 풀밭 10마리, 펫 색 고르기, 새 동물 13종(모두 18종)
+// 동물 농장 2026-10-12: 알 둥지 10개, [모두 부화시키기], 풀밭 10마리, 펫 색 고르기, 새 동물 14종(모두 19종)
 // 사용: 개발 서버를 띄운 상태에서 node e2e/farm-ten.mjs <스크린샷 폴더> (실행마다 새 회원)
 import { chromium } from "@playwright/test";
 import { config } from "dotenv";
@@ -26,14 +26,14 @@ async function go(path) {
   if (await ok.waitFor({ timeout: 2000 }).then(() => true, () => false)) await ok.click();
 }
 
-// ── 새 동물: 모두 18종, 카드 도감 칸도 18개 ──
+// ── 새 동물: 모두 19종, 카드 도감 칸도 19개 ──
 const species = (await db.query("SELECT code FROM animal_species")).rows.map((r) => r.code);
-const added = ["tiger", "dragon", "raccoon", "monkey", "cat", "bear", "fox", "hamster", "unicorn", "wolf", "turtle", "dino", "mole"];
-check("동물 종류 18종 (새 동물 13종)", species.length === 18 && added.every((c) => species.includes(c)), species.length);
+const added = ["puppy", "tiger", "dragon", "raccoon", "monkey", "cat", "bear", "fox", "hamster", "unicorn", "wolf", "turtle", "dino", "mole"];
+check("동물 종류 19종 (새 동물 14종)", species.length === 19 && added.every((c) => species.includes(c)), species.length);
 
 // ── 알 둥지 10개 ──
 await go("/farm");
-check("카드 도감 칸 18개", (await page.locator("[data-species-slot]").count()) === 18);
+check("카드 도감 칸 19개", (await page.locator("[data-species-slot]").count()) === 19);
 await page.getByRole("button", { name: /농장 첫 알/ }).click();
 await page.getByRole("status").getByText("알을 받았어요").waitFor();
 for (let i = 0; i < 9; i++) await db.query("INSERT INTO user_animals (user_id, source) VALUES ($1, 'shop')", [uid]);

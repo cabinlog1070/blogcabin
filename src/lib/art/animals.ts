@@ -12,7 +12,8 @@ const KIND_BY_ASSET: Record<string, AnimalKind> = {
   "animal.piglet": "pig",
   "animal.calf": "cow",
   "animal.lamb": "sheep",
-  // 2026-10-12 새 동물 13종
+  // 2026-10-12 새 동물 14종
+  "animal.puppy": "puppy",
   "animal.tiger": "tiger",
   "animal.dragon": "dragon",
   "animal.raccoon": "raccoon",

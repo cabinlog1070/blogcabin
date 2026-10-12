@@ -219,7 +219,7 @@ await page.reload();
 await closeLevelUp();
 check("헤더 코인에 보상 반영", (await coins(page)) - coinsBeforeGrown === sp.reward_coins, `${coinsBeforeGrown} → ${await coins(page)}`);
 const book = page.locator("[data-card-book]");
-check("카드 도감: 모은 종류는 색칠, 나머지는 실루엣", (await book.locator('[data-collected="true"]').count()) === 1 && (await book.locator('[data-collected="false"]').count()) === 17);
+check("카드 도감: 모은 종류는 색칠, 나머지는 실루엣", (await book.locator('[data-collected="true"]').count()) === 1 && (await book.locator('[data-collected="false"]').count()) === 18);
 check("카드 도감에 콩이 카드", await book.locator(`[data-card-id="${hatched.id}"]`).getByText("콩이").isVisible());
 check("다 키운 펫도 계속 데리고 다닌다", (await animals())[0].carried === true);
 

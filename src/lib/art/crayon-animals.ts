@@ -6,7 +6,7 @@ import { E, F, L, S, blush, dot, flowers, make, shadow } from "./crayon";
 
 export type AnimalKind =
   | "pig" | "chick" | "cow" | "sheep" | "rabbit"
-  | "tiger" | "dragon" | "raccoon" | "monkey" | "cat" | "bear" | "fox" | "hamster" | "unicorn" | "wolf" | "turtle" | "dino" | "mole";
+  | "puppy" | "tiger" | "dragon" | "raccoon" | "monkey" | "cat" | "bear" | "fox" | "hamster" | "unicorn" | "wolf" | "turtle" | "dino" | "mole";
 export type Stage = "baby" | "teen" | "adult";
 export type Acc = "none" | "ribbon" | "flower" | "scarf";
 export type Coat = "default" | "brown" | "yellow" | "red" | "black" | "white" | "pink";
@@ -56,6 +56,7 @@ const BASE: Record<AnimalKind, string> = {
   cow: "#ffffff",
   sheep: "#fbf8f1",
   rabbit: "#ffffff",
+  puppy: "#f4dcb4",
   tiger: "#f6a24e",
   dragon: "#9fd88f",
   raccoon: "#b9b2aa",
@@ -144,6 +145,18 @@ function parts(kind: AnimalKind, stage: Stage, coat: Coat): { feet: string; body
       head: `<g transform="translate(0 ${80 * (1 - ear)}) scale(1 ${ear})">` + S("M102 100q-16-76 0-92q16 8 16 92Z", c, 4.5) + S("M154 100q16-76 0-92q-16 8-16 92Z", c, 4.5) + F("M104 78q-6-44 2-60q6 30 4 60Z", "#f6b6c4") + F("M152 78q6-44-2-60q-6 30-4 60Z", "#f6b6c4") + "</g>" +
         S(E(128, 124, 54, 48), c, 5.5) + eyes(118, 22) + cheeks(138, 36) + S("M122 136h12l-6 7Z", "#f28fa8", 3) + L("M128 143v5M128 148q-6 5-10 1M128 148q6 5 10 1", 2.5) +
         (adult ? L("M96 140l-20-4M96 146l-20 4M160 140l20-4M160 146l20 4", 2.5) : ""),
+    };
+  }
+  if (kind === "puppy") {
+    // 늘어진 귀, 한쪽 눈 둘레 얼룩, 혀, 흔드는 꼬리 (얼룩·귀는 몸 색보다 진하게)
+    const ear = isDark(c) ? mix(c, "#ffffff", 0.22) : mix(c, "#7a4a28", 0.38), muz = isDark(c) ? "#8c827c" : "#fffaf2";
+    return {
+      feet: feet(c) + S("M170 196q26-4 26-30q0-8 8-6q8 30-30 44Z", c, 4.5),
+      body: S(E(128, 194, 48, 34), c, 5.5) + F(E(128, 204, 24, 18), muz) + (adult ? S("M98 170Q128 182 158 170L158 178Q128 190 98 178Z", "#e8433a", 3.5) + S(E(128, 186, 7, 8), "#f2c230", 3.5) : ""),
+      head: S(E(128, 124, 58, 50), c, 5.5) + F(E(150, 112, 18, 16), ear) +
+        both(S(adult ? "M80 90Q56 92 58 132Q62 150 78 142Q86 116 90 98Z" : "M82 94Q62 98 64 126Q68 140 80 134Q86 114 90 100Z", ear, 4.5)) +
+        F(E(128, 146, 26, 17), muz) + eyes(116, 22) + cheeks(140, 40) + S(E(128, 138, 9, 6), "#4a3628", 3) + mouth(142) +
+        (baby ? "" : S("M122 150q6 14 12 0Z", "#f28fa8", 3)),
     };
   }
   if (kind === "tiger") {
