@@ -34,7 +34,32 @@ type ToolButton = {
   run: (e: Editor, t: T) => void;
   active?: (e: Editor) => boolean;
   className?: string;
+  /** 휴대폰에서 이 버튼이 들어 있는 묶음 (없으면 맨 아래 줄에 늘 보인다) */
+  group?: Group;
 };
+
+// 휴대폰 툴바: 네이버 블로그 앱처럼 한 줄에 묶음 버튼만 두고, 누르면 그 묶음의 도구가 한 줄 더 펼쳐진다
+type Group = "font" | "align" | "block";
+const GROUPS: { value: Group; title: string }[] = [
+  { value: "font", title: msg("글자 꾸미기") },
+  { value: "align", title: msg("문단 정렬") },
+  { value: "block", title: msg("목록·인용·링크") },
+];
+
+function GroupIcon({ group }: { group: Group }) {
+  if (group === "font") return <span className="font-serif text-lg leading-none">T</span>;
+  if (group === "align") return <AlignIcon align="center" />;
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      {[3, 9, 15].map((y) => (
+        <Fragment key={y}>
+          <circle cx="2.5" cy={y} r="1.5" fill="currentColor" />
+          <rect x="6" y={y - 1} width="11" height="2" rx="1" fill="currentColor" />
+        </Fragment>
+      ))}
+    </svg>
+  );
+}
 
 // 문단 스타일: H2·H3 대신 티스토리처럼 이름으로 고른다. 저장되는 태그는 그대로 (제목 h2, 부제목 h3)
 const BLOCK_STYLES = [
@@ -80,32 +105,34 @@ function AlignIcon({ align }: { align: Align }) {
   );
 }
 
-// "colors" 자리에 글자색·배경색 버튼이 들어간다
-const TOOLS: (ToolButton | "sep" | "colors")[] = [
-  { label: "B", title: msg("굵게"), className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
-  { label: "I", title: msg("기울임"), className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
-  { label: "U", title: msg("밑줄"), className: "underline underline-offset-2", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
-  { label: "S", title: msg("취소선"), className: "line-through", run: (e) => e.chain().focus().toggleStrike().run(), active: (e) => e.isActive("strike") },
+// "colors" 자리에 글자색·배경색 버튼이 들어간다. 컴퓨터는 "row"에서 줄을 바꿔 두 줄 (글꼴·정렬 / 목록부터)
+const TOOLS: (ToolButton | "sep" | "colors" | "row")[] = [
+  { label: "B", title: msg("굵게"), group: "font", className: "font-black", run: (e) => e.chain().focus().toggleBold().run(), active: (e) => e.isActive("bold") },
+  { label: "I", title: msg("기울임"), group: "font", className: "italic font-serif", run: (e) => e.chain().focus().toggleItalic().run(), active: (e) => e.isActive("italic") },
+  { label: "U", title: msg("밑줄"), group: "font", className: "underline underline-offset-2", run: (e) => e.chain().focus().toggleUnderline().run(), active: (e) => e.isActive("underline") },
+  { label: "S", title: msg("취소선"), group: "font", className: "line-through", run: (e) => e.chain().focus().toggleStrike().run(), active: (e) => e.isActive("strike") },
   "colors",
   "sep",
   ...ALIGNS.map(
     (a): ToolButton => ({
       label: <AlignIcon align={a.value} />,
       title: a.title,
+      group: "align",
       run: (e) => e.chain().focus().setTextAlign(a.value).run(),
       // 정렬을 고른 적 없는 문단은 왼쪽 정렬로 본다
       active: (e) => (a.value === "left" ? !e.isActive({ textAlign: "center" }) && !e.isActive({ textAlign: "right" }) : e.isActive({ textAlign: a.value })),
     }),
   ),
-  "sep",
-  { label: msg("• 목록"), title: msg("글머리 목록"), run: (e) => e.chain().focus().toggleBulletList().run(), active: (e) => e.isActive("bulletList") },
-  { label: msg("1. 목록"), title: msg("번호 목록"), run: (e) => e.chain().focus().toggleOrderedList().run(), active: (e) => e.isActive("orderedList") },
-  { label: msg("❝ 인용"), title: msg("인용"), run: (e) => e.chain().focus().toggleBlockquote().run(), active: (e) => e.isActive("blockquote") },
-  { label: msg("</> 코드"), title: msg("코드 블록"), run: (e) => e.chain().focus().toggleCodeBlock().run(), active: (e) => e.isActive("codeBlock") },
-  { label: msg("― 구분선"), title: msg("구분선"), run: (e) => e.chain().focus().setHorizontalRule().run() },
+  "row",
+  { label: msg("• 목록"), title: msg("글머리 목록"), group: "block", run: (e) => e.chain().focus().toggleBulletList().run(), active: (e) => e.isActive("bulletList") },
+  { label: msg("1. 목록"), title: msg("번호 목록"), group: "block", run: (e) => e.chain().focus().toggleOrderedList().run(), active: (e) => e.isActive("orderedList") },
+  { label: msg("❝ 인용"), title: msg("인용"), group: "block", run: (e) => e.chain().focus().toggleBlockquote().run(), active: (e) => e.isActive("blockquote") },
+  { label: msg("</> 코드"), title: msg("코드 블록"), group: "block", run: (e) => e.chain().focus().toggleCodeBlock().run(), active: (e) => e.isActive("codeBlock") },
+  { label: msg("― 구분선"), title: msg("구분선"), group: "block", run: (e) => e.chain().focus().setHorizontalRule().run() },
   {
     label: msg("🔗 링크"),
     title: msg("링크"),
+    group: "block",
     run: (e, t) => {
       const prev = e.getAttributes("link").href as string | undefined;
       const url = window.prompt(t("링크 주소 (비우면 링크 해제)"), prev ?? "https://");
@@ -116,7 +143,7 @@ const TOOLS: (ToolButton | "sep" | "colors")[] = [
     active: (e) => e.isActive("link"),
   },
   "sep",
-  { label: "↶", title: msg("되돌리기"), run: (e) => e.chain().focus().undo().run() },
+  { label: "↶", title: msg("되돌리기"), className: "max-sm:ml-auto", run: (e) => e.chain().focus().undo().run() },
   { label: "↷", title: msg("다시 실행"), run: (e) => e.chain().focus().redo().run() },
 ];
 
@@ -163,7 +190,7 @@ function ColorPicker({
         disabled={!editor}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setOpen((o) => !o)}
-        className={`flex h-8 flex-col items-center justify-center rounded-lg px-2 text-sm font-black transition ${open ? "bg-paper text-ink" : "text-ink-soft hover:bg-paper hover:text-ink"}`}
+        className={`flex h-8 flex-col items-center justify-center rounded-lg px-1 text-sm font-black sm:px-2 transition ${open ? "bg-paper text-ink" : "text-ink-soft hover:bg-paper hover:text-ink"}`}
       >
         <span
           className="leading-none"
@@ -173,8 +200,9 @@ function ColorPicker({
         </span>
         {kind === "color" && <span className="mt-0.5 h-1 w-4 rounded-full" style={{ background: current ?? "var(--color-ink)" }} />}
       </button>
+      {/* 휴대폰에서는 색 버튼이 첫 줄 오른쪽 끝에 있어 색 판을 버튼 오른쪽에 맞춘다 */}
       {open && (
-        <div role="menu" aria-label={title} className="absolute left-0 top-full z-20 mt-1 w-44 rounded-xl border-2 border-line bg-paper p-2 shadow-lg">
+        <div role="menu" aria-label={title} className="absolute right-0 top-full z-20 sm:right-auto sm:left-0 mt-1 w-44 rounded-xl border-2 border-line bg-paper p-2 shadow-lg">
           <div className="grid grid-cols-5 gap-1.5">
             {colors.map((c) => (
               <button
@@ -310,17 +338,38 @@ export function RichEditor({
     },
   });
   const active = state?.tools;
+  // 휴대폰에서 펼친 묶음 (컴퓨터에서는 쓰지 않는다)
+  const [openGroup, setOpenGroup] = useState<Group | null>(null);
+  const inGroup = (group: Group) => (group === openGroup ? "max-sm:order-4" : "max-sm:hidden");
 
   return (
     <div data-rich-editor className="overflow-hidden rounded-2xl border-2 border-line bg-paper focus-within:border-sun">
-      <div className="flex flex-wrap items-center gap-1 border-b-2 border-line bg-cream/60 p-2" role="toolbar" aria-label={t("글꼴 도구")}>
+      <div className="flex flex-wrap items-center gap-0.5 border-b-2 border-line bg-cream/60 p-1.5 sm:gap-1 sm:p-2" role="toolbar" aria-label={t("글꼴 도구")}>
+        {GROUPS.map((g) => (
+          <button
+            key={g.value}
+            type="button"
+            title={t(g.title)}
+            aria-label={t(g.title)}
+            aria-expanded={openGroup === g.value}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setOpenGroup((o) => (o === g.value ? null : g.value))}
+            className={`flex h-8 min-w-9 items-center justify-center rounded-lg px-2 transition sm:hidden ${
+              openGroup === g.value ? "bg-paper text-leaf ring-2 ring-line" : "text-ink-soft"
+            }`}
+          >
+            <GroupIcon group={g.value} />
+          </button>
+        ))}
+        {/* 휴대폰 첫 줄: 묶음 버튼 · 사진·파일 · 되돌리기 (order로 순서를 정한다), 펼친 묶음은 아랫줄에 */}
+        {openGroup && <span className="order-3 my-1 h-px basis-full bg-line sm:hidden" aria-hidden="true" />}
         <select
           aria-label={t("문단 스타일")}
           title={t("문단 스타일")}
           disabled={!editor}
           value={state?.block ?? "p"}
           onChange={(e) => editor && setBlockStyle(editor, e.currentTarget.value as BlockStyle)}
-          className={`${SELECT_CLASS} w-24`}
+          className={`${SELECT_CLASS} w-20 sm:w-24 ${inGroup("font")}`}
         >
           {BLOCK_STYLES.map((b) => (
             <option key={b.value} value={b.value}>
@@ -339,7 +388,7 @@ export function RichEditor({
             const chain = editor.chain().focus();
             (size === DEFAULT_FONT_SIZE ? chain.unsetFontSize() : chain.setFontSize(`${size}px`)).run();
           }}
-          className={`${SELECT_CLASS} w-16`}
+          className={`${SELECT_CLASS} w-14 sm:w-16 ${inGroup("font")}`}
         >
           {/* 목록에 없는 크기(붙여 넣은 글 등)도 지금 값으로 보이게 */}
           {[...new Set([...FONT_SIZES, state?.fontSize ?? DEFAULT_FONT_SIZE])].sort((a, b) => a - b).map((n) => (
@@ -348,15 +397,18 @@ export function RichEditor({
             </option>
           ))}
         </select>
-        <span className="mx-1 h-5 w-px bg-line" />
+        <span className="mx-1 h-5 w-px bg-line max-sm:hidden" />
         {TOOLS.map((tool, i) =>
           tool === "sep" ? (
-            <span key={i} className="mx-1 h-5 w-px bg-line" />
+            <span key={i} className="mx-1 h-5 w-px bg-line max-sm:hidden" />
+          ) : tool === "row" ? (
+            // 너비 100%짜리 빈 칸으로 줄을 바꾼다
+            <span key={i} className="basis-full max-sm:hidden" aria-hidden="true" />
           ) : tool === "colors" ? (
-            <Fragment key={i}>
+            <div key={i} className={`flex gap-0.5 sm:gap-1 ${inGroup("font")}`}>
               <ColorPicker editor={editor} kind="color" current={state?.color ?? null} />
               <ColorPicker editor={editor} kind="background" current={state?.background ?? null} />
-            </Fragment>
+            </div>
           ) : (
             <button
               key={tool.title}
@@ -366,7 +418,9 @@ export function RichEditor({
               disabled={!editor}
               onMouseDown={(e) => e.preventDefault()} // 버튼이 포커스를 가져가 커서 위치를 잃지 않게
               onClick={() => editor && tool.run(editor, t)}
-              className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-bold transition ${tool.className ?? ""} ${
+              className={`flex h-8 min-w-7 items-center justify-center rounded-lg px-1.5 text-sm font-bold transition sm:min-w-8 sm:px-2 ${tool.className ?? ""} ${
+                tool.group ? inGroup(tool.group) : "max-sm:order-2"
+              } ${
                 active?.[i] ? "bg-ink text-cream" : "text-ink-soft hover:bg-paper hover:text-ink"
               }`}
             >
@@ -374,24 +428,26 @@ export function RichEditor({
             </button>
           ),
         )}
-        <span className="mx-1 h-5 w-px bg-line" />
+        <span className="mx-1 h-5 w-px bg-line max-sm:hidden" />
         <button
           type="button"
           title={t("사진 올리기 (PNG·JPG·GIF·WEBP, 10MB까지)")}
           disabled={!editor || !!progress}
           onClick={() => imageInput.current?.click()}
-          className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40"
+          className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
         >
-          {t("🖼 사진")}
+          <span className="max-sm:hidden">{t("🖼 사진")}</span>
+          <span className="text-base sm:hidden">🖼</span>
         </button>
         <button
           type="button"
           title={t("파일 올리기 (PDF·한글·오피스·ZIP 등, 30MB까지)")}
           disabled={!editor || !!progress}
           onClick={() => fileInput.current?.click()}
-          className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40"
+          className="rounded-lg px-2.5 py-1 text-sm font-bold text-ink-soft transition hover:bg-paper hover:text-ink disabled:opacity-40 max-sm:order-1 max-sm:px-2"
         >
-          {t("📎 파일")}
+          <span className="max-sm:hidden">{t("📎 파일")}</span>
+          <span className="text-base sm:hidden">📎</span>
         </button>
         <input ref={imageInput} type="file" accept={IMAGE_ACCEPT} multiple hidden aria-label={t("사진 고르기")} onChange={(e) => pick(e.currentTarget)} />
         <input ref={fileInput} type="file" accept={FILE_ACCEPT} multiple hidden aria-label={t("파일 고르기")} onChange={(e) => pick(e.currentTarget)} />
