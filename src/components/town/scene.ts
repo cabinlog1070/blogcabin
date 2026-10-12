@@ -68,7 +68,7 @@ import { crayonGrain, softBush, softFirework, softFireworkFace, softCloud, softD
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { createNightSky } from "./night-sky";
 import { actPropKey, createResidents, residentPetKey, residentWalkKey } from "./residents";
-import { dropSvg, guitarSvg, heartSvg, marshmallowSvg, NOTE_KINDS, noteSvg, wateringCanSvg } from "@/lib/art/plaza-acts";
+import { dropSvg, guitarSvg, heartSvg, marshmallowSvg, NOTE_KINDS, noteSvg, strumHandSvg, wateringCanSvg } from "@/lib/art/plaza-acts";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
 
@@ -207,6 +207,7 @@ export function townTextures(data: TownData, t: T) {
   }
   if (data.residents.length) {
     list.set(actPropKey("guitar"), toDataUri(guitarSvg()));
+    list.set(actPropKey("hand"), toDataUri(strumHandSvg()));
     list.set(actPropKey("marshmallow"), toDataUri(marshmallowSvg()));
     list.set(actPropKey("can"), toDataUri(wateringCanSvg()));
     list.set(actPropKey("drop"), toDataUri(dropSvg()));

@@ -42,11 +42,18 @@ const townAttr = async (page, name) => {
   await el.waitFor({ state: "attached" });
   return el.getAttribute(name);
 };
+// 내 이웃 칸은 처음에 몇 명만 보이고 "이웃 더보기"로 펼친다 (블로그 홈 이웃 칸 접기)
+const expandNeighbors = async (page) => {
+  const more = page.locator("[data-my-neighbors]").getByRole("button", { name: /이웃 더보기/ });
+  if (await more.isVisible()) await more.click();
+};
 const neighborSlugs = async (page) => ((await townAttr(page, "data-neighbor-stages")) || "").split(",").filter(Boolean).map((s) => s.split(":")[0]);
 
 try {
   const a = await member(A);
   const b = await member(B);
+  // 온보딩이 넣는 기본 이웃(관리자 공지사항 블로그, 2026-10-12 요구사항 4.2)을 빼고, 회원이 직접 고른 이웃만으로 시험한다
+  await db.query("DELETE FROM follows WHERE follower_id IN ($1, $2) AND followee_id IN (SELECT id FROM users WHERE role = 'admin')", [a.uid, b.uid]);
 
   // ════════ TOWN-08 즐겨찾는 이웃 · TOWN-04 광장 집 ════════
   await a.page.goto(`${BASE}/@${A}`);
@@ -66,6 +73,7 @@ try {
     await db.query("INSERT INTO follows (follower_id, followee_id, created_at) VALUES ($1, $2, now() - make_interval(mins => $3))", [a.uid, f.uid, 100 - i]);
   }
   await a.page.goto(`${BASE}/@${A}`);
+  await expandNeighbors(a.page);
   check("TOWN-08 내 블로그 홈에 내 이웃 목록 12명", (await list.locator("[data-neighbor]").count()) === 12);
   check("TOWN-08 처음에는 모두 ☆", (await list.getByRole("button", { name: /즐겨찾기$/ }).count()) === 12);
   await b.page.goto(`${BASE}/@${A}`);
@@ -93,7 +101,9 @@ try {
   // 동시에 두 화면에서 ☆ (9명일 때) → 10명을 넘지 않는다
   const a2page = await a.ctx.newPage();
   await a2page.goto(`${BASE}/@${A}`);
+  await expandNeighbors(a2page);
   await a.page.reload();
+  await expandNeighbors(a.page);
   await Promise.all([
     list.locator(`[data-neighbor="${fakes[0].slug}"]`).getByRole("button").click(),
     a2page.locator(`[data-my-neighbors] [data-neighbor="${fakes[10].slug}"]`).getByRole("button").click(),
@@ -120,6 +130,7 @@ try {
   await a.page.waitForTimeout(1500); // 광장 그림이 다 그려질 때까지
   await a.page.screenshot({ path: `${outDir}/d1-town-favorites.png` });
   await a.page.goto(`${BASE}/@${A}`);
+  await expandNeighbors(a.page);
   await list.scrollIntoViewIfNeeded();
   await list.screenshot({ path: `${outDir}/d1-my-neighbors-list.png` });
 
@@ -282,7 +293,7 @@ try {
     await page.goto(`${BASE}/write`);
     await page.locator(".ProseMirror").waitFor();
     await page.getByPlaceholder("제목").fill(title);
-    if (visibility === "private") await page.getByRole("radio", { name: "🔒 비공개" }).click();
+    if (visibility === "private") await page.getByRole("radio", { name: /서로 이웃만/ }).click();
     await page.locator(".ProseMirror").click();
     await page.keyboard.insertText(body);
     await page.getByRole("button", { name: "발행하기" }).click();

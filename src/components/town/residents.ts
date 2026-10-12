@@ -210,7 +210,7 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
           w.y = w.seat.y;
         }
         w.until = now + (w.act === "guitar" ? rng.between(14000, 22000) : rng.between(7000, 13000));
-        if (w.act === "guitar") w.props.push(addProp("guitar"));
+        if (w.act === "guitar") w.props.push(addProp("guitar"), addProp("hand"));
         break;
       case "sing":
         w.until = now + rng.between(9000, 15000);
@@ -324,9 +324,12 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
     const fx = now >= w.nextFx;
     switch (w.act) {
       case "guitar": {
-        const g = w.props[0];
-        const strum = reduced ? 0 : Math.sin(now / 160) * 0.08;
-        g?.setPosition(w.x + 3, w.y - world.size * 0.33).setRotation(strum).setDepth(w.y + 9);
+        // 기타는 무릎(의자 통나무 바로 위)에 가로로 안고, 오른손이 울림구멍 옆에서 줄을 튕긴다
+        const [g, hand] = w.props;
+        const gx = w.x + 8, gy = w.y - world.size * 0.24;
+        g?.setPosition(gx, gy).setRotation(-0.12).setDepth(w.y + 9);
+        const strum = reduced ? 0 : Math.abs(Math.sin(now / 110)) * 4;
+        hand?.setPosition(gx - 9, gy - 2 + strum).setDepth(w.y + 9.5);
         if (fx) {
           floatUp(w.x + rng.between(-6, 14), head + 4, "note");
           w.nextFx = now + rng.between(700, 1100);
@@ -439,7 +442,11 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
       w.bubble = null;
       scene.tweens.add({ targets: b, alpha: 0, duration: reduced ? 0 : 160, onComplete: () => b.destroy() });
     }
-    w.bubble?.setPosition(w.x, w.tag.y - 12).setDepth(150000 + w.y);
+    if (w.bubble) {
+      // 말풍선 꼬리 끝이 닉네임 이름표 윗변 가운데에 닿게 하고, 이름표도 말풍선과 함께 맨 앞으로 (내 이름표에 가려지지 않게)
+      w.bubble.setPosition(Math.round(w.tag.x), Math.round(w.tag.y - w.tag.height * w.tag.originY) - 1).setDepth(150000 + w.y);
+      w.tag.setDepth(150000 + w.y - 0.5);
+    }
   }
 
   let lastReport = 0;
