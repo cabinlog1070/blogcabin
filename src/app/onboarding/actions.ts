@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
 import { blogs, categories, items, profiles, userItems } from "@/db/schema";
-import { msg, type T } from "@/lib/i18n";
+import { DEFAULT_CATEGORY, msg, type T } from "@/lib/i18n";
 import { generateInviteCode, INVITE_COOKIE, normalizeInviteCode } from "@/lib/invite";
 import { ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
 import { requireUser } from "@/server/dal";
@@ -130,7 +130,7 @@ async function createResident(
           backgroundItemId: background.id,
         })
         .returning({ id: blogs.id });
-      await tx.insert(categories).values({ blogId: blog.id, name: t("일상"), position: 0 });
+      await tx.insert(categories).values({ blogId: blog.id, name: DEFAULT_CATEGORY, position: 0 });
       await grantReward(tx, userId, "signup");
     });
   } catch (err) {

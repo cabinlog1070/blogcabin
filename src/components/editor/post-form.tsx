@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { savePost, type SavePostState } from "@/app/write/actions";
 import { useLocale, useT } from "@/components/i18n";
 import { POST_REWARD_MIN_LENGTH, REWARD_RULES } from "@/lib/game";
-import { LOCALE_TAGS, type Locale } from "@/lib/i18n";
+import { categoryLabel, type Locale, LOCALE_TAGS } from "@/lib/i18n";
 import { postTextLength } from "@/lib/text-length";
 import { RichEditor } from "./rich-editor";
 
@@ -159,7 +159,7 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
           <option value="">{t("카테고리 없음")}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name}
+              {categoryLabel(t, c.name)}
             </option>
           ))}
         </select>

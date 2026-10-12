@@ -41,3 +41,14 @@ export function makeT(locale: Locale): T {
  * test:i18n이 msg()와 t() 안의 문장을 모아 일본어 사전에 있는지 확인한다.
  */
 export const msg = <S extends string>(text: S): S => text;
+
+/** 가입할 때 만들어 주는 첫 카테고리. DB에는 늘 한국어 "일상"으로 저장한다 */
+export const DEFAULT_CATEGORY = msg("일상");
+
+/**
+ * 화면에 보일 카테고리 이름: 기본 카테고리를 이름 그대로 쓰고 있으면 화면 언어로("日常"),
+ * 주민이 직접 만들거나 바꾼 이름은 쓴 그대로
+ */
+export function categoryLabel(t: T, name: string): string {
+  return name === DEFAULT_CATEGORY ? t(name) : name;
+}

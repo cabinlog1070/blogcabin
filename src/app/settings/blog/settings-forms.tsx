@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useT } from "@/components/i18n";
 import { addCategory, deleteCategory, moveCategory, renameCategory, updateBlogInfo, type FormState } from "./actions";
+import { categoryLabel } from "@/lib/i18n";
 
 const input = "w-full rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun";
 
@@ -37,23 +38,24 @@ export function BlogInfoForm({ nickname, title, description }: { nickname: strin
 type Category = { id: number; name: string; postCount: number };
 
 function CategoryRow({ c, first, last }: { c: Category; first: boolean; last: boolean }) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(c.name);
+  const label = categoryLabel(t, c.name);
+  const [name, setName] = useState(label);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
-  const t = useT();
 
   return (
     <li className="flex flex-wrap items-center gap-2 py-2">
       <div className="flex flex-col">
-        <button type="button" disabled={first || pending} onClick={() => start(() => moveCategory(c.id, -1))} className="px-1 text-xs disabled:opacity-30" aria-label={t("{name} 위로", { name: c.name })}>▲</button>
-        <button type="button" disabled={last || pending} onClick={() => start(() => moveCategory(c.id, 1))} className="px-1 text-xs disabled:opacity-30" aria-label={t("{name} 아래로", { name: c.name })}>▼</button>
+        <button type="button" disabled={first || pending} onClick={() => start(() => moveCategory(c.id, -1))} className="px-1 text-xs disabled:opacity-30" aria-label={t("{name} 위로", { name: label })}>▲</button>
+        <button type="button" disabled={last || pending} onClick={() => start(() => moveCategory(c.id, 1))} className="px-1 text-xs disabled:opacity-30" aria-label={t("{name} 아래로", { name: label })}>▼</button>
       </div>
       {editing ? (
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} className={`${input} w-auto flex-1 py-1`} aria-label={t("카테고리 이름")} autoFocus />
       ) : (
         <span className="flex-1">
-          {c.name} <span className="text-sm text-ink-soft">({c.postCount})</span>
+          {label} <span className="text-sm text-ink-soft">({c.postCount})</span>
         </span>
       )}
       {editing ? (
@@ -75,7 +77,7 @@ function CategoryRow({ c, first, last }: { c: Category; first: boolean; last: bo
           >
             {t("저장")}
           </button>
-          <button type="button" className="text-sm text-ink-soft" onClick={() => { setEditing(false); setName(c.name); setError(""); }}>
+          <button type="button" className="text-sm text-ink-soft" onClick={() => { setEditing(false); setName(label); setError(""); }}>
             {t("취소")}
           </button>
         </>
@@ -86,7 +88,7 @@ function CategoryRow({ c, first, last }: { c: Category; first: boolean; last: bo
             type="button"
             disabled={pending}
             className="text-sm text-ink-soft hover:text-berry"
-            onClick={() => confirm(t("'{name}' 카테고리를 지울까요? 글은 남고 '카테고리 없음'이 돼요.", { name: c.name })) && start(() => deleteCategory(c.id))}
+            onClick={() => confirm(t("'{name}' 카테고리를 지울까요? 글은 남고 '카테고리 없음'이 돼요.", { name: label })) && start(() => deleteCategory(c.id))}
           >
             {t("삭제")}
           </button>

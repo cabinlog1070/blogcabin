@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CharacterBadge } from "@/components/character";
 import { formatDate } from "@/lib/format";
 import { getLocale, getT } from "@/server/i18n";
+import { categoryLabel } from "@/lib/i18n";
 
 export type PostCardData = {
   id: number;
@@ -33,7 +34,7 @@ export async function PostCard({ post, showAuthor = false, compact = false }: { 
       )}
       <Link href={`/@${post.blogSlug}/${post.id}`} className="flex flex-1 flex-col">
         <div className="mb-1 flex items-center gap-2 text-xs font-bold">
-          {post.categoryName && <span className="rounded-full bg-honey px-2 py-0.5 text-sun-dark">{post.categoryName}</span>}
+          {post.categoryName && <span className="rounded-full bg-honey px-2 py-0.5 text-sun-dark">{categoryLabel(t, post.categoryName)}</span>}
           {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">{t("🔒 서로 이웃 공개")}</span>}
         </div>
         <h3 className={`font-display leading-snug ${compact ? "line-clamp-2 text-lg" : "text-xl"}`}>{post.title}</h3>

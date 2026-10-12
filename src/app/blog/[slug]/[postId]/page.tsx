@@ -20,6 +20,7 @@ import {
 } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
+import { categoryLabel } from "@/lib/i18n";
 
 async function load(props: PageProps<"/blog/[slug]/[postId]">) {
   const { slug, postId } = await props.params;
@@ -91,7 +92,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
           <div className="mb-2 flex flex-wrap gap-2 text-xs font-bold">
             {post.categoryName && (
               <Link href={`/@${blog.slug}?category=${post.categoryId}`} className="rounded-full bg-honey px-2 py-0.5 text-sun-dark">
-                {post.categoryName}
+                {categoryLabel(t, post.categoryName)}
               </Link>
             )}
             {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">{t("🔒 서로 이웃 공개")}</span>}

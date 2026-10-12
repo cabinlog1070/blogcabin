@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { blogs, categories, profiles } from "@/db/schema";
-import { msg } from "@/lib/i18n";
+import { DEFAULT_CATEGORY, msg } from "@/lib/i18n";
 import { parseId } from "@/lib/ids";
 import { ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
 import { requireMember } from "@/server/dal";
@@ -72,10 +72,12 @@ export async function renameCategory(categoryId: number, name: string): Promise<
   if (parseId(categoryId) === null) return { error: t("잘못된 요청이에요") };
   const parsed = nameSchema.safeParse(name);
   if (!parsed.success) return { error: t(parsed.error.issues[0].message) };
+  // 일본어 화면에서 기본 카테고리를 보이는 이름("日常") 그대로 저장하면 기본 이름("일상")으로 둔다 (categoryLabel)
+  const newName = parsed.data === t(DEFAULT_CATEGORY) ? DEFAULT_CATEGORY : parsed.data;
   try {
     await db
       .update(categories)
-      .set({ name: parsed.data })
+      .set({ name: newName })
       .where(and(eq(categories.id, categoryId), eq(categories.blogId, viewer.profile.blogId)));
   } catch (err) {
     if (uniqueViolation(err) !== null) return { error: t("이미 있는 카테고리예요") };

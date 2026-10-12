@@ -14,6 +14,7 @@ import { getViewer } from "@/server/dal";
 import { getCarriedPet, getDisplayedCard } from "@/server/farm";
 import { getT } from "@/server/i18n";
 import { getBlogVisitStats } from "@/server/visits";
+import { categoryLabel } from "@/lib/i18n";
 
 export async function generateMetadata(props: PageProps<"/blog/[slug]">) {
   const { slug } = await props.params;
@@ -78,7 +79,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
                     href={`${base}?category=${c.id}`}
                     className={`block rounded-lg px-2 py-1 ${c.id === categoryId ? "bg-honey font-bold" : "hover:bg-cream"}`}
                   >
-                    └ {c.name} <span className="text-ink-soft">({c.postCount})</span>
+                    └ {categoryLabel(t, c.name)} <span className="text-ink-soft">({c.postCount})</span>
                   </Link>
                 </li>
               ))}
@@ -100,7 +101,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
         <section className="max-md:order-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-display text-xl">
-              {currentCat ? currentCat.name : t("전체 글")} <span className="text-base text-ink-soft">{t("{n}개", { n: list.total })}</span>
+              {currentCat ? categoryLabel(t, currentCat.name) : t("전체 글")} <span className="text-base text-ink-soft">{t("{n}개", { n: list.total })}</span>
             </h2>
             <PostListToolbar sort={sort} view={view} sorts={Object.entries(POST_SORTS).map(([value, label]) => ({ value, label }))} />
           </div>

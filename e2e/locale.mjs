@@ -58,6 +58,7 @@ await page.screenshot({ path: `${outDir}/locale-town-ja.png` });
 await page.goto(`${BASE}/@${devId}`);
 const blogTitle = (await db.query("SELECT b.title FROM blogs b JOIN users u ON u.id = b.owner_id WHERE u.username = $1", [devId])).rows[0].title;
 check("블로그 이름(회원이 쓴 글)은 그대로", (await page.content()).includes(blogTitle));
+check("기본 카테고리 '일상'은 일본어 화면에서 '日常'", (await page.getByRole("link", { name: /日常/ }).count()) > 0 && (await page.getByRole("link", { name: /일상/ }).count()) === 0);
 await page.screenshot({ path: `${outDir}/locale-blog-ja.png`, fullPage: true });
 
 // 3) 다른 기기(쿠키 없음)에서 로그인해도 일본어
