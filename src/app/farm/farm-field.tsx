@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useT } from "@/components/i18n";
 import { PetArt } from "@/components/pet-art";
 import { eggSvg, toAnimalDataUri } from "@/lib/art/animals";
-import { barnSvg, FENCE_H_TILE, FENCE_V_TILE, GRASS_TILE, haySvg, nestSvg, svgUri } from "@/lib/art/farm";
+import { barnSvg, FENCE_H_TILE, FENCE_V_TILE, GRASS_TILE, haySvg, nestBackSvg, nestFrontSvg, svgUri } from "@/lib/art/farm";
 import type { AnimalStage, PetAccessory, PetColor } from "@/lib/farm";
 
 export type FieldPet = { id: number; name: string; assetKey: string; stage: AnimalStage; accessory: PetAccessory; color: PetColor };
@@ -28,6 +28,21 @@ function startSpot(i: number, n: number) {
   return {
     x: AREA.left + (AREA.right - AREA.left) * Math.min(col, 0.98),
     y: AREA.top + (AREA.bottom - AREA.top) * (rows === 1 ? ys[0] : ys[row] + (i % 2 ? 0.06 : -0.06)),
+  };
+}
+
+/** 둥지 속 알 자리 (둥지 그림에 대한 %, x = 알 가운데, y = 알 바닥). 5개까지 한 줄, 더 많으면 뒷줄 5개 + 앞줄 */
+function eggSlot(i: number, n: number) {
+  const two = n > 5;
+  const row = two && i >= 5 ? 1 : 0;
+  const inRow = two ? (row === 0 ? 5 : n - 5) : n;
+  const k = two ? (row === 0 ? i : i - 5) : i;
+  const step = two ? 13 : 15;
+  return {
+    // 앞줄은 뒷줄 알 사이에 오도록 반 칸 비켜서 조금 아래에
+    x: 50 + (k - (inRow - 1) / 2) * step + (row === 1 && inRow === 5 ? step / 2 - 3 : 0),
+    y: two ? (row === 0 ? 54 : 74) : 68,
+    w: two ? 18 : 24,
   };
 }
 
@@ -147,29 +162,26 @@ export function FarmField({
       <img src={svgUri(barnSvg())} alt="" aria-hidden className="pointer-events-none absolute right-[5%] top-6 z-[3] w-[clamp(80px,14vw,140px)]" />
       <img src={svgUri(haySvg())} alt="" aria-hidden className="pointer-events-none absolute right-[22%] top-[20%] z-[3] w-[clamp(44px,6vw,70px)] max-sm:hidden" />
 
-      {/* 알 둥지 */}
-      <div className="absolute left-[6%] top-[12%] z-[4] w-[clamp(150px,26vw,240px)]" data-nest>
-        <img src={svgUri(nestSvg())} alt="" aria-hidden className="pointer-events-none w-full" />
-        <div className={`absolute inset-x-[8%] flex flex-wrap-reverse items-end justify-center ${eggs.length > 5 ? "bottom-[36%] gap-x-0" : "bottom-[41%] gap-0.5"}`}>
-          {eggs.map((e) => (
+      {/* 알 둥지: 뒤판 → 알 → 앞 테두리 순서로 겹쳐 알 아랫부분이 둥지 안에 들어가 보인다 */}
+      <div className="absolute left-[5%] top-[10%] z-[4] w-[clamp(170px,28vw,260px)]" data-nest>
+        <img src={svgUri(nestBackSvg())} alt="" aria-hidden className="pointer-events-none w-full" />
+        {eggs.map((e, i) => {
+          const s = eggSlot(i, eggs.length);
+          return (
             <button
               key={e.id}
               type="button"
               data-egg-id={e.id}
               onClick={() => onEgg(e.id)}
-              className="transition-transform hover:-translate-y-1 focus-visible:-translate-y-1"
+              className="absolute -translate-x-1/2 -translate-y-full transition-transform hover:-translate-y-[105%] focus-visible:-translate-y-[105%]"
+              style={{ left: `${s.x}%`, top: `${s.y}%`, width: `${s.w}%` }}
               aria-label={t("알 살펴보기")}
             >
-              <img
-                src={toAnimalDataUri(eggSvg(96))}
-                alt=""
-                width={54}
-                height={54}
-                className={`pointer-events-none ${eggs.length > 5 ? "h-[clamp(26px,3.6vw,38px)] w-[clamp(26px,3.6vw,38px)] -my-1" : "max-sm:h-11 max-sm:w-11"}`}
-              />
+              <img src={toAnimalDataUri(eggSvg(96))} alt="" width={54} height={54} className="pointer-events-none h-auto w-full" />
             </button>
-          ))}
-        </div>
+          );
+        })}
+        <img src={svgUri(nestFrontSvg())} alt="" aria-hidden className="pointer-events-none absolute inset-0 w-full" />
         <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/85 px-2 text-xs font-bold text-ink-soft">
           🥚 {t("알 둥지")} {eggs.length > 0 ? eggs.length : ""}
         </span>

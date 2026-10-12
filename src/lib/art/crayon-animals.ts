@@ -273,19 +273,16 @@ function parts(kind: AnimalKind, stage: Stage, coat: Coat): { feet: string; body
     };
   }
   if (kind === "turtle") {
-    // 몸 색 = 등딱지. 머리·발은 늘 연두색. 정면: 둥근 등딱지가 몸 뒤로 크게 솟고, 앞에 크림색 배딱지, 그 위에 머리
-    const skin = "#c5e39a", rim = mix(c, "#fff6d8", 0.45), line = isDark(c) ? "#8f8580" : mix(c, "#3a2418", 0.4), belly = "#f7e9b8";
-    const shell = "M44 214Q40 118 128 108Q216 118 212 214Z";
-    // 등딱지 무늬: 가운데 육각형 줄 + 양옆 조각 (머리·배딱지 뒤로 숨는 곳까지 그려 둔다)
-    const plates = "M128 108v28M86 128l18 22M170 128l-18 22M56 168l34 4M200 168l-34 4M60 196l28-6M196 196l-28-6";
+    // 몸 색 = 등딱지. 머리·발은 늘 연두색. 정면에서 조금 내려다본 모습: 큰 둥근 등딱지(가운데 육각 무늬)가 몸 전체이고,
+    // 앞쪽 아래로 머리가 쏙 나오고 네 발이 등딱지 밑으로 삐져나온다
+    const skin = "#c5e39a", rim = mix(c, "#fff6d8", 0.5), line = isDark(c) ? "#8f8580" : mix(c, "#3a2418", 0.4), plate = mix(c, "#ffffff", 0.28);
+    const hex = "M108 98L148 98L164 128L148 158L108 158L92 128Z";
     return {
-      feet: S(shell, c, 5.5) + both(F("M64 158l12-12h16l8 14l-10 14h-18Z", mix(c, "#ffffff", 0.3)) + F("M60 196l10-12h16l6 12l-8 12h-16Z", mix(c, "#ffffff", 0.3))) + L(plates, 6, line) + S("M44 206Q128 230 212 206L212 216Q128 240 44 216Z", rim, 4) +
-        both(S(E(70, 218, 17, 11), skin, 4.5) + L("M62 222v3M70 224v3", 2.5)) + feet(skin, 226),
-      body: S(E(128, 196, 40, 32), belly, 5) + L("M98 190h60M100 206h56M128 168v58", 3, mix(belly, "#8a6a3a", 0.35)) +
-        both(S("M90 176q-22 2-26 18q10 8 24-2Z", skin, 4)),
-      head: S("M128 76q-44 0-46 44q0 34 46 36q46-2 46-36q-2-44-46-44Z", skin, 5.5) +
-        eyes(112, 20) + cheeks(130, 32) + dot(122, 124, 2) + dot(134, 124, 2) + L("M114 136q14 10 28 0", 3) +
-        (adult ? L("M104 92q8-6 16-2M136 90q8-4 16 2", 2.5, deeper(skin, 0.3)) : ""),
+      feet: both(S(E(54, 196, 20, 13), skin, 4.5)) + both(S(E(82, 220, 18, 12), skin, 4.5) + L("M74 226v3M82 228v3", 2.5)) + (adult ? S("M196 206q20 0 22 10q-12 4-22-2Z", skin, 4) : ""),
+      body: S("M30 194Q30 82 128 76Q226 82 226 194Z", c, 5.5) + F(hex, plate) +
+        L(`${hex}M92 128H38M164 128H218M108 98L90 80M148 98L166 80M108 158L94 190M148 158L162 190`, 5, line) +
+        S("M26 188Q128 212 230 188L230 200Q128 224 26 200Z", rim, 4),
+      head: S(E(128, 182, 44, 36), skin, 5.5) + eyes(176, 18) + cheeks(192, 30) + L("M116 196q12 8 24 0", 3),
     };
   }
   if (kind === "dino") {
