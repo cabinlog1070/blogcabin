@@ -8,7 +8,7 @@ export type KnownAttachments = Map<string, { kind: "image" | "file"; name: strin
 // 에디터의 정렬·줄 간격·글자 크기·글자색·배경색만 style로 남긴다. 값 모양을 좁게 잡아 url(), expression() 같은 것은 들어올 수 없다
 const COLOR_RE = [/^#[0-9a-f]{3}([0-9a-f]{3})?$/i, /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\)$/i];
 // 줄 간격은 에디터 목록(src/components/editor/line-height.ts)의 값만
-const ALIGN_STYLE = { "text-align": [/^(left|center|right)$/], "line-height": [/^(1\.4|1\.6|1\.8|2\.2|2\.6)$/] };
+const ALIGN_STYLE = { "text-align": [/^(left|center|right)$/], "line-height": [/^(1\.2|1\.4|1\.6|1\.8|2\.2|2\.6)$/] };
 const SPAN_STYLE = { "font-size": [/^([89]|[1-6]\d|7[0-2])px$/], color: COLOR_RE, "background-color": COLOR_RE };
 
 const attachmentKey = (url: string | undefined) => ATTACHMENT_URL_RE.exec(url ?? "")?.[1] ?? null;
