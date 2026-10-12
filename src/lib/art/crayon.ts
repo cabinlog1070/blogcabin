@@ -417,15 +417,16 @@ export const PROPS = {
 };
 
 // ───────── 6. 농장 화면 ─────────
+// 광장 풀밭과 같은 한 가지 색 + 드문드문 풀 포기 (체크무늬·점 꽃 없이, 2026-10-12)
 export const grassTile = () =>
   make(240, 240, () => {
     let o = "";
-    for (let i = 0; i < 14; i++) {
-      const x = 12 + ((i * 53) % 210), y = 12 + ((i * 97) % 210);
-      o += L(`M${x} ${y + 10}l4-12M${x + 8} ${y + 10}l2-10`, 3, "#4f8a3a");
+    for (let i = 0; i < 6; i++) {
+      const x = 20 + ((i * 71) % 200), y = 24 + ((i * 113) % 196);
+      o += L(`M${x - 8} ${y - 10}l6 10l4-14l4 14l6-8`, 3, "#6f9c46");
     }
-    return o + ([[40, 60, "#fff"], [180, 40, "#f2c230"], [120, 180, "#f28fa8"], [200, 200, "#fff"]] as const).map(([x, y, c]) => `<circle cx="${x}" cy="${y}" r="6" fill="${c}" filter="url(#fg)"/>`).join("");
-  }, { bg: "#9cc96e", dw: 120, dh: 120 });
+    return o;
+  }, { bg: "#8dbc5f", dw: 120, dh: 120 });
 export const fenceHTile = () => make(112, 88, () => S(Rc(-6, 26, 124, 14, 4), "#c08a5a", 4) + S(Rc(-6, 56, 124, 14, 4), "#c08a5a", 4) + S(Rc(47, 10, 18, 78, 4), "#c08a5a", 4.5), { dw: 56, dh: 44 });
 export const fenceVTile = () => make(44, 104, () => S(Rc(13, -6, 18, 116, 4), "#c08a5a", 4.5) + S(E(22, 52, 14, 10), "#c08a5a", 4), { dw: 22, dh: 52 });
 export const barn = () =>

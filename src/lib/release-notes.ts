@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.14.0",
+        title: msg("크레용으로 다시 그린 마을"),
+        changes: [
+          { kind: "new", text: msg("광장 위쪽에 하늘과 산이 열리고, 내 집 아래쪽은 선착장이 있는 호숫가가 되었어요. 밤에는 별이 뜨고 하늘 여기저기서 불꽃놀이가 터져요. 가끔 토끼나 고양이 얼굴 불꽃도 나와요.") },
+          { kind: "improved", text: msg("마을 그림 전체를 부드러운 파스텔 크레용 그림체로 바꿨어요. 나무, 꽃, 상점, 동물 농장, 주민, 가구, 방 배경, 펫이 모두 새 그림이에요.") },
+        ],
+      },
+      {
         version: "1.13.1",
         title: msg("숲으로 둘러싸인 광장"),
         changes: [

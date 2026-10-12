@@ -2,7 +2,7 @@
 // 가구마다 그림 상자 비율이 다르고, 미니룸 높이에 대한 비율(heightPct)로 크기를 정한다.
 // 그래서 휴대폰처럼 좁은 화면에서도 미니룸 높이가 같으면 같은 크기로 보인다.
 // 미니룸은 상자의 가운데를 가구 위치(x·y)에 놓는다 (components/character.tsx의 MiniRoom). DB의 asset_key("furn.chair" 등)로 고른다.
-import { FURN_CANVAS, furniture } from "./crayon";
+import { FURN_CANVAS, furniture, pastel } from "./crayon";
 
 const HEIGHT_PCT: Record<string, number> = { "furn.plant": 26, "furn.chair": 32, "furn.lamp": 44, "furn.desk": 34, "furn.bed": 34 };
 
@@ -22,7 +22,7 @@ export function furnitureSvg(assetKey: string, height = 120, { grass = false }: 
   const key = `${assetKey}|${grass ? 1 : 0}`;
   let art = cache.get(key);
   if (art === undefined) {
-    art = furniture(assetKey, grass);
+    art = pastel(() => furniture(assetKey, grass)); // 2026-10-12 파스텔 크레용 그림체
     cache.set(key, art);
   }
   const [w, h] = canvasOf(assetKey);

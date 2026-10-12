@@ -124,7 +124,7 @@ export function FarmField({
     <div
       ref={fieldRef}
       className="relative isolate h-[clamp(380px,64dvh,620px)] w-full select-none overflow-hidden bg-[#9ed58b]"
-      style={{ backgroundImage: `radial-gradient(ellipse at 50% 60%, #b3e29c 0%, transparent 70%), ${GRASS_TILE}` }}
+      style={{ backgroundImage: `radial-gradient(ellipse at 50% 60%, #a6d27e 0%, transparent 70%), ${GRASS_TILE}` }}
       data-farm-field
       aria-label={t("동물 농장 풀밭. 펫을 누르면 상태창이 열려요")}
       role="group"
