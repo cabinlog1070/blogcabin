@@ -1,6 +1,6 @@
 // NF-03: 글 HTML 정화가 XSS 공격 문자열을 제거하는지 확인한다
 // 실행: npm run test:sanitize
-import { sanitizePostHtml } from "../src/server/sanitize";
+import { relaxNbsp, sanitizePostHtml } from "../src/server/sanitize";
 // 글쓰기 화면 글자 수가 서버 보상 판단과 같은지도 함께 확인한다 (#18)
 import "./test-text-length";
 const cases = {
@@ -82,3 +82,20 @@ if (failed) process.exit(1);
   expect("다른 style 지움", out, !/position|justify|url|900px/.test(out));
   if (bad) process.exit(1);
 }
+
+// 낱말 사이 nbsp는 보통 띄어쓰기로 (붙여 넣거나 한글 입력기가 넣은 nbsp 때문에 읽는 화면에서 줄이 안 바뀌던 문제)
+{
+  let bad = 0;
+  const expect = (name: string, got: string, ok: boolean) => {
+    if (!ok) bad++;
+    console.log(`${ok ? "✅" : "❌"} ${name.padEnd(22)} → ${JSON.stringify(got)}`);
+  };
+  let out = sanitizePostHtml("<p>아악‼️&nbsp;까아악‼️ 아아악\u00a0끝</p>");
+  expect("낱말 사이 nbsp 풀기", out, out === "<p>아악‼️ 까아악‼️ 아아악 끝</p>");
+  out = sanitizePostHtml("<p>칸&nbsp;&nbsp;&nbsp;띄움</p><p>&nbsp;들여쓰기</p><p>&nbsp;</p>");
+  expect("일부러 띄운 칸은 그대로", out, !out.includes("칸 ") && out.includes("\u00a0들여쓰기") && out.includes("<p>\u00a0</p>"));
+  out = relaxNbsp("<p>예전&nbsp;글 A&amp;&nbsp;B</p>");
+  expect("예전 글 보여 줄 때", out, out === "<p>예전 글 A&amp;&nbsp;B</p>");
+  if (bad) process.exit(1);
+}
+

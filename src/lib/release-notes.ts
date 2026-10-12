@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.9.4",
+        title: msg("글 본문 칸 넘침 고침"),
+        changes: [
+          { kind: "fixed", text: msg("글 읽는 화면에서 붙여 넣은 글 등의 띄어쓰기에서 줄이 안 바뀌어 본문이 칸 밖으로 넘치던 문제를 고쳤어요.") },
+        ],
+      },
+      {
         version: "1.9.3",
         title: msg("보상 못 받은 이유 알려 주기"),
         changes: [

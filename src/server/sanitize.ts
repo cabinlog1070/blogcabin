@@ -74,7 +74,16 @@ function options(known?: KnownAttachments): sanitizeHtml.IOptions {
  * known 없이 부르면 주소 형식만 확인한다
  */
 export function sanitizePostHtml(html: string, known?: KnownAttachments): string {
-  return sanitizeHtml(html, options(known));
+  return relaxNbsp(sanitizeHtml(html, options(known)));
+}
+
+/**
+ * 낱말 사이 줄이 안 바뀌는 공백(nbsp)을 보통 띄어쓰기로 바꾼다.
+ * 한글 입력기나 붙여 넣기로 들어온 nbsp는 그 앞뒤 낱말을 한 덩어리로 묶어, 읽는 화면(keep-all)에서 줄이 안 바뀌고 칸 밖으로 넘친다.
+ * 공백이 둘 이상 이어진 곳(일부러 띄운 칸)과 태그 바로 앞뒤는 그대로 둔다. 저장할 때와 예전 글을 보여 줄 때 모두 쓴다
+ */
+export function relaxNbsp(html: string): string {
+  return html.replace(/(?<=[^\s<>;])(?:\u00a0|&nbsp;|&#160;|&#xa0;)(?=[^\s<>&])/gi, " ");
 }
 
 /** HTML 안의 첨부 키 (/files/키) */

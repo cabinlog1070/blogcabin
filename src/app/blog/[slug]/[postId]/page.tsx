@@ -19,6 +19,7 @@ import {
   getPostTags,
 } from "@/server/blog";
 import { getViewer } from "@/server/dal";
+import { relaxNbsp } from "@/server/sanitize";
 import { getLocale, getT } from "@/server/i18n";
 import { categoryLabel } from "@/lib/i18n";
 
@@ -119,8 +120,8 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
           </div>
         </header>
 
-        {/* 저장할 때 sanitize-html로 정화한 HTML만 넣는다 */}
-        <div className="prose-blog mt-6" dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
+        {/* 저장할 때 sanitize-html로 정화한 HTML만 넣는다. relaxNbsp는 nbsp가 남은 예전 글도 줄이 바뀌게 한다 */}
+        <div className="prose-blog mt-6" dangerouslySetInnerHTML={{ __html: relaxNbsp(post.contentHtml) }} />
 
         {tagNames.length > 0 && (
           <ul className="mt-8 flex flex-wrap gap-2">
