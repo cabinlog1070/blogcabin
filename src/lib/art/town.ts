@@ -37,8 +37,8 @@ export function roofHex(roofColor: string | null | undefined, backgroundAsset: s
 // ----- 크기 (화면 px). 그림은 아랫변 가운데를 발 닿는 곳으로 놓는다 -----
 export const BOARD_SIZE = { width: 170, height: 170 };
 export const ATTENDANCE_SIZE = { width: 110, height: 150 };
-export const SHOP_SIZE = { width: 210, height: 180 };
-export const FARM_SIZE = { width: 260, height: 170 };
+export const SHOP_SIZE = { width: 182, height: 156 };
+export const FARM_SIZE = { width: 310, height: 203 };
 export const CAMPFIRE_SIZE = { width: 180, height: 150 };
 export const FLAME_FRAMES = 3;
 export const BENCH_SIZE = { width: 90, height: 40 };

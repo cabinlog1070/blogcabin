@@ -75,6 +75,7 @@ import type { TownData, TownHouse, TownTarget } from "./types";
 type PhaserLib = typeof PhaserNS;
 
 export const WORLD = { width: 1800, height: 1400 };
+const GRASS = 0x8dbc5f; // 풀밭 바닥 색 (광장과 둘레 숲이 같은 색)
 const GROUND_DEPTH = -1_000_000; // 땅은 둘레 숲의 나무(깊이 = 음수 y)보다도 뒤에
 const CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
 // 걸을 수 있는 광장 바깥을 빙 둘러싼 숲의 두께. 큰 화면에서 광장 밖이 보여도 숲 속 빈터처럼 보인다
@@ -247,7 +248,7 @@ function layout(data: TownData, t: T) {
 
   // 동물 농장: 알을 받아 동물을 키운다
   structures.push({
-    texture: "farm", ...FARM_POS, w: FARM_SIZE.width, h: FARM_SIZE.height, solid: { w: FARM_SIZE.width * 0.94, h: 100 },
+    texture: "farm", ...FARM_POS, w: FARM_SIZE.width, h: FARM_SIZE.height, solid: { w: FARM_SIZE.width * 0.94, h: FARM_SIZE.height * 0.59 },
     label: t("동물 농장"), sub: t("펫 키우기 · 카드 도감"),
   });
   entrances.push({
@@ -842,12 +843,9 @@ export function createTownScene(
       const rng = new Phaser.Math.RandomDataGenerator(["blogcabin"]);
       const g = this.add.graphics();
 
-      // 잔디: 은은한 체크 무늬 타일
+      // 잔디: 한 가지 색 (체크 무늬는 2026-10-12 정지원 님 요청으로 뺐다)
       const TILE = 80;
-      for (let x = 0; x < WORLD.width; x += TILE)
-        for (let y = 0; y < WORLD.height; y += TILE) {
-          g.fillStyle((x / TILE + y / TILE) % 2 ? 0x8aba5c : 0x8fbe61).fillRect(x, y, TILE, TILE); // 시안처럼 차분한 잔디
-        }
+      g.fillStyle(GRASS).fillRect(0, 0, WORLD.width, WORLD.height);
       // 풀 포기
       g.lineStyle(2, 0x6f9c46, 0.9);
       for (let i = 0; i < 420; i++) {
@@ -912,8 +910,7 @@ export function createTownScene(
       // 둘레 숲 바닥: 광장과 같은 잔디 무늬를 숲 전체에 깐다
       if (!this.textures.exists("forest-floor")) {
         const f = this.add.graphics();
-        f.fillStyle(0x8fbe61).fillRect(0, 0, TILE * 2, TILE * 2);
-        f.fillStyle(0x8aba5c).fillRect(0, 0, TILE, TILE).fillRect(TILE, TILE, TILE, TILE);
+        f.fillStyle(GRASS).fillRect(0, 0, TILE * 2, TILE * 2);
         f.lineStyle(2, 0x6f9c46, 0.9);
         for (const [x, y] of [[22, 30], [110, 52], [60, 120], [140, 140]]) {
           f.beginPath();
