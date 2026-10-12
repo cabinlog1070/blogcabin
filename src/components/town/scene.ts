@@ -203,7 +203,7 @@ export function townTextures(data: TownData, t: T) {
   list.set("bench", toDataUri(benchSvg()));
   list.set("lamp", toDataUri(lampSvg()));
   list.set("farm", toDataUri(farmSvg()));
-  for (const kind of ["round", "pine", "bush", "blossom"] as const) list.set(`tree:${kind}`, toDataUri(treeSvg(kind)));
+  for (const kind of ["pine", "bush"] as const) list.set(`tree:${kind}`, toDataUri(treeSvg(kind)));
   // 둘레 숲: 파스텔 크레용 그림체 (2026-10-12 정지원 님 시안)
   for (const kind of ["green", "lime", "blossom"] as const) list.set(`soft:${kind}`, toDataUri(softTree(kind)));
   list.set("soft:flower-blue", toDataUri(softFlowerBlue()));
@@ -986,11 +986,11 @@ export function createTownScene(
         if (y > 380 && y < 490) continue;
         if (y > WORLD.height - 490 && y < WORLD.height - 380) continue;
         if (blocked.some((b) => Phaser.Math.Distance.Between(x, y - 60, b.x, b.y - 60) < b.r)) continue;
-        // 오두막 마을이라 소나무를 많이 심는다
-        const kind = rng.pick(["pine", "pine", "pine", "round", "bush", "blossom"]);
-        const scale = kind === "bush" ? 0.75 : rng.realInRange(0.9, 1.15);
+        // 오두막 마을이라 소나무를 많이 심는다. 동그란 나무·꽃나무는 얼굴처럼 보이는 무늬가 없는 파스텔 나무로 (2026-10-12)
+        const kind = rng.pick(["tree:pine", "tree:pine", "tree:pine", "soft:green", "tree:bush", "soft:blossom"]);
+        const scale = kind === "tree:bush" ? 0.75 : rng.realInRange(0.9, 1.15);
         this.placeStructure(
-          { texture: `tree:${kind}`, x, y, w: TREE_SIZE.width * scale, h: TREE_SIZE.height * scale, solid: { w: 26 * scale, h: 12 } },
+          { texture: kind, x, y, w: TREE_SIZE.width * scale, h: TREE_SIZE.height * scale, solid: { w: 26 * scale, h: 12 } },
           walls,
         );
         planted++;

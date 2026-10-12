@@ -45,9 +45,9 @@ const cloud = (cx: number, cy: number, rx: number, ry: number, bumps: number, de
 };
 
 const SOFT_TREE = {
-  green: { fill: "#8fd27a", edge: "#5fc24f", shade: "#79c565" },
-  lime: { fill: "#b4dc7c", edge: "#8cc95a", shade: "#a2d06a" },
-  blossom: { fill: "#f7bfd0", edge: "#f095b3", shade: "#f2a9c2" },
+  green: { fill: "#8fd27a", edge: "#5fc24f" },
+  lime: { fill: "#b4dc7c", edge: "#8cc95a" },
+  blossom: { fill: "#f7bfd0", edge: "#f095b3" },
 } as const;
 export type SoftTreeKind = keyof typeof SOFT_TREE;
 
@@ -60,13 +60,8 @@ export function softTree(kind: SoftTreeKind): string {
     const trunk = "M66 118L94 118L102 194L58 194Z";
     o += blob(trunk, "#b07a48", "#8a5a32", 6, 7);
     o += pastel(`<path d="M86 172c-8 0-10-10-3-12c8-2 12 8 6 14c-7 6-18-1-16-10" fill="none" stroke="#7a4e2a" stroke-width="3.5" stroke-linecap="round" opacity=".8"/>`, 2, 9);
-    // 잎: 구름 모양 둘레 + 안쪽에 옅은 덩어리 몇 개
+    // 잎: 구름 모양 둘레 (안쪽 동그라미 무늬는 넣지 않는다)
     o += blob(cloud(80, 70, 66, 58, 9), c.fill, c.edge, 10, 3);
-    o += pastel(
-      [[52, 56, 20], [96, 48, 22], [70, 92, 22], [112, 86, 18]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${c.shade}" stroke-width="5" opacity=".7"/>`).join(""),
-      4,
-      5,
-    );
     o += streaks([[46, 44, 14], [64, 34, 10], [92, 40, 12], [118, 60, 12], [56, 80, 14], [84, 74, 10], [104, 98, 12], [40, 96, 10], [74, 108, 8]]);
     return o;
   });
