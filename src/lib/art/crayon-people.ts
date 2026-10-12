@@ -15,7 +15,7 @@ export type Wear = {
   shoes?: ShoesWear;
   hat?: HatWear;
 };
-export type TopWear = { color: string; longSleeve?: boolean; deco?: (v: View) => string };
+export type TopWear = { color: string; longSleeve?: boolean; sleeveless?: boolean; deco?: (v: View) => string };
 export type BottomWear = { color: string; long?: boolean; skirt?: boolean };
 export type ShoesWear = { color: string; boots?: boolean; deco?: (v: View) => string };
 export type HatWear = { draw: (v: View) => string };
@@ -81,7 +81,7 @@ const torso = (c: Ctx, d: string) => {
   const band = c.w.bottom?.skirt ? c.w.bottom.color : c.bot;
   return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, c.top)}<g clip-path="url(#${id})">${F(Rc(60, 198, 160, 30), band)}</g>${L(d, 5)}`;
 };
-const sleeveY = (c: Ctx, side: boolean) => (c.w.top?.longSleeve ? (side ? 198 : 196) : side ? 180 : 189);
+const sleeveY = (c: Ctx, side: boolean) => (c.w.top?.sleeveless ? 120 : c.w.top?.longSleeve ? (side ? 198 : 196) : side ? 180 : 189);
 
 // ── 앞·뒤 몸 (좌우 대칭) ──
 function bodyFB(c: Ctx, v: View): string {
@@ -178,6 +178,8 @@ export function person(kind: Kind, view: View, frame: Frame, wear: Wear, size: n
 
 // ── 꾸미기 그림 ──
 const recolor = (s: string, c: string) => s.replace(/#262220|#7b5a44/g, c); // 검은 선·파스텔 갈색 선 둘 다
+/** 금색 단추 */
+const button = (x: number, y: number) => `<circle cx="${x}" cy="${y}" r="3.5" fill="#f2c230"/>`;
 const star = (x: number, y: number) => `<path d="M${x} ${y}l3 5l5 1l-5 2l-1 5l-3-4l-5 0l4-4Z" fill="#fff"/>`;
 
 export const WEAR_PIECES = {
@@ -196,6 +198,48 @@ export const WEAR_PIECES = {
   "avatar.shoes.sneakers": { slot: "shoes", shoes: { color: "#ffffff", deco: (v: View) => (v === "side" ? "" : recolor(L("M116 264h22M150 264h22", 2.5), "#e8433a")) } },
   "avatar.shoes.boots": { slot: "shoes", shoes: { color: "#8a5a3a", boots: true } },
   "avatar.shoes.shiny": { slot: "shoes", shoes: { color: "#f28fa8", deco: (v: View) => (v === "side" ? star(146, 260) : star(126, 260) + star(160, 260)) } },
+  // 해적 옷 (2026-10-12): 바다 모험 느낌의 옷을 이 마을 그림체로 새로 그렸다
+  "avatar.top.vest": {
+    slot: "top",
+    top: {
+      color: "#e0483e", sleeveless: true,
+      deco: (v: View) => (v === "front" ? S("M134 148q10 3 20 0l-5 50h-10Z", SKIN, 3.5) + button(128, 172) + button(160, 172) : v === "side" ? S("M156 150h6l2 46h-7Z", SKIN, 3) : ""),
+    },
+  },
+  "avatar.top.coat": {
+    slot: "top",
+    top: {
+      color: "#7a3040", longSleeve: true,
+      deco: (v: View) =>
+        v === "front"
+          ? recolor(L("M124 150l20 24l20-24M144 174v24", 3), "#f2c230") + button(136, 184) + button(152, 184) + button(136, 196) + button(152, 196)
+          : v === "back" ? recolor(L("M118 196h52", 3), "#f2c230")
+          : recolor(L("M158 152l-4 44", 3), "#f2c230") + button(150, 172) + button(150, 188),
+    },
+  },
+  "avatar.bottom.sailor": { slot: "bottom", bottom: { color: "#efe4cc", long: true } },
+  "avatar.shoes.sandals": {
+    slot: "shoes",
+    shoes: { color: "#f6cfa8", deco: (v: View) => recolor(v === "side" ? L("M136 262h22M134 270h28", 3.5) : L("M116 262h22M150 262h22M114 270h26M148 270h26", 3.5), "#8a5a3a") },
+  },
+  "avatar.hat.pirate": {
+    slot: "hat",
+    hat: {
+      draw: (v: View) => {
+        const skull = v === "back" ? "" : S(E(144, 34, 9, 8), "#fbf6ec", 2.5) + dot(140, 34, 2.2) + dot(148, 34, 2.2) + recolor(L("M132 44l24 10M156 44l-24 10", 3.5), "#fbf6ec");
+        return S("M86 62q2-50 58-54q56 4 58 54q-58-12-116 0Z", "#3a3238", 5) + S("M68 66q76-30 152 0q-4 12-14 9q-62-16-124 0q-10 3-14-9Z", "#3a3238", 5) + recolor(L("M80 66q64-20 128 0", 3), "#f2c230") + skull;
+      },
+    },
+  },
+  "avatar.hat.bandana": {
+    slot: "hat",
+    hat: {
+      draw: (v: View) => {
+        const knot = v === "side" ? S("M92 74l-16 4l6 14Z", "#4f9d5a", 4) : v === "back" ? S(E(144, 72, 8, 6), "#4f9d5a", 4) + S("M140 76l-10 18l10-2Z", "#4f9d5a", 3.5) + S("M148 76l10 18l-10-2Z", "#4f9d5a", 3.5) : "";
+        return S("M80 80q-4-66 64-68q68 2 64 68q-64-20-128 0Z", "#4f9d5a", 5) + recolor(L("M100 46l6 6M126 32l6 6M160 34l6 6M184 50l6 6", 3), "#2f6e3d") + knot;
+      },
+    },
+  },
   "avatar.hat.straw": {
     slot: "hat",
     hat: { draw: () => S(E(144, 46, 88, 16), "#f2d27a", 5) + S("M100 46q4-40 44-40q40 0 44 40Z", "#f2d27a", 5) + S("M100 36h88v10h-88Z", "#e8433a", 3.5) },
