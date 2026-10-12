@@ -171,3 +171,27 @@ export function softCloud(): string {
     return o;
   });
 }
+
+/** 종 모양 초록 산 + 짙은 점 무늬 (360×200, 정지원 님 시안). light = 뒤쪽에 둘 옅은 산 */
+export function softMountain(light = false): string {
+  return make(360, 200, () => {
+    const fill = light ? "#b7d98a" : "#9fcf5a", edge = light ? "#a2c977" : "#89bd47", spot = light ? "#9dc27a" : "#6f9f3c";
+    let o = blob("M4 200C60 196 110 10 180 8C250 10 300 196 356 200Z", fill, edge, 7, light ? 41 : 43);
+    o += pastel([[124, 80], [168, 104], [214, 60], [252, 120], [96, 140], [196, 150], [146, 168], [280, 162]]
+      .map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="5.5" ry="10" fill="${spot}" opacity=".8"/>`).join(""), 2, 45);
+    return o;
+  });
+}
+
+/** 산 아래 짙은 덤불 줄 (400×80, 가로로 이어 붙인다) */
+export function softHedge(): string {
+  return make(400, 80, () => {
+    let d = "M0 80V44";
+    for (let x = 0; x < 400; x += 50) d += `C${x + 4} 22 ${x + 46} 22 ${x + 50} 44`;
+    d += "V80Z";
+    let o = blob(d, "#5c9a3c", "#4d8a32", 6, 47);
+    o += pastel([[22, 52], [70, 60], [118, 50], [166, 58], [214, 52], [262, 60], [310, 50], [358, 58]]
+      .map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="4" ry="7.5" fill="#3f7a2a" opacity=".75"/>`).join(""), 2, 49);
+    return o;
+  });
+}

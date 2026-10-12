@@ -40,7 +40,6 @@ import {
   farmSvg,
   toDataUri,
   TREE_SIZE,
-  treeSvg,
   type HouseStage,
 } from "@/lib/art/town";
 import {
@@ -65,7 +64,7 @@ import {
   STUMP_SIZE,
   stumpSvg,
 } from "@/lib/art/props";
-import { softBush, softCloud, softFlowerBlue, softFlowerPink, softSun, softTree } from "@/lib/art/soft";
+import { softBush, softCloud, softFlowerBlue, softFlowerPink, softHedge, softMountain, softSun, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
@@ -198,13 +197,15 @@ export function townTextures(data: TownData, t: T) {
   list.set("bench", toDataUri(benchSvg()));
   list.set("lamp", toDataUri(lampSvg()));
   list.set("farm", toDataUri(farmSvg()));
-  list.set("tree:pine", toDataUri(treeSvg("pine")));
   list.set("tree:bush", toDataUri(softBush()));
   // 둘레 숲: 파스텔 크레용 그림체 (2026-10-12 정지원 님 시안)
   for (const kind of ["green", "lime", "blossom"] as const) list.set(`soft:${kind}`, toDataUri(softTree(kind)));
   list.set("soft:flower-blue", toDataUri(softFlowerBlue()));
   list.set("soft:sun", toDataUri(softSun()));
   list.set("soft:cloud", toDataUri(softCloud()));
+  list.set("soft:mountain", toDataUri(softMountain()));
+  list.set("soft:mountain-far", toDataUri(softMountain(true)));
+  list.set("soft:hedge", toDataUri(softHedge()));
   list.set("soft:flower-pink", toDataUri(softFlowerPink()));
   for (const [kind, art] of Object.entries(PROP_ART)) list.set(propKey(kind as PropKind), toDataUri(art.draw()));
   return [...list].map(([key, uri]) => ({ key, uri }));
@@ -936,25 +937,27 @@ export function createTownScene(
           const c = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(top[0]), Phaser.Display.Color.ValueToColor(top[1]), 100, k * 100);
           g.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b)).fillRect(0, (H * i) / BANDS, W, H / BANDS + 1);
         }
-        const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-sky"]);
-        // 멀리 보이는 언덕 두 겹 (뒤는 옅게), 맨 아래는 풀밭 색으로 이어진다
-        const hills = (base: number, color: number, min: number, max: number) => {
-          g.fillStyle(color);
-          for (let x = -40; x < W + 80; x += rng.between(90, 150)) g.fillEllipse(x, base, rng.between(min, max) * 2, rng.between(40, 70));
-          g.fillRect(0, base, W, H - base);
-        };
-        hills(H - 40, 0xb7d99a, 90, 140);
-        hills(H - 20, 0x9fcb79, 70, 120);
-        g.fillStyle(GRASS).fillRect(0, H - 8, W, 8);
+                // 맨 아래는 풀밭 색으로 이어진다 (산·덤불 그림이 그 위에 선다)
+        g.fillStyle(GRASS).fillRect(0, H - 24, W, 24);
         g.generateTexture("horizon-sky", W, H);
         g.destroy();
       }
       this.add.image(-FOREST, -FOREST, "horizon-sky").setOrigin(0).setDepth(GROUND_DEPTH + 2);
-      // 크레용 해와 파란 구름 (정지원 님 시안). 하늘이 보이는 언덕 위 띠에 띄운다
-      this.add.image(WORLD.width - 330, HORIZON - 84, "soft:sun").setDisplaySize(118, 118).setDepth(GROUND_DEPTH + 3);
+      // 크레용 해와 파란 구름 (정지원 님 시안). 산보다 앞에 띄워 가려지지 않게 한다
+      this.add.image(WORLD.width - 330, HORIZON - 104, "soft:sun").setDisplaySize(118, 118).setDepth(GROUND_DEPTH + 7);
       for (const [x, y, w] of [[-420, -150, 130], [120, -110, 120], [560, -40, 110], [1080, -120, 128], [1820, -30, 104], [2240, -130, 124]] as const) {
-        this.add.image(x, HORIZON + y, "soft:cloud").setDisplaySize(w, (w * 130) / 240).setDepth(GROUND_DEPTH + 3);
+        this.add.image(x, HORIZON + y, "soft:cloud").setDisplaySize(w, (w * 130) / 240).setDepth(GROUND_DEPTH + 7);
       }
+      // 둘러싼 산 (정지원 님 시안): 종 모양 초록 산을 두 겹(뒤는 옅게)으로 세우고, 발치를 짙은 덤불 줄로 덮는다
+      const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-mountains"]);
+      const BASE = HORIZON + 6;
+      for (const [key, step, h0, h1, depth] of [["soft:mountain-far", 230, 120, 150, 4], ["soft:mountain", 300, 90, 128, 5]] as const) {
+        for (let x = -FOREST + rng.between(0, step / 2); x < WORLD.width + FOREST + step; x += rng.between(step * 0.8, step * 1.2)) {
+          const h = rng.between(h0, h1);
+          this.add.image(x, BASE, key).setOrigin(0.5, 1).setDisplaySize((h * 360) / 200, h).setDepth(GROUND_DEPTH + depth);
+        }
+      }
+      this.add.tileSprite(-FOREST, BASE + 6, WORLD.width + FOREST * 2, 40, "soft:hedge").setOrigin(0, 1).setTileScale(0.5).setDepth(GROUND_DEPTH + 6);
     }
 
     /**
@@ -1018,8 +1021,8 @@ export function createTownScene(
         if (y > 380 && y < 490) continue;
         if (y > WORLD.height - 490 && y < WORLD.height - 380) continue;
         if (blocked.some((b) => Phaser.Math.Distance.Between(x, y - 60, b.x, b.y - 60) < b.r)) continue;
-        // 오두막 마을이라 소나무를 많이 심는다. 동그란 나무·꽃나무는 얼굴처럼 보이는 무늬가 없는 파스텔 나무로 (2026-10-12)
-        const kind = rng.pick(["tree:pine", "tree:pine", "tree:pine", "soft:green", "tree:bush", "soft:blossom"]);
+        // 둘레 숲과 같은 몽글몽글한 파스텔 나무만 심는다 (소나무는 그림체가 달라 2026-10-12에 뺐다)
+        const kind = rng.pick(["soft:green", "soft:green", "soft:lime", "tree:bush", "soft:blossom"]);
         const scale = kind === "tree:bush" ? 0.75 : rng.realInRange(0.9, 1.15);
         this.placeStructure(
           { texture: kind, x, y, w: TREE_SIZE.width * scale, h: TREE_SIZE.height * scale, solid: { w: 26 * scale, h: 12 } },
