@@ -176,8 +176,10 @@ export async function listBlogPosts(opts: { blogId: number; includePrivate: bool
 /** 관리자 글을 마을 소식 맨 위에 두는 기간 (일) */
 export const ADMIN_PIN_DAYS = 7;
 
-/** 마을 최신 글 (공개 글만). followerId가 있으면 이웃 글만 */
-export async function listFeed(opts: { page: number; followerId?: string; tag?: string }) {
+/** 마을 소식 목록의 조건과 정렬 (마을 전체·💛 이웃 새 글·태그). 목록과 그 목록 순서의 이전·다음 글이 같이 쓴다 */
+export type FeedFilter = { followerId?: string; tag?: string };
+
+function feedQuery(opts: FeedFilter) {
   const where = and(
     eq(posts.visibility, "public"),
     opts.followerId
@@ -199,7 +201,48 @@ export async function listFeed(opts: { page: number; followerId?: string; tag?: 
     ? sql`EXISTS (SELECT 1 FROM ${follows} WHERE ${follows.followerId} = ${opts.followerId} AND ${follows.followeeId} = ${blogs.ownerId} AND ${follows.isFavorite})`
     : null;
   const orderFirst = [adminPinned, favoriteFirst].filter((o): o is SQL => o !== null);
+  return { where, orderFirst };
+}
+
+/** 마을 최신 글 (공개 글만). followerId가 있으면 이웃 글만 */
+export async function listFeed(opts: { page: number } & FeedFilter) {
+  const { where, orderFirst } = feedQuery(opts);
   return paged(where, opts.page, (q) => q.limit(PAGE_SIZE).offset((opts.page - 1) * PAGE_SIZE), orderFirst);
+}
+
+/**
+ * 마을 소식에서 연 글의 이전 / 다음 글: 글쓴이와 상관없이 그 목록에 보이는 순서 그대로.
+ * 이전 글 = 목록에서 바로 아래 칸, 다음 글 = 바로 위 칸 (블로그 안의 이전·다음 글처럼 아래로 갈수록 이전 글).
+ * 지금 글이 그 목록에 없으면 null (비공개 글이거나 이웃이 아니게 된 경우: 블로그 안의 이전·다음 글을 쓴다)
+ */
+export async function getFeedAdjacentPosts(postId: number, opts: FeedFilter) {
+  const { where, orderFirst } = feedQuery(opts);
+  const order = sql.join(
+    [...orderFirst.map((o) => sql`${o} DESC`), sql`${posts.createdAt} DESC`, sql`${posts.id} DESC`],
+    sql`, `,
+  );
+  // 목록과 같은 표(baseList의 join)에서 순번을 매긴다
+  const feed = db.$with("feed").as(
+    db
+      .select({ id: posts.id, title: posts.title, blogSlug: blogs.slug, rn: sql<number>`(ROW_NUMBER() OVER (ORDER BY ${order}))::int`.as("rn") })
+      .from(posts)
+      .innerJoin(blogs, eq(blogs.id, posts.blogId))
+      .innerJoin(profiles, eq(profiles.userId, blogs.ownerId))
+      .innerJoin(characterItem, eq(characterItem.id, profiles.characterItemId))
+      .where(where),
+  );
+  const rows = await db
+    .with(feed)
+    .select({ id: feed.id, title: feed.title, blogSlug: feed.blogSlug, rn: feed.rn })
+    .from(feed)
+    .where(sql`${feed.rn} BETWEEN (SELECT rn - 1 FROM feed WHERE id = ${postId}) AND (SELECT rn + 1 FROM feed WHERE id = ${postId})`);
+  const current = rows.find((r) => r.id === postId);
+  if (!current) return null;
+  const pick = (rn: number) => {
+    const r = rows.find((x) => x.rn === rn);
+    return r ? { id: r.id, title: r.title, blogSlug: r.blogSlug } : null;
+  };
+  return { prev: pick(current.rn + 1), next: pick(current.rn - 1) };
 }
 
 // ===== 글 상세 =====

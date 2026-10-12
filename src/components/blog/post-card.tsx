@@ -25,8 +25,19 @@ export type PostCardData = {
 /**
  * 글 목록 한 칸. showAuthor: 마을 소식처럼 여러 블로그 글이 섞일 때 작성자 표시. compact: 바둑판형 보기(요약을 짧게)
  * 여러 블로그 글이 섞인 목록(showAuthor)에서 관리자 공지는 진한 나무색 카드에 `📢 공지` 배지로 구분한다
+ * from: 글 주소에 붙일 목록 표시 (`from=feed` 등). 글 화면의 이전·다음 글이 그 목록 순서를 따른다
  */
-export async function PostCard({ post, showAuthor = false, compact = false }: { post: PostCardData; showAuthor?: boolean; compact?: boolean }) {
+export async function PostCard({
+  post,
+  showAuthor = false,
+  compact = false,
+  from,
+}: {
+  post: PostCardData;
+  showAuthor?: boolean;
+  compact?: boolean;
+  from?: string;
+}) {
   const [t, locale] = await Promise.all([getT(), getLocale()]);
   const notice = showAuthor && post.isNotice;
   const soft = notice ? "text-cream/85" : "text-ink-soft";
@@ -39,7 +50,7 @@ export async function PostCard({ post, showAuthor = false, compact = false }: { 
           <span className="truncate">· {post.blogTitle}</span>
         </Link>
       )}
-      <Link href={`/@${post.blogSlug}/${post.id}`} className="flex flex-1 flex-col">
+      <Link href={`/@${post.blogSlug}/${post.id}${from ? `?${from}` : ""}`} className="flex flex-1 flex-col">
         <div className="mb-1 flex items-center gap-2 text-xs font-bold">
           {notice && <span className="rounded-full bg-sun px-2 py-0.5 text-ink">{t("📢 공지")}</span>}
           {post.categoryName && <span className="rounded-full bg-honey px-2 py-0.5 text-sun-dark">{categoryLabel(t, post.categoryName)}</span>}

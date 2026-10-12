@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.9.4",
+        title: msg("마을 소식에서 이전 글·다음 글"),
+        changes: [
+          { kind: "improved", text: msg("마을 소식에서 연 글은 [이전 글]·[다음 글]이 같은 사람의 글이 아니라 마을 소식 목록 순서대로 넘어가요.") },
+        ],
+      },
+      {
         version: "1.9.3",
         title: msg("보상 못 받은 이유 알려 주기"),
         changes: [
