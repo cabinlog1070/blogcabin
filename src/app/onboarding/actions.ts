@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { blogs, categories, items, profiles, userItems } from "@/db/schema";
+import { blogs, categories, follows, items, profiles, userItems, users } from "@/db/schema";
 import { DEFAULT_CATEGORY, msg, type T } from "@/lib/i18n";
 import { generateInviteCode, INVITE_COOKIE, normalizeInviteCode } from "@/lib/invite";
 import { ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
@@ -131,6 +131,18 @@ async function createResident(
         })
         .returning({ id: blogs.id });
       await tx.insert(categories).values({ blogId: blog.id, name: DEFAULT_CATEGORY, position: 0 });
+      // 관리자(공지사항 블로그)는 모든 주민의 기본 이웃이다. 이웃 새 글에서 공지를 볼 수 있고, 원하면 취소할 수 있다
+      const admins = await tx
+        .select({ id: users.id })
+        .from(users)
+        .innerJoin(blogs, eq(blogs.ownerId, users.id))
+        .where(eq(users.role, "admin"));
+      if (admins.length) {
+        await tx
+          .insert(follows)
+          .values(admins.map((a) => ({ followerId: userId, followeeId: a.id })))
+          .onConflictDoNothing();
+      }
       await grantReward(tx, userId, "signup");
     });
   } catch (err) {

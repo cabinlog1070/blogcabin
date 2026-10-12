@@ -121,7 +121,7 @@ async function paged<T>(
   where: SQL | undefined,
   page: number,
   extra: (q: ReturnType<typeof baseList>) => Promise<T[]>,
-  orderFirst?: SQL,
+  orderFirst?: SQL[],
   order?: SQL[],
 ) {
   const [{ total }] = await db
@@ -133,8 +133,8 @@ async function paged<T>(
   return { items, total, page, pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
 }
 
-/** orderFirst: 최신순보다 먼저 정렬할 값 (참이 위로, 💛 이웃 새 글의 즐겨찾기). order: 기본(최신순) 대신 쓸 정렬 */
-function baseList(where: SQL | undefined, orderFirst?: SQL, order: SQL[] = [desc(posts.createdAt), desc(posts.id)]) {
+/** orderFirst: 최신순보다 먼저 정렬할 값들 (참이 위로, 앞의 값이 먼저. 마을 소식의 관리자 새 글·💛 이웃 새 글의 즐겨찾기). order: 기본(최신순) 대신 쓸 정렬 */
+function baseList(where: SQL | undefined, orderFirst: SQL[] = [], order: SQL[] = [desc(posts.createdAt), desc(posts.id)]) {
   return db
     .select({
       ...listColumns,
@@ -149,7 +149,7 @@ function baseList(where: SQL | undefined, orderFirst?: SQL, order: SQL[] = [desc
     .innerJoin(characterItem, eq(characterItem.id, profiles.characterItemId))
     .leftJoin(categories, eq(categories.id, posts.categoryId))
     .where(where)
-    .orderBy(...(orderFirst ? [desc(orderFirst)] : []), ...order);
+    .orderBy(...orderFirst.map((o) => desc(o)), ...order);
 }
 
 export const POST_SORTS = { latest: msg("최신순"), oldest: msg("오래된순"), popular: msg("인기순") } as const;
@@ -171,6 +171,9 @@ export async function listBlogPosts(opts: { blogId: number; includePrivate: bool
   return paged(where, opts.page, (q) => q.limit(PAGE_SIZE).offset((opts.page - 1) * PAGE_SIZE), undefined, SORT_ORDER[opts.sort ?? "latest"]);
 }
 
+/** 관리자 글을 마을 소식 맨 위에 두는 기간 (일) */
+export const ADMIN_PIN_DAYS = 7;
+
 /** 마을 최신 글 (공개 글만). followerId가 있으면 이웃 글만 */
 export async function listFeed(opts: { page: number; followerId?: string; tag?: string }) {
   const where = and(
@@ -185,11 +188,16 @@ export async function listFeed(opts: { page: number; followerId?: string; tag?: 
         )
       : undefined,
   );
+  // 관리자(공지사항) 글은 쓴 뒤 ADMIN_PIN_DAYS일 동안 마을 전체·이웃 새 글 맨 위에 둔다 (태그 목록은 그대로 최신순)
+  const adminPinned = opts.tag
+    ? null
+    : sql`(${posts.createdAt} > now() - make_interval(days => ${ADMIN_PIN_DAYS}) AND EXISTS (SELECT 1 FROM ${users} WHERE ${users.id} = ${blogs.ownerId} AND ${users.role} = 'admin'))`;
   // 💛 이웃 새 글: 즐겨찾기한 이웃의 글을 맨 위에, 그 아래 나머지 이웃의 글 (TOWN-08, 각각 최신순)
   const favoriteFirst = opts.followerId
     ? sql`EXISTS (SELECT 1 FROM ${follows} WHERE ${follows.followerId} = ${opts.followerId} AND ${follows.followeeId} = ${blogs.ownerId} AND ${follows.isFavorite})`
     : null;
-  return paged(where, opts.page, (q) => q.limit(PAGE_SIZE).offset((opts.page - 1) * PAGE_SIZE), favoriteFirst ?? undefined);
+  const orderFirst = [adminPinned, favoriteFirst].filter((o): o is SQL => o !== null);
+  return paged(where, opts.page, (q) => q.limit(PAGE_SIZE).offset((opts.page - 1) * PAGE_SIZE), orderFirst);
 }
 
 // ===== 글 상세 =====
