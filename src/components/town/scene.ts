@@ -67,7 +67,7 @@ import {
   STUMP_SIZE,
   stumpSvg,
 } from "@/lib/art/props";
-import { softFlowerBlue, softFlowerPink, softTree } from "@/lib/art/soft";
+import { softBush, softFlowerBlue, softFlowerPink, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
@@ -201,7 +201,8 @@ export function townTextures(data: TownData, t: T) {
   list.set("bench", toDataUri(benchSvg()));
   list.set("lamp", toDataUri(lampSvg()));
   list.set("farm", toDataUri(farmSvg()));
-  for (const kind of ["pine", "bush"] as const) list.set(`tree:${kind}`, toDataUri(treeSvg(kind)));
+  list.set("tree:pine", toDataUri(treeSvg("pine")));
+  list.set("tree:bush", toDataUri(softBush()));
   // 둘레 숲: 파스텔 크레용 그림체 (2026-10-12 정지원 님 시안)
   for (const kind of ["green", "lime", "blossom"] as const) list.set(`soft:${kind}`, toDataUri(softTree(kind)));
   list.set("soft:flower-blue", toDataUri(softFlowerBlue()));
@@ -1012,7 +1013,9 @@ export function createTownScene(
           // 길(가장자리 여유 12px), 건물·나무·이름표·다른 소품 자리는 피한다
           if (ROADS.some(([rx, ry, rw, rh]) => hits(x, y, w, h, { x: rx, y: ry, w: rw, h: rh }, 12))) continue;
           if (this.occupied.some((o) => hits(x, y, w, h, o, 6))) continue;
-          this.placeStructure({ texture: propKey(kind), x, y, w, h, solid: kind === "rock" ? { w: w * 0.6, h: 8 } : undefined }, walls);
+          // 꽃 포기는 분홍 꽃과 파란 꽃을 섞어 심는다
+          const texture = kind === "flowers" && rng.frac() < 0.45 ? "soft:flower-blue" : propKey(kind);
+          this.placeStructure({ texture, x, y, w, h, solid: kind === "rock" ? { w: w * 0.6, h: 8 } : undefined }, walls);
           placed++;
         }
       }
