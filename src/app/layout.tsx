@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Jua, Kosugi_Maru, Noto_Sans_JP, Noto_Sans_KR } from "next/font/google";
+import { CrispArt } from "@/components/crisp-art";
 import { LocaleProvider } from "@/components/i18n";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -33,6 +34,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <main className="flex-1">{children}</main>
           <SiteFooter />
         </LocaleProvider>
+        <CrispArt />
       </body>
     </html>
   );

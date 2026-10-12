@@ -51,7 +51,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
   const [t, locale] = await Promise.all([getT(), getLocale()]);
   const viewerId = viewer?.profile ? viewer.userId : null;
   const isOwner = viewerId === blog.ownerId;
-  const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인과 서로 이웃만
+  const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인, 서로 이웃, 관리자만
   if (post.visibility === "private" && !includePrivate) notFound();
 
   const [tagNames, like, comments, adjacent] = await Promise.all([

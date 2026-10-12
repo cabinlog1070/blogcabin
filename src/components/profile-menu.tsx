@@ -1,7 +1,7 @@
 "use client";
 
 // 헤더 유저 상태창 (TOWN-10). 얼굴(+넓은 화면은 닉네임·블로그 제목)을 누르면 내 정보 메뉴가 뜬다:
-// 큰 얼굴·닉네임·블로그 제목, 연결된 로그인 수단(AUTH-05), 내 블로그·환경 설정·문의하기·로그아웃
+// 큰 얼굴·닉네임·블로그 제목, 연결된 로그인 수단(AUTH-05), 내 블로그·환경 설정·문의하기·릴리스 노트·로그아웃
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { PopoverPanel, useHeaderPopover } from "@/components/header-popover";
@@ -204,6 +204,9 @@ export function ProfileMenu({
           </Link>
           <Link href="/support" onClick={close} className={menuItem}>
             <Icon name="inquiry" /> {t("문의하기")}
+          </Link>
+          <Link href="/release-notes" onClick={close} className={menuItem}>
+            <Icon name="notice" /> {t("릴리스 노트")}
           </Link>
           <button
             type="button"

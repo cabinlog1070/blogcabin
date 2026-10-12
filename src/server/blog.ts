@@ -16,6 +16,7 @@ import {
   postTags,
   profiles,
   tags,
+  users,
 } from "@/db/schema";
 
 const characterItem = alias(items, "character_item");
@@ -86,10 +87,12 @@ export async function isMutualNeighbor(a: string, b: string) {
   return rows.length === 2;
 }
 
-/** 이 사람이 이 블로그 주인의 비공개 글을 볼 수 있는가 (주인 또는 서로 이웃) */
+/** 이 사람이 이 블로그 주인의 비공개 글을 볼 수 있는가 (주인, 서로 이웃, 관리자) */
 export async function canSeePrivatePosts(viewerId: string | null, ownerId: string) {
   if (!viewerId) return false;
-  return viewerId === ownerId || isMutualNeighbor(viewerId, ownerId);
+  if (viewerId === ownerId) return true;
+  const [viewer] = await db.select({ role: users.role }).from(users).where(eq(users.id, viewerId));
+  return viewer?.role === "admin" || isMutualNeighbor(viewerId, ownerId);
 }
 
 /** 이웃 관계와 즐겨찾기 여부. 이웃이 아니면 null (남의 블로그 헤더의 ☆, TOWN-08) */

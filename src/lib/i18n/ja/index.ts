@@ -4,9 +4,11 @@ import { jaAccount } from "./account";
 import { jaBlog } from "./blog";
 import { jaCommon } from "./common";
 import { jaGame } from "./game";
+import { jaReleaseNotes } from "./release-notes";
 import { jaTown } from "./town";
 
 export const ja: Record<string, string> = {
+  ...jaReleaseNotes,
   ...jaTown,
   ...jaGame,
   ...jaBlog,
