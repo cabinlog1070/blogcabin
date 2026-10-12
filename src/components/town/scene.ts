@@ -431,7 +431,7 @@ export function createTownScene(
       // 카메라는 둘레 숲까지 비춘다 (걷는 곳은 그대로 WORLD 안)
       this.cameras.main.setBounds(-FOREST, -FOREST, WORLD.width + FOREST * 2, WORLD.height + FOREST * 2);
       this.cameras.main.startFollow(this.feet, true, 0.12, 0.12, 0, 20);
-      this.cameras.main.setBackgroundColor("#7aa94e"); // 숲 바닥색
+      this.cameras.main.setBackgroundColor("#8aba5c");
 
       // 입력: 방향키, WASD, Space/Enter, 클릭·터치
       const keyboard = this.input.keyboard!;
@@ -900,12 +900,12 @@ export function createTownScene(
       g.destroy();
       this.add.image(0, 0, "ground").setOrigin(0).setDepth(GROUND_DEPTH);
 
-      // 둘레 숲 바닥: 광장 잔디보다 조금 진한 잔디 무늬를 숲 전체에 깐다
+      // 둘레 숲 바닥: 광장과 같은 잔디 무늬를 숲 전체에 깐다
       if (!this.textures.exists("forest-floor")) {
         const f = this.add.graphics();
-        f.fillStyle(0x7aa94e).fillRect(0, 0, TILE * 2, TILE * 2);
-        f.fillStyle(0x76a44b).fillRect(0, 0, TILE, TILE).fillRect(TILE, TILE, TILE, TILE);
-        f.lineStyle(2, 0x5f8c3c, 0.9);
+        f.fillStyle(0x8fbe61).fillRect(0, 0, TILE * 2, TILE * 2);
+        f.fillStyle(0x8aba5c).fillRect(0, 0, TILE, TILE).fillRect(TILE, TILE, TILE, TILE);
+        f.lineStyle(2, 0x6f9c46, 0.9);
         for (const [x, y] of [[22, 30], [110, 52], [60, 120], [140, 140]]) {
           f.beginPath();
           f.moveTo(x - 4, y - 5).lineTo(x - 1, y).lineTo(x + 1, y - 7).lineTo(x + 3, y).lineTo(x + 6, y - 4);
@@ -920,22 +920,38 @@ export function createTownScene(
         .setDepth(GROUND_DEPTH - 1);
     }
 
-    /** 둘레 숲: 걸을 수 있는 곳 바깥을 나무로 빽빽하게 채운다. 바깥이라 부딪힘은 없다 (광장 경계가 막는다) */
+    /**
+     * 둘레 숲: 걸을 수 있는 곳 바깥을 나무로 둘러싼다. 바깥이라 부딪힘은 없다 (광장 경계가 막는다).
+     * 광장 가장자리는 경계선이 보이지 않게 촘촘히, 멀어질수록 듬성듬성 심고 사이에 꽃·풀을 둔다.
+     * 처음에 끝까지 빽빽하게 채웠더니 답답하고 무섭다는 의견이 있어 밝고 성기게 바꿨다 (2026-10-12)
+     */
     private plantForest() {
       const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-forest"]);
-      const GAP = { x: 58, y: 44 };
+      const GAP = { x: 76, y: 56 };
       // 가장자리의 나무는 광장 쪽으로 조금 걸쳐서 경계선이 보이지 않게 한다
       const EDGE = 14;
       let count = 0;
       for (let y = -FOREST + 60; y < WORLD.height + FOREST + 100; y += GAP.y) {
         const row = Math.round(y / GAP.y);
         for (let x = -FOREST; x < WORLD.width + FOREST; x += GAP.x) {
-          const tx = x + (row % 2 ? GAP.x / 2 : 0) + rng.between(-16, 16);
-          const ty = y + rng.between(-12, 12);
+          const tx = x + (row % 2 ? GAP.x / 2 : 0) + rng.between(-20, 20);
+          const ty = y + rng.between(-14, 14);
           const inside = tx > -EDGE && tx < WORLD.width + EDGE && ty > 12 && ty < WORLD.height + 60;
           if (inside) continue;
-          const kind = rng.pick(["pine", "pine", "pine", "pine", "round", "round", "blossom", "bush"]);
-          const scale = kind === "bush" ? rng.realInRange(0.8, 1) : rng.realInRange(1.05, 1.45);
+          // 광장에서 떨어진 거리: 가까운 두 줄은 촘촘히, 그 바깥은 절반쯤 비워 풀밭이 보이게
+          const out = Math.max(-tx, tx - WORLD.width, -ty, ty - WORLD.height - 60, 0);
+          const skip = out < 110 ? 0.05 : out < 260 ? 0.35 : 0.55;
+          if (rng.frac() < skip) {
+            if (rng.frac() < 0.5) {
+              const kind = rng.pick(["flowers", "flowers", "grass"] as const);
+              const { width, height } = PROP_ART[kind].size;
+              this.add.image(tx, ty, propKey(kind)).setOrigin(0.5, 1).setDisplaySize(width * 0.9, height * 0.9).setDepth(ty);
+            }
+            continue;
+          }
+          // 소나무 위주로, 꽃나무·덤불을 섞어 밝게
+          const kind = rng.pick(["pine", "pine", "pine", "pine", "pine", "blossom", "blossom", "round", "bush", "bush"]);
+          const scale = kind === "bush" ? rng.realInRange(0.8, 1) : rng.realInRange(0.95, 1.25);
           this.add
             .image(tx, ty, `tree:${kind}`)
             .setOrigin(0.5, 1)
