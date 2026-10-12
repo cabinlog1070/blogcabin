@@ -258,8 +258,7 @@ check("새로고침해도 꾸미기가 남아 있다", (await page.locator(`[dat
 await page.keyboard.press("Escape");
 await go(`/@${slug}`);
 check("블로그 홈 프로필에 전시 카드", await page.locator(`[data-displayed-card="${hatched.id}"]`).getByText("콩이").isVisible());
-// 파스텔 그림체는 리본 색을 섞어 칠해서 색 대신 리본 모양(목의 나비)으로 찾는다
-check("블로그 미니룸 펫은 꾸미기를 한 그림 (리본)", decodeURIComponent((await page.locator('[data-room-pet="콩이"] img').getAttribute("src")) ?? "").includes("M128 176l-22-14v28Z"));
+check("블로그 미니룸 펫은 꾸미기를 한 그림 (리본)", decodeURIComponent((await page.locator('[data-room-pet="콩이"] img').getAttribute("src")) ?? "").includes("#f48caa"));
 await page.screenshot({ path: `${outDir}/c6-blog-profile-card.png` });
 
 // ── 농장 전체 화면 (데스크톱): 펫 여러 마리 + 둥지의 알 ──
