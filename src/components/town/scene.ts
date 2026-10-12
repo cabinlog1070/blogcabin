@@ -440,7 +440,16 @@ export function createTownScene(
       const phone = window.matchMedia?.(PHONE_MEDIA).matches;
       if (!phone && window.matchMedia?.("(pointer: coarse)").matches) this.createJoystick();
       this.touch = Boolean(phone || this.joystick);
-      this.cameras.main.setZoom((phone ? PHONE_ZOOM : 1) * dpr);
+      // 큰 컴퓨터 화면(가로 1920·2560 등)에서는 광장(1800×1400)보다 창이 넓어 오른쪽·아래에 빈 잔디가 남았다.
+      // 창이 광장보다 크면 광장이 창을 꽉 채우도록 그만큼 확대한다 (그림은 2배로 그려 둬서 2배까지는 선명하다)
+      const baseZoom = (phone ? PHONE_ZOOM : 1) * dpr;
+      const fitZoom = () => {
+        const zoom = Math.max(baseZoom, this.scale.width / WORLD.width, this.scale.height / WORLD.height);
+        this.cameras.main.setZoom(zoom);
+        this.game.canvas.dataset.zoom = (zoom / dpr).toFixed(3); // CSS 기준 확대 배율 (e2e 확인용)
+      };
+      fitZoom();
+      this.scale.on("resize", fitZoom);
       this.game.canvas.dataset.joystick = this.joystick ? "on" : "off"; // e2e 확인용
 
       this.input.on("pointerdown", (pointer: PhaserNS.Input.Pointer) => {
@@ -483,7 +492,7 @@ export function createTownScene(
 
     /**
      * 화면 CSS 좌표 → 고정(scrollFactor 0) 물체 좌표. 카메라가 가운데를 기준으로 확대(dpr배)돼 있어서 되돌려 준다.
-     * 조이스틱은 휴대폰이 아닐 때만 있으므로 카메라 확대 = dpr
+     * 조이스틱은 휴대폰이 아닐 때만 있으므로 카메라 확대 = dpr (아주 큰 화면에서는 광장을 채우려고 더 크다)
      */
     private screenToFixed(x: number, y: number) {
       const zoom = this.cameras.main.zoom;

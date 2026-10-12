@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.13.1",
+        title: msg("큰 화면에서 광장 꽉 채우기"),
+        changes: [
+          { kind: "fixed", text: msg("큰 컴퓨터 화면에서 광장이 왼쪽에만 그려지고 오른쪽에 빈 잔디가 남던 문제를 고쳤어요. 이제 창 크기에 맞춰 광장이 화면을 꽉 채워요.") },
+        ],
+      },
+      {
         version: "1.13.0",
         title: msg("다른 말로 쓴 글 번역하기"),
         changes: [
