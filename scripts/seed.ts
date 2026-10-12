@@ -46,6 +46,11 @@ const ITEMS: NewItem[] = [
   { code: "av_bottom_sailor", type: "avatar", slot: "bottom", name: "선원 바지", description: "갑판 위에서 일하기 좋은 넉넉한 바지", price: 90, requiredLevel: 3, isStarter: false, assetKey: "avatar.bottom.sailor" },
   { code: "av_shoes_sandals", type: "avatar", slot: "shoes", name: "샌들", description: "모래사장을 걷기 좋은 가벼운 샌들", price: 50, requiredLevel: 1, isStarter: false, assetKey: "avatar.shoes.sandals" },
   { code: "av_hat_pirate", type: "avatar", slot: "hat", name: "해적 모자", description: "해골 무늬가 달린 검은 해적 모자", price: 240, requiredLevel: 6, isStarter: false, assetKey: "avatar.hat.pirate" },
+  // 공룡 옷 (2026-10-12): 네 가지를 다 입으면 공룡 점프수트
+  { code: "av_hat_dino", type: "avatar", slot: "hat", name: "공룡 모자", description: "이빨과 눈이 달린 초록 공룡 모자", price: 120, requiredLevel: 3, isStarter: false, assetKey: "avatar.hat.dino" },
+  { code: "av_top_dino", type: "avatar", slot: "top", name: "공룡 옷", description: "등에 가시가 난 초록 공룡 옷", price: 120, requiredLevel: 3, isStarter: false, assetKey: "avatar.top.dino" },
+  { code: "av_bottom_dino", type: "avatar", slot: "bottom", name: "공룡 바지", description: "꼬리가 달랑달랑 달린 공룡 바지", price: 100, requiredLevel: 3, isStarter: false, assetKey: "avatar.bottom.dino" },
+  { code: "av_shoes_dino", type: "avatar", slot: "shoes", name: "공룡 발", description: "하얀 발톱이 달린 공룡 발 신발", price: 80, requiredLevel: 3, isStarter: false, assetKey: "avatar.shoes.dino" },
   { code: "av_hat_bandana", type: "avatar", slot: "hat", name: "반다나", description: "머리에 질끈 묶는 초록 반다나", price: 70, requiredLevel: 2, isStarter: false, assetKey: "avatar.hat.bandana" },
 
   // 가구 (SHOP-05): 미니룸에 끌어다 놓는다 (최대 5개)
