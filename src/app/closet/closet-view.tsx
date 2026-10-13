@@ -21,7 +21,7 @@ import {
 } from "@/lib/assets";
 import { HOUSE_STAGES, houseSvg, ROOF_COLORS, roofHex, type HouseStage, type RoofColor } from "@/lib/art/town";
 import { msg } from "@/lib/i18n";
-import { clampPct, MAX_FURNITURE, type ItemType } from "@/lib/shop";
+import { clampPct, type ItemType } from "@/lib/shop";
 import { equipItem, placeFurniture, removeFurniture, setAvatarWear, setFurnitureColor, setRoofColor } from "./actions";
 
 type OwnedItem = { id: number; type: ItemType; slot: AvatarSlot | null; name: string; assetKey: string; color?: string | null };
@@ -173,10 +173,6 @@ export function ClosetView({
   function place(item: OwnedItem, x: number, y: number) {
     const before = placed;
     const already = placed.some((f) => f.id === item.id);
-    if (!already && placed.length >= MAX_FURNITURE) {
-      setMessage({ ok: false, text: t("가구는 {max}개까지 놓을 수 있어요", { max: MAX_FURNITURE }) });
-      return;
-    }
     const spot = { id: item.id, assetKey: painted(item), x: clampPct(x), y: clampPct(y) };
     setPlaced(already ? placed.map((f) => (f.id === item.id ? spot : f)) : [...placed, spot]);
     save(() => setPlaced(before), () => placeFurniture(item.id, spot.x, spot.y), t("{name} 배치를 저장했어요 ✓", { name: t(item.name) }), FAIL_PLACE);
@@ -326,7 +322,7 @@ export function ClosetView({
           <IconEmoji name="furniture" emoji="🪑" size={30} className="-mt-1" /> {t("가구")}
         </h2>
         <p className="mb-3 text-sm text-ink-soft">
-          {t("가구를 위 미니룸으로 끌어다 놓으세요. 미니룸 밖으로 끌어내면 빠져요. (최대 {max}개, 지금 {n}개)", { max: MAX_FURNITURE, n: placed.length })}
+          {t("가구를 위 미니룸으로 끌어다 놓으세요. 미니룸 밖으로 끌어내면 빠져요. (지금 {n}개)", { n: placed.length })}
         </p>
         {grid(
           furniture,

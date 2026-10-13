@@ -1,15 +1,15 @@
 "use server";
 
-import { and, count, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { avatarEquips, blogs, items, profiles, roomFurniture, userItems } from "@/db/schema";
 import { isFurnitureColor } from "@/lib/art/furniture";
 import { isRoofColor } from "@/lib/art/town";
-import { clampPct, MAX_FURNITURE } from "@/lib/shop";
+import { clampPct } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
-import { getWallet, lockUser } from "@/server/points";
+import { getWallet } from "@/server/points";
 
 export type ActionResult = { ok: boolean; error?: string };
 
@@ -78,23 +78,13 @@ export async function placeFurniture(itemId: number, x: number, y: number): Prom
   if (!owned) return { ok: false, error: t("가지고 있지 않은 아이템이에요") };
   if (owned.type !== "furniture") return { ok: false, error: t("가구만 미니룸에 놓을 수 있어요") };
 
-  const result = await db.transaction(async (tx): Promise<ActionResult> => {
-    // 같은 회원의 배치 요청이 겹쳐서 5개를 넘지 않게 잠근다
-    await lockUser(tx, viewer.userId);
-    const [others] = await tx
-      .select({ n: count() })
-      .from(roomFurniture)
-      .where(and(eq(roomFurniture.userId, viewer.userId), ne(roomFurniture.itemId, itemId)));
-    if (others.n >= MAX_FURNITURE) return { ok: false, error: t("가구는 {max}개까지 놓을 수 있어요", { max: MAX_FURNITURE }) };
-    // 이미 놓인 가구면 새로 추가하지 않고 위치만 옮긴다 (기본 키: 회원, 아이템)
-    await tx
-      .insert(roomFurniture)
-      .values({ userId: viewer.userId, itemId, x: clampPct(x), y: clampPct(y) })
-      .onConflictDoUpdate({ target: [roomFurniture.userId, roomFurniture.itemId], set: { x: clampPct(x), y: clampPct(y) } });
-    return { ok: true };
-  });
-  if (result.ok) revalidatePath("/", "layout");
-  return result;
+  // 가진 가구는 몇 개든 놓을 수 있다 (2026-10-13 5개 제한 없앰). 이미 놓인 가구면 위치만 옮긴다 (기본 키: 회원, 아이템)
+  await db
+    .insert(roomFurniture)
+    .values({ userId: viewer.userId, itemId, x: clampPct(x), y: clampPct(y) })
+    .onConflictDoUpdate({ target: [roomFurniture.userId, roomFurniture.itemId], set: { x: clampPct(x), y: clampPct(y) } });
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 /** 미니룸에서 가구 빼기 (미니룸 밖으로 끌어냄) */

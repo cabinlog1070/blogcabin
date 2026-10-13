@@ -205,14 +205,17 @@ try {
   await colorSection.getByRole("radio", { name: "남색", exact: true }).click();
   await page.getByRole("status").filter({ hasText: "침대 색을 남색(으)로 바꿨어요" }).waitFor();
 
-  // 6번째: 사지 않고 시험용 가구를 잠깐 만들어 준다
+  // 6번째도 놓인다 (2026-10-13 5개 제한 없앰): 사지 않고 시험용 가구를 잠깐 만들어 준다
   await db.query("INSERT INTO items (code, type, name, price, required_level, is_starter, asset_key) VALUES ($1, 'furniture', '시험 화분', 0, 1, false, 'furn.plant') ON CONFLICT (code) DO NOTHING", [TEMP_CODE]);
   await db.query("INSERT INTO user_items (user_id, item_id) SELECT $1, id FROM items WHERE code = $2", [uid, TEMP_CODE]);
   await page.reload({ waitUntil: "networkidle" });
   await dragTo(furnCard("시험 화분"), 55, 60);
-  await page.getByRole("status").filter({ hasText: "가구는 5개까지 놓을 수 있어요" }).waitFor({ timeout: 5000 });
-  check("SHOP-05 6번째 가구는 놓이지 않고 '가구는 5개까지 놓을 수 있어요'", (await one("SELECT COUNT(*)::int n FROM room_furniture WHERE user_id = $1", [uid])).n === 5);
-  await db.query("DELETE FROM items WHERE code = $1", [TEMP_CODE]).catch(() => {}); // user_items 때문에 실패하면 finally에서
+  await page.getByRole("status").filter({ hasText: "시험 화분 배치를 저장했어요" }).waitFor({ timeout: 5000 });
+  check("SHOP-05 가구 수 제한 없음: 6번째 가구도 놓임", (await one("SELECT COUNT(*)::int n FROM room_furniture WHERE user_id = $1", [uid])).n === 6);
+  check("SHOP-05 안내에 '최대' 없이 지금 개수만", (await page.getByText(/미니룸 밖으로 끌어내면 빠져요/).innerText()).includes("(지금 6개)"));
+  // 시험용 가구는 다시 지운다 (보유를 지우면 배치도 함께 지워진다)
+  await db.query("DELETE FROM user_items WHERE user_id = $1 AND item_id IN (SELECT id FROM items WHERE code = $2)", [uid, TEMP_CODE]);
+  await db.query("DELETE FROM items WHERE code = $1", [TEMP_CODE]);
   await page.reload();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${outDir}/a3-closet.png`, fullPage: true });

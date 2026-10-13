@@ -38,6 +38,11 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.18.1",
+        title: msg("미니룸 가구 제한 없앰"),
+        changes: [{ kind: "improved", text: msg("미니룸에 놓을 수 있는 가구 수 제한(5개)이 없어졌어요. 가진 가구를 모두 꺼내 방을 꾸며 보세요.") }],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [

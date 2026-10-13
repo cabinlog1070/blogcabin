@@ -8,9 +8,6 @@ export function isForSale(item: { type: ItemType; isStarter: boolean }): boolean
   return !item.isStarter && item.type !== "character";
 }
 
-/** 한 미니룸에 놓을 수 있는 가구 수 (SHOP-05) */
-export const MAX_FURNITURE = 5;
-
 export const SORTS = [
   { key: "level", label: msg("레벨순") },
   { key: "popular", label: msg("인기순") },
