@@ -87,6 +87,10 @@ check("꾸미기 창 그림이 검정색 (눈·코는 흰색)", decodeURICompone
 await row.locator('[data-pet-color="pink"]').click();
 await row.locator('img[data-color="pink"]').waitFor();
 check("다른 색으로 다시 바꾸기 (분홍색)", (await one("SELECT color FROM user_animals WHERE id = $1", [pet.id])).color === "pink");
+check("색 13가지 (기본 + 12색)", (await row.locator("[data-pet-color]").count()) === 13);
+await row.locator('[data-pet-color="mint"]').click();
+await row.locator('img[data-color="mint"]').waitFor();
+check("새로 더한 색 (민트색)", (await one("SELECT color FROM user_animals WHERE id = $1", [pet.id])).color === "mint");
 await page.screenshot({ path: `${outDir}/f3-color-panel.png` });
 // 꾸미기 창에서 이름 바꾸기
 await row.locator("[data-decorate-name]").fill("까망이");
@@ -112,7 +116,7 @@ await page.keyboard.press("Escape");
 await db.query("UPDATE user_animals SET carried = true WHERE id = $1", [pet.id]);
 const petName = (await one("SELECT name FROM user_animals WHERE id = $1", [pet.id])).name;
 await go(`/@${devId.toLowerCase()}`);
-check("미니룸 펫도 고른 색", (await page.locator(`[data-room-pet="${petName}"] img`).getAttribute("data-color")) === "pink");
+check("미니룸 펫도 고른 색", (await page.locator(`[data-room-pet="${petName}"] img`).getAttribute("data-color")) === "mint");
 
 // ── 휴대폰 375px ──
 const mctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });

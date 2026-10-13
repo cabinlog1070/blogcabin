@@ -54,6 +54,12 @@ const COLOR_SWATCH: Record<PetColor, string> = {
   black: "#3f3735",
   white: "#fbf8f1",
   pink: "#f7b8c8",
+  orange: "#ffb36b",
+  mint: "#a8e6cf",
+  sky: "#9fd3f0",
+  purple: "#c9a8ea",
+  gray: "#b8b2ae",
+  green: "#a6d98a",
 };
 
 /** 돌보기 버튼 아이콘 (CARE_ACTIONS의 이모지 대신) */
