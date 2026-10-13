@@ -23,6 +23,7 @@ import {
   paintedFurnitureKey,
   type FurnitureColor,
 } from "@/lib/assets";
+import { HAIR_COLOR_KEYS, HAIR_COLORS, HAIR_DEFAULT_SWATCH, paintedHairKey, type HairColor } from "@/lib/art/avatar";
 import { HOUSE_STAGES, houseSvg, ROOF_COLORS, roofHex, type HouseStage, type RoofColor } from "@/lib/art/town";
 import { msg } from "@/lib/i18n";
 import { clampCharacterSpot, clampPct, clampPetSpot, CLOSET_TABS, ROOM_CHARACTER_SPOT, type ClosetTab, type ItemType, type RoomSpot } from "@/lib/shop";
@@ -80,6 +81,7 @@ type Draft = {
   colors: Record<number, FurnitureColor | null>;
   charAt: RoomSpot;
   petAt: RoomSpot | null;
+  hairColor: string | null; // 머리 색 (null = 헤어마다 그린 그대로)
 };
 
 const FAIL = msg("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요");
@@ -93,6 +95,7 @@ export function ClosetView({
   pet = null,
   characterSpot = null,
   petSpot = null,
+  hairColor = null,
   initialTab = "char",
 }: {
   items: OwnedItem[];
@@ -108,6 +111,7 @@ export function ClosetView({
   pet?: RoomPet | null; // 데리고 다니는 펫 (미니룸에 놓을 수 있다)
   characterSpot?: RoomSpot | null; // 미니룸 안 캐릭터 발 자리 (null = 가운데 아래)
   petSpot?: RoomSpot | null; // 미니룸에 놓은 펫 자리 (null = 캐릭터 옆)
+  hairColor?: string | null; // 고른 머리 색 (상점 헤어 칸과 같은 값)
   initialTab?: ClosetTab;
 }) {
   const t = useT();
@@ -123,6 +127,7 @@ export function ClosetView({
       colors,
       charAt: characterSpot ?? ROOM_CHARACTER_SPOT,
       petAt: petSpot,
+      hairColor,
     };
   });
   const [draft, setDraft] = useState<Draft>(saved);
@@ -155,7 +160,7 @@ export function ClosetView({
   const background = byId(draft.backgroundItemId);
   const look = composeLook(
     character?.assetKey ?? "",
-    DRAW_ORDER.map((s) => byId(draft.worn[s])?.assetKey ?? "").filter(Boolean),
+    DRAW_ORDER.map((s) => paintedHairKey(byId(draft.worn[s])?.assetKey ?? "", draft.hairColor)).filter(Boolean),
   );
   // 꾸미기 카드 그림: 내 캐릭터(남자·여자 주민)에 입혀서, 아니면 마네킹에
   const wearer = character && canWear(character.assetKey) ? character.assetKey : MANNEQUIN;
@@ -171,6 +176,7 @@ export function ClosetView({
       colors: Object.fromEntries(Object.entries(sent.colors).filter(([id, c]) => c !== saved.colors[Number(id)])),
       character: sent.charAt,
       pet: sent.petAt,
+      hairColor: sent.hairColor,
     };
     setMessage(null);
     start(async () => {
@@ -205,7 +211,7 @@ export function ClosetView({
   // ===== 가구 (SHOP-05) =====
   /** 고른 색을 붙인 가구 키 */
   const painted = (item: OwnedItem, colors = draft.colors) =>
-    item.type === "furniture" ? paintedFurnitureKey(item.assetKey, colors[item.id]) : item.assetKey;
+    item.type === "furniture" ? paintedFurnitureKey(item.assetKey, colors[item.id]) : paintedHairKey(item.assetKey, draft.hairColor);
 
   function paint(item: OwnedItem, color: FurnitureColor | null) {
     const colors = { ...draft.colors, [item.id]: color };
@@ -397,27 +403,48 @@ export function ClosetView({
   );
 
   // ===== 오른쪽(휴대폰은 아래) 고르는 칸 =====
-  const characters = items.filter((i) => i.type === "character");
   const avatars = items.filter((i) => i.type === "avatar");
   const selected = byId(selectedId);
   const selectedPlaced = selected && draft.placed.some((f) => f.id === selected.id);
 
   let panel: ReactNode = null;
   if (tab === "char") {
-    // 예전에 상점에서 캐릭터를 산 회원만: 가진 캐릭터 중에서 바꿀 수 있다 (spec 006 FR-021)
-    const tabs = [...WEAR_TABS.map((w) => ({ key: w.slot as string, label: t(w.label) })), ...(characters.length > 1 ? [{ key: "character", label: t("🐾 캐릭터") }] : [])];
-    const list = wearTab === "character" ? characters : avatars.filter((i) => i.slot === wearTab);
+    // 캐릭터 칸은 없다 (2026-10-13): 모습은 헤어로 바꾼다
+    const tabs = WEAR_TABS.map((w) => ({ key: w.slot as string, label: t(w.label) }));
+    const list = avatars.filter((i) => i.slot === wearTab);
     panel = (
       <section data-wear-section aria-label={t("캐릭터 꾸미기")}>
         <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label={t("옷 종류")}>
           {tabs.map((w) => pill(w.label, wearTab === w.key, () => setWearTab(w.key), w.key, { "data-wear-tab": w.key }))}
         </div>
+        {wearTab === "hair" && (
+          // 머리 색 (무료): 고르면 화면에만 바로 보이고, [저장하기]를 눌러야 저장된다
+          <div className="mb-3 flex flex-wrap items-center gap-1.5 sm:gap-2" role="radiogroup" aria-label={t("머리 색")} data-closet-hair-colors>
+            <span className="mr-1 text-sm font-bold">{t("머리 색")}</span>
+            {([null, ...HAIR_COLOR_KEYS] as (HairColor | null)[]).map((c) => {
+              const on = draft.hairColor === c;
+              return (
+                <button
+                  key={c ?? "default"}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => update({ hairColor: c })}
+                  aria-label={c ? t(HAIR_COLORS[c].label) : t("기본 색")}
+                  title={c ? t(HAIR_COLORS[c].label) : t("기본 색")}
+                  data-hair-color={c ?? "default"}
+                  className={`grid h-7 w-7 place-items-center rounded-full border-2 sm:h-8 sm:w-8 ${on ? "border-ink ring-2 ring-honey" : "border-line"}`}
+                  // 색 동그라미는 고를 색 그 자체를 보여 준다 (그림 색이라 테마 토큰이 아니다)
+                  style={{ background: c ? HAIR_COLORS[c].hex : HAIR_DEFAULT_SWATCH }}
+                />
+              );
+            })}
+          </div>
+        )}
         {grid(
           list,
           (item) =>
-            wearTab === "character"
-              ? card(item, { on: item.id === draft.characterItemId, onClick: () => update({ characterItemId: item.id }) })
-              : card(item, { on: draft.worn[item.slot!] === item.id, onClick: () => wear(item), sub: draft.worn[item.slot!] === item.id && item.id !== saved.worn[item.slot!] ? t("입어 보는 중") : undefined }),
+            card(item, { on: draft.worn[item.slot!] === item.id, onClick: () => wear(item), sub: draft.worn[item.slot!] === item.id && item.id !== saved.worn[item.slot!] ? t("입어 보는 중") : undefined }),
           wearTab === "hair" ? t("아직 가진 헤어가 없어요. 상점에서 헤어를 받아 보세요.") : t("아직 이 종류의 옷이 없어요. 상점에서 사 보세요."),
         )}
       </section>

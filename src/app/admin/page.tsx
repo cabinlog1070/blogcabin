@@ -1,8 +1,8 @@
-import { asc, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ne, sql } from "drizzle-orm";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { db } from "@/db";
-import { attendances, blogs, comments, GIFT_MESSAGE_MAX, items, pointLedger, posts, profiles, users } from "@/db/schema";
+import { animalSpecies, attendances, blogs, comments, GIFT_MESSAGE_MAX, items, pointLedger, posts, profiles, users } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
 import { levelFromExp, todayKST } from "@/lib/game";
 import { requireAdmin } from "@/server/dal";
@@ -22,7 +22,7 @@ export default async function AdminPage() {
   const t = await getT();
   const locale = await getLocale();
 
-  const [[stats], recentUsers, recentPosts, residents, giftable] = await Promise.all([
+  const [[stats], recentUsers, recentPosts, residents, giftable, giftPets] = await Promise.all([
     db.select({
       users: sql<number>`(SELECT COUNT(*)::int FROM ${users})`,
       residents: sql<number>`(SELECT COUNT(*)::int FROM ${profiles})`,
@@ -68,12 +68,14 @@ export default async function AdminPage() {
       .leftJoin(pointLedger, eq(pointLedger.userId, profiles.userId))
       .groupBy(profiles.userId, profiles.nickname, users.username)
       .orderBy(profiles.nickname),
-    // 선물로 보낼 수 있는 아이템: 가입할 때 모두 받는 기본 아이템은 뺀다
+    // 선물로 보낼 수 있는 아이템 = 상점에서 파는 아이템 (기본 아이템과 판매를 멈춘 예전 캐릭터는 뺀다, isForSale과 같은 규칙)
     db
       .select({ id: items.id, type: items.type, name: items.name, assetKey: items.assetKey })
       .from(items)
-      .where(eq(items.isStarter, false))
+      .where(and(eq(items.isStarter, false), ne(items.type, "character")))
       .orderBy(asc(items.type), asc(items.requiredLevel), asc(items.price), asc(items.id)),
+    // 선물로 보낼 수 있는 펫 = 농장의 모든 펫 종류 (그 펫이 태어나는 알로 간다)
+    db.select({ id: animalSpecies.id, name: animalSpecies.name, assetKey: animalSpecies.assetKey }).from(animalSpecies).orderBy(asc(animalSpecies.id)),
   ]);
   const members = residents.map((r) => ({
     userId: r.userId,
@@ -137,8 +139,8 @@ export default async function AdminPage() {
         <h2 className="mb-1 font-display text-xl">
           <Icon name="gift" size={26} className="-mt-1" /> {t("선물 보내기")}
         </h2>
-        <p className="mb-4 text-sm text-ink-soft">{t("주민을 골라 코인·아이템을 선물하고, 함께 보낼 말을 적어요. 같은 주민에게 몇 번이든 보낼 수 있어요.")}</p>
-        <AdminGiftForm members={giftMembers} items={giftable} messageMax={GIFT_MESSAGE_MAX} />
+        <p className="mb-4 text-sm text-ink-soft">{t("주민을 골라 코인·아이템·펫 알을 선물하고, 함께 보낼 말을 적어요. 같은 주민에게 몇 번이든 보낼 수 있어요.")}</p>
+        <AdminGiftForm members={giftMembers} items={giftable} pets={giftPets} messageMax={GIFT_MESSAGE_MAX} />
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">

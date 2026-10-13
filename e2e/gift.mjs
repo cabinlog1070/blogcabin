@@ -1,4 +1,4 @@
-// 관리자 선물: 관리자가 주민 두 명을 골라 코인·아이템과 함께 보낼 말을 보낸다 → 받은 주민에게 선물 팝업·알림·받은 선물 화면
+// 관리자 선물: 관리자가 주민 두 명을 골라 코인·아이템·펫 알과 함께 보낼 말을 보낸다 → 받은 주민에게 선물 팝업·알림·받은 선물 화면
 // 같은 주민에게 한 번 더 보내도 되고, 이미 가진 아이템은 빼고 보낸다
 import { chromium } from "@playwright/test";
 import { config } from "dotenv";
@@ -26,6 +26,7 @@ const { rows: [m] } = await db.query("SELECT id FROM users WHERE username = $1",
 const other = await fakeMember(db, `gfo${tag}`);
 // 시작 머리(짧은 머리·긴 머리)는 주민이 이미 가지고 있어 선물에서 빠지므로 헤어는 고르지 않는다
 const { rows: giftItems } = await db.query("SELECT id, name FROM items WHERE NOT is_starter AND type IN ('avatar', 'furniture') AND slot IS DISTINCT FROM 'hair' ORDER BY id LIMIT 2");
+const { rows: [dragon] } = await db.query("SELECT id FROM animal_species WHERE code = 'dragon'");
 const coinsOf = async (userId) => (await db.query("SELECT COALESCE(SUM(coin_delta), 0)::int AS c FROM point_ledger WHERE user_id = $1", [userId])).rows[0].c;
 const before = await coinsOf(m.id);
 
@@ -41,6 +42,10 @@ await page.waitForURL(/town/);
 await page.goto(`${BASE}/admin#gift`);
 
 const form = page.locator("[data-admin-gift]");
+// 아이템 목록 = 상점에서 파는 것만 (기본 아이템, 판매를 멈춘 예전 캐릭터는 안 나온다)
+const { rows: notForSale } = await db.query("SELECT id FROM items WHERE is_starter OR type = 'character'");
+const shownIds = await form.locator("[data-gift-item]").evaluateAll((els) => els.map((e) => Number(e.getAttribute("data-gift-item"))));
+check("선물 목록에 예전 캐릭터·기본 아이템 없음", shownIds.length > 0 && !notForSale.some((r) => shownIds.includes(r.id)));
 // 말 없이 보내면 막힘 (브라우저 required를 피하려고 공백만)
 await form.locator("[data-gift-message-input]").fill("   ");
 await form.locator("[data-gift-coins-input]").fill("100");
@@ -49,7 +54,7 @@ await form.locator("[data-gift-send]").click();
 await form.locator("[data-gift-result]").waitFor();
 check("함께 보낼 말이 없으면 막힘", (await form.locator("[data-gift-result]").innerText()).includes("함께 보낼 말"));
 
-// 주민 두 명 + 코인 300 + 아이템 2개 + 말
+// 주민 두 명 + 코인 300 + 아이템 2개 + 드래곤 알 + 말
 const message = `이벤트 참여 고마워요! ${tag}\n작은 선물이에요`;
 await form.locator("[data-gift-member-search]").fill(`gfo${tag}`);
 await form.locator(`input[name="userId"][value="${other.uid}"]`).check();
@@ -57,6 +62,9 @@ await form.locator("[data-gift-member-search]").fill("");
 await form.locator("[data-gift-message-input]").fill(message);
 await form.locator("[data-gift-coins-input]").fill("300");
 for (const it of giftItems) await form.locator(`[data-gift-item="${it.id}"]`).click();
+await form.getByRole("tab", { name: "펫" }).click();
+check("펫 칸에 펫 19종", (await form.locator("[data-gift-pet]").count()) === 19);
+await form.locator(`[data-gift-pet="${dragon.id}"]`).click();
 await page.screenshot({ path: `${outDir}/gift-1-admin-form.png`, fullPage: true });
 await form.locator("[data-gift-send]").click();
 await page.waitForFunction(() => document.querySelector("[data-gift-result]")?.textContent?.includes("선물을 보냈어요"));
@@ -68,6 +76,8 @@ check("받은 주민 코인 +300", (await coinsOf(m.id)) === before + 300);
 const { rows: owned } = await db.query("SELECT item_id FROM user_items WHERE user_id = $1 AND item_id = ANY($2)", [m.id, giftItems.map((i) => i.id)]);
 check("아이템 2개가 바로 주민 것", owned.length === 2);
 const { rows: notes } = await db.query("SELECT kind, actor_id, read_at FROM notifications WHERE user_id = $1 AND kind = 'gift'", [other.uid]);
+const { rows: eggs } = await db.query("SELECT user_id FROM user_animals WHERE source = 'gift' AND status = 'egg' AND egg_species_id = $1 AND user_id = ANY($2)", [dragon.id, [m.id, other.uid]]);
+check("두 주민 둥지에 드래곤 알", eggs.length === 2);
 check("다른 주민에게도 선물 알림", notes.length === 1 && notes[0].actor_id !== null);
 
 // 받은 주민: 다음 화면에서 선물 팝업
@@ -75,12 +85,14 @@ await member.goto(`${BASE}/feed`);
 const modal = member.locator("[data-gift-modal]");
 await modal.waitFor({ timeout: 15000 });
 check("선물 팝업에 관리자가 적은 말", (await modal.locator("[data-gift-message]").innerText()).includes(`이벤트 참여 고마워요! ${tag}`));
-check("선물 팝업에 코인과 아이템 2개", (await modal.locator("[data-gift-coins]").innerText()).includes("300") && (await modal.locator("[data-gift-items] li").count()) === 2);
+check("선물 팝업에 코인과 아이템 2개", (await modal.locator("[data-gift-coins]").innerText()).includes("300") && (await modal.locator("[data-gift-items] li:not([data-gift-pet])").count()) === 2);
+check("선물 팝업에 드래곤 알", (await modal.locator("[data-gift-pet]").innerText()).includes("드래곤 알"));
 await member.screenshot({ path: `${outDir}/gift-3-popup.png` });
 await modal.getByRole("button", { name: "받은 선물 보기" }).click();
 await member.waitForURL(/\/gifts$/);
 await member.locator("[data-gift-list] li").first().waitFor();
 check("받은 선물 화면에 선물 하나", (await member.locator("[data-gift-list] > li").count()) === 1);
+check("받은 선물 화면에 드래곤 알", (await member.locator("[data-gift-list] [data-gift-pet]").count()) === 1);
 await member.screenshot({ path: `${outDir}/gift-4-list.png`, fullPage: true });
 const { rows: [seen] } = await db.query("SELECT read_at FROM notifications WHERE user_id = $1 AND kind = 'gift'", [m.id]);
 check("팝업을 닫으면 선물 알림 읽음", seen.read_at !== null);

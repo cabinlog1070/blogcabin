@@ -22,6 +22,7 @@ import {
   petLevelProgress,
   POTION_GROWTH,
   STAGE_LABEL,
+  withJosa,
 } from "@/lib/farm";
 import type { T } from "@/lib/i18n";
 import type { FarmAnimal, SpeciesCard } from "@/server/farm";
@@ -230,7 +231,7 @@ export function FarmView({
               {eggs.map((e) => (
                 <li key={e.id}>
                   <button type="button" onClick={() => setOpenId(e.id)} className="btn bg-paper py-1.5 text-sm text-ink">
-                    <Icon name="egg" size={18} /> {t("알 (부화 전)")}
+                    <Icon name="egg" size={18} /> {e.eggSpeciesName ? t("{name} 알 (부화 전)", { name: t(e.eggSpeciesName) }) : t("알 (부화 전)")}
                   </button>
                 </li>
               ))}
@@ -326,8 +327,12 @@ export function FarmView({
           ) : (
             <div className="flex flex-col items-center p-6 text-center">
               <img src={toAnimalDataUri(eggSvg(192))} alt="" width={96} height={96} aria-hidden />
-              <h2 className="mt-2 font-display text-2xl">{t("알")}</h2>
-              <p className="text-sm text-ink-soft">{t("무엇이 나올지 몰라요. 성별도 태어날 때 정해져요.")}</p>
+              <h2 className="mt-2 font-display text-2xl">{opened.eggSpeciesName ? t("{name} 알", { name: t(opened.eggSpeciesName) }) : t("알")}</h2>
+              <p className="text-sm text-ink-soft" data-egg-hint>
+                {opened.eggSpeciesName
+                  ? t("{name} 나오는 알이에요. 성별은 태어날 때 정해져요.", { name: withJosa(locale, t(opened.eggSpeciesName), "이", "가") })
+                  : t("무엇이 나올지 몰라요. 성별도 태어날 때 정해져요.")}
+              </p>
               {fieldLeft <= 0 && <p className="mt-2 text-sm font-bold text-berry">{t("풀밭이 꽉 찼어요. 다 키운 뒤에 부화시켜 주세요")}</p>}
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <button type="button" disabled={pending || fieldLeft <= 0} onClick={() => run(() => hatchEgg(opened.id))} className="btn bg-leaf text-white">

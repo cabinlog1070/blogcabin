@@ -24,17 +24,14 @@ const errors = collectErrors(page);
 // ── GAME-01: 가입할 때 남자/여자 중 고른 캐릭터 하나만 받고 장착 ──
 await loginDev(page, "decide01", "긴 머리");
 await page.goto(`${BASE}/closet`);
-// 캐릭터가 1개뿐이면 캐릭터 꾸미기에 🐾 캐릭터 칸이 없다 (SHOP-04 변경, spec 006 FR-021. 2026-10-13 꾸미기 탭)
+// 꾸미기에는 🐾 캐릭터 칸이 없다 (2026-10-13 캐릭터 칸 없앰, 모습은 헤어로 바꾼다)
 const owned01 = await db.query("SELECT i.code FROM user_items ui JOIN items i ON i.id = ui.item_id JOIN users u ON u.id = ui.user_id WHERE u.username = 'decide01' AND i.type = 'character'");
 check("GAME-01 가입하면 고른 캐릭터 1개만 보유", owned01.rows.length === 1 && owned01.rows[0].code === "char_girl", owned01.rows.map((r) => r.code).join(", "));
-check("SHOP-04 캐릭터가 1개면 '캐릭터' 칸 없음", (await page.locator('[data-wear-tab="character"]').count()) === 0);
+check("SHOP-04 꾸미기에 '캐릭터' 칸 없음", (await page.locator('[data-wear-tab="character"]').count()) === 0);
 
-// ── SHOP-04: 장착 저장 확인 표시 (바꿔 낄 캐릭터를 하나 더 넣어 둔다) ──
-await db.query("INSERT INTO user_items (user_id, item_id) SELECT u.id, i.id FROM users u, items i WHERE u.username = 'decide01' AND i.code = 'char_cat'");
-await page.reload();
-check("SHOP-04 캐릭터가 2개면 '캐릭터' 칸이 보임", await page.locator('[data-wear-tab="character"]').isVisible());
-await page.locator('[data-wear-tab="character"]').click();
-await page.getByRole("button", { name: /고양이/ }).click();
+// ── SHOP-04: 장착 저장 확인 표시 (머리 색을 바꿔 저장한다. 캐릭터 칸은 2026-10-13에 없앴다) ──
+await page.locator('[data-wear-tab="hair"]').click();
+await page.locator('[data-hair-color="mint"]').click();
 await page.locator("[data-save-closet]").click();
 const saved = await page.getByRole("status").filter({ hasText: "저장했어요" }).waitFor({ timeout: 5000 }).then(() => true).catch(() => false);
 check("SHOP-04 장착하면 '저장했어요' 표시", saved);

@@ -5,10 +5,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { comments, GIFT_MESSAGE_MAX, items, notifications, pointLedger, posts, profiles, users } from "@/db/schema";
+import { animalSpecies, comments, GIFT_MESSAGE_MAX, items, notifications, pointLedger, posts, profiles, users } from "@/db/schema";
 import { ADMIN_MAX_COINS, expForLevel, levelFromExp, MAX_LEVEL } from "@/lib/game";
 import { msg } from "@/lib/i18n";
 import { parseId } from "@/lib/ids";
+import { isForSale } from "@/lib/shop";
 import { requireAdmin } from "@/server/dal";
 import { sendGifts } from "@/server/gifts";
 import { getT } from "@/server/i18n";
@@ -122,7 +123,7 @@ export type GiftState = { error?: string; ok?: string; skipped?: string; sentAt?
 const GIFT_MAX_COINS = ADMIN_MAX_COINS;
 
 /**
- * 관리자 선물 보내기: 고른 주민(한 명 이상, 또는 모든 주민)에게 코인·아이템과 함께 보낼 말을 보낸다.
+ * 관리자 선물 보내기: 고른 주민(한 명 이상, 또는 모든 주민)에게 코인·아이템·펫 알과 함께 보낼 말을 보낸다.
  * 주민마다 선물 하나가 생기고, 받은 주민은 알림과 선물 팝업으로 받는다 (src/server/gifts.ts)
  */
 export async function adminSendGift(_: GiftState, formData: FormData): Promise<GiftState> {
@@ -132,15 +133,21 @@ export async function adminSendGift(_: GiftState, formData: FormData): Promise<G
   const coinsRaw = String(formData.get("coins") ?? "").trim() || "0";
   const coins = /^\d{1,7}$/.test(coinsRaw) ? Number(coinsRaw) : NaN;
   const itemIds = [...new Set(formData.getAll("itemId").map(parseId))].filter((id): id is number => id !== null);
+  const speciesIds = [...new Set(formData.getAll("speciesId").map(parseId))].filter((id): id is number => id !== null);
   const everyone = formData.get("everyone") === "on";
 
   if (!message) return { error: t("함께 보낼 말을 적어 주세요") };
   if ([...message].length > GIFT_MESSAGE_MAX) return { error: t("함께 보낼 말은 {n}자까지 쓸 수 있어요", { n: GIFT_MESSAGE_MAX }) };
   if (!Number.isInteger(coins) || coins < 0 || coins > GIFT_MAX_COINS) return { error: t("코인은 0부터 {n}까지 보낼 수 있어요", { n: GIFT_MAX_COINS.toLocaleString() }) };
-  if (coins === 0 && itemIds.length === 0) return { error: t("보낼 코인이나 아이템을 골라 주세요") };
+  if (coins === 0 && itemIds.length === 0 && speciesIds.length === 0) return { error: t("보낼 코인이나 아이템, 펫을 골라 주세요") };
 
-  const known = itemIds.length ? await db.select({ id: items.id }).from(items).where(inArray(items.id, itemIds)) : [];
+  // 상점에서 파는 아이템만 (가입 때 받는 기본 아이템과 판매를 멈춘 예전 캐릭터는 보내지 않는다)
+  const known = itemIds.length
+    ? (await db.select({ id: items.id, type: items.type, isStarter: items.isStarter }).from(items).where(inArray(items.id, itemIds))).filter(isForSale)
+    : [];
   if (known.length !== itemIds.length) return { error: t("없는 아이템이 있어요. 화면을 새로 고쳐 주세요") };
+  const knownSpecies = speciesIds.length ? await db.select({ id: animalSpecies.id }).from(animalSpecies).where(inArray(animalSpecies.id, speciesIds)) : [];
+  if (knownSpecies.length !== speciesIds.length) return { error: t("없는 펫이 있어요. 화면을 새로 고쳐 주세요") };
 
   // 모든 주민: 보내는 관리자 자신은 뺀다
   const picked = everyone
@@ -151,7 +158,7 @@ export async function adminSendGift(_: GiftState, formData: FormData): Promise<G
         .where(inArray(profiles.userId, formData.getAll("userId").map(String).filter(Boolean).slice(0, 10_000)));
   if (!picked.length) return { error: t("받을 주민을 골라 주세요") };
 
-  const result = await sendGifts({ senderId: admin.userId, recipientIds: picked.map((p) => p.userId), message, coins, itemIds });
+  const result = await sendGifts({ senderId: admin.userId, recipientIds: picked.map((p) => p.userId), message, coins, itemIds, speciesIds });
   revalidatePath("/", "layout");
   if (!result.sent.length) return { error: t("고른 주민이 아이템을 이미 모두 갖고 있어서 보낼 선물이 없어요") };
   const names = result.sent.map((r) => r.nickname);

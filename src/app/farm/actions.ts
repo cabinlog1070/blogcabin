@@ -104,9 +104,17 @@ function growthText(t: T, locale: Locale, base: string, { grown, leveled }: Grow
   return base;
 }
 
-/** 알 하나 부화: 종류는 비중에 따라 랜덤, 성별도 랜덤, 이름은 종류 이름. 부화한 종류 (내 알이 아니면 null) */
+/**
+ * 알 하나 부화: 종류는 비중에 따라 랜덤 (나올 펫이 정해진 알이면 그 펫), 성별도 랜덤, 이름은 종류 이름.
+ * 부화한 종류 (내 알이 아니면 null)
+ */
 async function hatchOne(tx: Tx, userId: string, id: number, species: (typeof animalSpecies.$inferSelect)[]) {
-  const sp = pickWeighted(species, randomInt(1_000_000) / 1_000_000);
+  const [egg] = await tx
+    .select({ eggSpeciesId: userAnimals.eggSpeciesId })
+    .from(userAnimals)
+    .where(and(eq(userAnimals.id, id), eq(userAnimals.userId, userId), eq(userAnimals.status, "egg")));
+  if (!egg) return null;
+  const sp = species.find((s) => s.id === egg.eggSpeciesId) ?? pickWeighted(species, randomInt(1_000_000) / 1_000_000);
   const [hatched] = await tx
     .update(userAnimals)
     .set({ status: "growing", speciesId: sp.id, hatchedAt: new Date(), name: sp.name, gender: randomInt(2) ? "male" : "female" })
