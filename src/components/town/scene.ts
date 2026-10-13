@@ -1010,7 +1010,7 @@ export function createTownScene(
       const D = GROUND_DEPTH + 2;
       this.add.image(-FOREST, top, "lake").setOrigin(0).setDisplaySize(W, H).setDepth(D);
       this.add.tileSprite(-FOREST, top, W, H, "soft:grain").setOrigin(0).setTileScale(0.5).setAlpha(0.55).setDepth(D + 0.1);
-      this.add.tileSprite(-FOREST, LAKE_TOP - 16, W, 45, "soft:shore").setOrigin(0).setTileScale(0.5).setDepth(D + 0.3);
+      this.strip("soft:shore", -FOREST, LAKE_TOP - 16, W, 240, 45, 0, D + 0.3);
       const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-lake"]);
       for (let i = 0; i < 70; i++) {
         this.add.image(rng.between(-FOREST, WORLD.width + FOREST), rng.between(top + 30, top + H - 30), "soft:ripple").setDisplaySize(32, 8).setDepth(D + 0.2);
@@ -1023,6 +1023,18 @@ export function createTownScene(
       }
       // 나무 선착장: 가운데 길이 호수로 이어진다
       this.add.image(CENTER.x, LAKE_TOP - 8, "soft:dock").setOrigin(0.5, 0).setDisplaySize(50, 85).setDepth(D + 0.4);
+    }
+
+    /**
+     * 가로로 이어 붙이는 띠 그림(덤불·물가)을 그림 여러 장으로 나란히 놓는다.
+     * 반복 무늬(tileSprite)로 깔면 카메라가 픽셀 사이에 걸칠 때 그림의 아래 끝 줄이 위 끝에 비쳐
+     * 띠 윗선에 짙은 가로줄이 깜빡였다 (2026-10-13). 낱장 그림은 가장자리를 되풀이하지 않아 줄이 생기지 않고,
+     * 2px씩 겹쳐서 이음매 틈도 없다
+     */
+    private strip(key: string, x0: number, y: number, width: number, tileW: number, h: number, originY: number, depth: number) {
+      for (let x = x0; x < x0 + width; x += tileW) {
+        this.add.image(x, y, key).setOrigin(0, originY).setDisplaySize(tileW + 2, h).setDepth(depth);
+      }
     }
 
     /** 위쪽 하늘: 파스텔 하늘색 + 구름 + 멀리 보이는 언덕. 그림 한 장으로 구워서 밤에는 다른 그림처럼 어두워진다(tint) */
@@ -1046,8 +1058,17 @@ export function createTownScene(
       this.nightSky = createNightSky(this, Phaser, { x: -FOREST, y: -FOREST, w: W, h: HORIZON + FOREST, horizon: HORIZON, depth: GROUND_DEPTH + 3, frontDepth: GROUND_DEPTH + 6.5 });
       // 크레용 해와 파란 구름 (정지원 님 시안). 산보다 앞에 띄워 가려지지 않게 하고, 밤에는 숨긴다
       this.dayOnly.push(this.add.image(WORLD.width - 330, HORIZON - 96, "soft:sun").setDisplaySize(80, 80).setDepth(GROUND_DEPTH + 7));
-      for (const [x, y, w] of [[-420, -150, 92], [120, -110, 84], [560, -96, 76], [1080, -120, 90], [1820, -104, 74], [2240, -130, 86]] as const) {
-        this.dayOnly.push(this.add.image(x, HORIZON + y, "soft:cloud").setDisplaySize(w, (w * 130) / 240).setDepth(GROUND_DEPTH + 7));
+      // 구름은 산 위에만 몰리지 않게 하늘 전체에 듬성듬성 흩는다 (2026-10-13 정지원 님 의견).
+      // 칸마다 하나씩 자리를 흔들어 놓아 고르게 퍼지고, 산 바로 위 한 줄은 비워 둔다
+      const sky = new Phaser.Math.RandomDataGenerator(["blogcabin-clouds"]);
+      const sun = { x: WORLD.width - 330, y: HORIZON - 96 };
+      for (let cy = -FOREST + 70; cy < HORIZON - 110; cy += 120) {
+        for (let cx = -FOREST + 60; cx < WORLD.width + FOREST; cx += 300) {
+          const x = cx + sky.between(-90, 90), y = cy + sky.between(-30, 30);
+          if (Math.hypot(x - sun.x, y - sun.y) < 110 || sky.frac() < 0.25) continue;
+          const w = sky.between(70, 120);
+          this.dayOnly.push(this.add.image(x, y, "soft:cloud").setDisplaySize(w, (w * 130) / 240).setAlpha(sky.realInRange(0.85, 1)).setDepth(GROUND_DEPTH + 7));
+        }
       }
       // 둘러싼 산 (정지원 님 시안): 종 모양 초록 산을 두 겹(뒤는 옅게)으로 세우고, 발치를 짙은 덤불 줄로 덮는다
       const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-mountains"]);
@@ -1058,7 +1079,7 @@ export function createTownScene(
           this.add.image(x, BASE, key).setOrigin(0.5, 1).setDisplaySize((h * 360) / 200, h).setDepth(GROUND_DEPTH + depth);
         }
       }
-      this.add.tileSprite(-FOREST, BASE + 6, WORLD.width + FOREST * 2, 40, "soft:hedge").setOrigin(0, 1).setTileScale(0.5).setDepth(GROUND_DEPTH + 6);
+      this.strip("soft:hedge", -FOREST, BASE + 6, WORLD.width + FOREST * 2, 200, 40, 1, GROUND_DEPTH + 6);
     }
 
     /**

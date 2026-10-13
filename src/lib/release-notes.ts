@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.18.1",
+        title: msg("광장 하늘 다듬기"),
+        changes: [
+          { kind: "fixed", text: msg("광장을 돌아다닐 때 산 앞 덤불 위에 검은 가로줄이 깜빡이던 문제를 고쳤어요.") },
+          { kind: "improved", text: msg("구름이 산 근처에만 모여 있지 않고 하늘 전체에 고루 떠 있어요.") },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [
