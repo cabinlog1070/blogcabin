@@ -16,17 +16,8 @@ const ITEMS: NewItem[] = [
   { code: "char_boy", type: "character", name: "짧은 머리", description: "마을에 막 이사 온 짧은 머리 주민", price: 0, requiredLevel: 1, isStarter: true, assetKey: "char.boy" },
   { code: "char_girl", type: "character", name: "긴 머리", description: "마을에 막 이사 온 긴 머리 주민", price: 0, requiredLevel: 1, isStarter: true, assetKey: "char.girl" },
 
-  // 예전 상점 캐릭터: 2026-10-06 결정으로 상점에서 팔지 않는다 (SHOP-01). 행은 남겨서 이미 산 회원은 계속 갖고 장착한다.
-  // 상점은 type = 'character'인 아이템을 보여주지도, 팔지도 않는다 (src/lib/shop.ts의 isForSale)
-  { code: "char_human", type: "character", name: "모험가", description: "어디든 떠나는 씩씩한 모험가", price: 60, requiredLevel: 1, isStarter: false, assetKey: "char.human" },
-  { code: "char_cat", type: "character", name: "고양이", description: "호기심 많은 고양이", price: 80, requiredLevel: 1, isStarter: false, assetKey: "char.cat" },
-  { code: "char_dog", type: "character", name: "강아지", description: "사람을 좋아하는 강아지", price: 80, requiredLevel: 1, isStarter: false, assetKey: "char.dog" },
-  { code: "char_rabbit", type: "character", name: "토끼", description: "글 쓰는 속도가 빠른 토끼", price: 100, requiredLevel: 2, isStarter: false, assetKey: "char.rabbit" },
-  { code: "char_fox", type: "character", name: "여우", description: "꾀가 많은 여우", price: 150, requiredLevel: 2, isStarter: false, assetKey: "char.fox" },
-  { code: "char_panda", type: "character", name: "판다", description: "느긋하게 꾸준히 쓰는 판다", price: 250, requiredLevel: 3, isStarter: false, assetKey: "char.panda" },
-  { code: "char_robot", type: "character", name: "로봇", description: "AI를 공부하는 로봇", price: 400, requiredLevel: 4, isStarter: false, assetKey: "char.robot" },
-  { code: "char_dragon", type: "character", name: "드래곤", description: "마을의 전설", price: 800, requiredLevel: 6, isStarter: false, assetKey: "char.dragon" },
-  { code: "char_unicorn", type: "character", name: "유니콘", description: "꾸준함의 상징", price: 1200, requiredLevel: 8, isStarter: false, assetKey: "char.unicorn" },
+  // 예전 상점 캐릭터 9종(모험가·고양이 등)은 2026-10-13에 없앴다 (마이그레이션 0027_remove_old_characters).
+  // 여기서 빼서 시드가 다시 넣지 않는다
 
   // 아바타 꾸미기 (SHOP-06): 상의·하의·모자·신발 각 3개. 레벨이 오르면 하나씩 풀린다 (Lv.1·2·3·5)
   // 헤어 (2026-10-13): 처음 고른 주민의 머리. 자기 머리는 처음부터 갖고(src/db/starter-hair.ts), 다른 머리는 0코인에 받는다

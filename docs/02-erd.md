@@ -1,7 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 1.7 (2026-10-13, 관리자 선물: `gifts`·`gift_items`, 원장 사유 `admin_gift`(ref_id = 선물 ID), 알림 종류 `gift`(ref_id = 선물 ID). 마이그레이션 `0026_admin_gift`. 3.3-7)
+- 버전: 1.8 (2026-10-13, 구조 변경 없음. 예전 상점 캐릭터 9종(`char_human`·`char_cat`·`char_dog`·`char_rabbit`·`char_fox`·`char_panda`·`char_robot`·`char_dragon`·`char_unicorn`)을 `items`에서 지움: 쓰던 주민은 기본 주민(긴 머리 헤어를 입었으면 `char_girl`, 아니면 `char_boy`)과 그 기본 헤어로 바꾸고, `user_items`·`gift_items`에서도 지움. 마이그레이션 `0027_remove_old_characters`)
+- 1.7 (2026-10-13, 관리자 선물: `gifts`·`gift_items`, 원장 사유 `admin_gift`(ref_id = 선물 ID), 알림 종류 `gift`(ref_id = 선물 ID). 마이그레이션 `0026_admin_gift`. 3.3-7)
 - 1.6 (2026-10-13, 댓글 수정(SOC-01): `comments.edited_at`(고친 적 없으면 NULL, 화면에 "수정됨"). 마이그레이션 `0025_comment_edited`)
 - 1.5 (2026-10-13, 헤어: 꾸미기 부위 `hair`(`0023_hair_slot`), 머리 색 `profiles.hair_color`(9색, 비우면 NULL, `0024_hair_color`))
 - 1.4 (2026-10-13, 글 예약 발행(POST-11): 예약 글은 `posts.created_at`에 올라갈 미래 시각을 적고, 그 시각 전에는 주인에게만 보인다(칸을 따로 두지 않음: 시각이 되면 바꾸는 작업 없이 `created_at <= now()` 조건으로 목록·광장·검색에 나타나고 날짜·순서도 그대로 맞는다). 관리자 글 광장 게시판 게시 시간 `posts.pin_hours`(0~720, 0 = 걸지 않음, 회원 글은 0, 기존 관리자 글은 168). 마이그레이션 `0022_post_schedule_pin`)

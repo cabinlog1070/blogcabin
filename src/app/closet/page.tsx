@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import Link from "next/link";
+import { db } from "@/db";
+import { profiles } from "@/db/schema";
 import { houseStageForLevel } from "@/lib/game";
 import { getBlogByOwner } from "@/server/blog";
 import { requireMember } from "@/server/dal";
@@ -20,12 +23,13 @@ export default async function ClosetPage({ searchParams }: { searchParams: Promi
   // 블로그 홈의 [미니룸 꾸미기 >]는 ?tab=room으로 미니룸 꾸미기 탭을 바로 연다
   const { tab } = await searchParams;
   const initialTab = CLOSET_TABS.includes(tab as ClosetTab) ? (tab as ClosetTab) : "char";
-  const [all, equipped, wallet, blog, pet] = await Promise.all([
+  const [all, equipped, wallet, blog, pet, [hair]] = await Promise.all([
     listItemsWithOwnership(viewer.userId),
     getEquipped(viewer.userId),
     getWallet(viewer.userId),
     getBlogByOwner(viewer.userId),
     getCarriedPet(viewer.userId), // 미니룸에 놓을 수 있는 펫 (데리고 다니는 펫)
+    db.select({ color: profiles.hairColor }).from(profiles).where(eq(profiles.userId, viewer.userId)),
   ]);
   const owned = all.filter((i) => i.owned);
   const [moreBefore, moreAfter = ""] = t("더 많은 옷과 가구, 배경은 {link}에서 만날 수 있어요.").split("{link}");
@@ -62,6 +66,7 @@ export default async function ClosetPage({ searchParams }: { searchParams: Promi
         pet={pet}
         characterSpot={blog?.roomCharX != null && blog.roomCharY != null ? { x: blog.roomCharX, y: blog.roomCharY } : null}
         petSpot={blog?.roomPetX != null && blog.roomPetY != null ? { x: blog.roomPetX, y: blog.roomPetY } : null}
+        hairColor={hair?.color ?? null}
         initialTab={initialTab}
       />
 

@@ -38,10 +38,12 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
-        version: "1.29.1",
-        title: msg("선물 아이템 목록 정리"),
+        version: "1.30.0",
+        title: msg("꾸미기에서 머리 색 바꾸기"),
         changes: [
-          { kind: "fixed", text: msg("선물 보내기의 아이템 목록에 이제 상점에서 팔지 않는 예전 캐릭터가 나오지 않아요. 상점에서 파는 아이템만 고를 수 있어요."), admin: true },
+          { kind: "new", text: msg("꾸미기의 헤어 칸에서도 머리 색을 고를 수 있어요. 고른 색은 [저장하기]를 누르면 광장과 미니룸에 보여요.") },
+          { kind: "improved", text: msg("예전에 상점에서 팔던 캐릭터(모험가·고양이·강아지·토끼·여우·판다·로봇·드래곤·유니콘)를 없앴어요. 이 캐릭터를 쓰던 주민은 기본 주민 모습으로 바뀌고, 꾸미기의 캐릭터 칸도 없어졌어요. 모습은 헤어로 바꿔요.") },
+          { kind: "fixed", text: msg("선물 보내기의 아이템 목록에는 상점에서 파는 아이템만 나와요."), admin: true },
         ],
       },
       {

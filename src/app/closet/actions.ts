@@ -4,6 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { avatarEquips, blogs, items, profiles, roomFurniture, userAnimals, userItems } from "@/db/schema";
+import { isHairColor } from "@/lib/art/avatar";
 import { fitRoomSpot, isFurnitureColor } from "@/lib/art/furniture";
 import { isRoofColor } from "@/lib/art/town";
 import { clampCharacterSpot, clampPct, clampPetSpot } from "@/lib/shop";
@@ -166,6 +167,8 @@ export type ClosetDraft = {
   colors: Record<string, string | null>;
   character: { x: number; y: number };
   pet: { x: number; y: number } | null;
+  /** 머리 색 (null = 헤어마다 그린 그대로) */
+  hairColor: string | null;
 };
 
 const finite = (...v: unknown[]) => v.every((n) => typeof n === "number" && Number.isFinite(n));
@@ -179,6 +182,7 @@ export async function saveCloset(draft: ClosetDraft): Promise<ActionResult> {
   if (!Array.isArray(draft.furniture) || draft.furniture.length > 200 || !draft.furniture.every((f) => finite(f?.itemId, f?.x, f?.y))) return bad;
   if (draft.pet !== null && !finite(draft.pet?.x, draft.pet?.y)) return bad;
   if (draft.roof !== null && !isRoofColor(draft.roof)) return { ok: false, error: t("고를 수 없는 색이에요") };
+  if (draft.hairColor !== null && !isHairColor(draft.hairColor)) return { ok: false, error: t("고를 수 없는 색이에요") };
 
   const owned = new Map(
     (
@@ -230,7 +234,8 @@ export async function saveCloset(draft: ClosetDraft): Promise<ActionResult> {
 
   await db.transaction(async (tx) => {
     // 복합 외래 키가 "보유한 아이템만 장착"을 DB에서 한 번 더 막아 준다
-    await tx.update(profiles).set({ characterItemId: draft.characterItemId }).where(eq(profiles.userId, viewer.userId));
+    // DB CHECK profiles_hair_color_check가 머리 색을 한 번 더 막는다
+    await tx.update(profiles).set({ characterItemId: draft.characterItemId, hairColor: draft.hairColor }).where(eq(profiles.userId, viewer.userId));
     await tx
       .update(blogs)
       .set({ backgroundItemId: draft.backgroundItemId, roofColor: draft.roof, roomCharX: spot.x, roomCharY: spot.y, roomPetX: pet?.x ?? null, roomPetY: pet?.y ?? null })
