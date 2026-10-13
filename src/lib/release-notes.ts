@@ -50,6 +50,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.32.2",
+        title: msg("불꽃놀이 구경 자리"),
+        changes: [
+          { kind: "improved", text: msg("저녁에 불꽃놀이를 구경하는 이웃이 광장 맨 위 덤불 바로 아래, 가운데 길 끝 둘레에 서요. 집과 겹치지 않아요.") },
+        ],
+      },
+      {
         version: "1.32.1",
         title: msg("미니룸·농장 끝자리 크기"),
         changes: [
