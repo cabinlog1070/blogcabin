@@ -219,10 +219,30 @@ const flower = (x: number, y: number) =>
 const button = (x: number, y: number) => `<circle cx="${x}" cy="${y}" r="3.5" fill="#f2c230"/>`;
 const star = (x: number, y: number) => `<path d="M${x} ${y}l3 5l5 1l-5 2l-1 5l-3-4l-5 0l4-4Z" fill="#fff"/>`;
 
+// 새 머리 스타일 (시안, 2026-10-13): 앞모습만 새로 그렸고 뒤·옆은 짧은 머리·긴 머리를 빌려 쓴다
+const circ = (x: number, y: number, r: number) => `M${x - r} ${y}a${r} ${r} 0 1 1 ${2 * r} 0a${r} ${r} 0 1 1 ${-2 * r} 0Z`;
+const CAP = "M80 104C72 42 104 16 144 16C184 16 216 42 208 104Q200 124 186 126Q144 120 102 126Q88 124 80 104Z";
+const TAIL = "M86 92Q46 104 48 156Q50 196 70 210Q78 172 96 124Z";
+let CURLY = "M84 96q-8-78 60-78q68 0 60 78q-24-16-60-16q-36 0-60 16Z";
+for (let t = 180; t <= 360; t += 22.5) CURLY += circ(Math.round(144 + 64 * Math.cos((t * Math.PI) / 180)), Math.round(74 + 56 * Math.sin((t * Math.PI) / 180)), 19);
+for (const x of [112, 144, 176]) CURLY += circ(x, 66, 16);
+const B = HAIRS.boy, G = HAIRS.girl;
+const MORE_HAIRS = {
+  "avatar.hair.buzz": { slot: "hair", hair: { ...B, front: "M82 96q-8-78 62-78q70 0 62 78q-20-20-62-20q-42 0-62 20Z" } },
+  "avatar.hair.bowl": { slot: "hair", hair: { ...B, front: "M76 106C70 30 110 12 144 12C178 12 218 30 212 106L196 106L194 82L94 82L92 106Z" } },
+  "avatar.hair.spiky": { slot: "hair", hair: { ...B, front: "M80 100Q72 50 96 34L90 12L114 26L122 4L140 22L156 2L168 24L190 10L190 36Q216 56 208 100Q198 86 192 72Q170 84 146 78Q120 84 98 74Q92 88 80 100Z" } },
+  "avatar.hair.curly": { slot: "hair", hair: { ...B, front: CURLY } },
+  "avatar.hair.bob": { slot: "hair", hair: { ...G, front: "M78 100C70 36 106 16 144 16C182 16 218 36 210 100Q216 140 206 158Q144 166 82 158Q72 140 78 100Z" } },
+  "avatar.hair.pigtails": { slot: "hair", hair: { ...G, front: CAP + TAIL + mirror(TAIL) + circ(90, 112, 9) + circ(198, 112, 9) } },
+  "avatar.hair.ponytail": { slot: "hair", hair: { ...G, front: CAP + "M200 64Q244 74 240 136Q236 172 220 186Q222 144 204 108Z" } },
+  "avatar.hair.buns": { slot: "hair", hair: { ...G, front: CAP, behind: circ(92, 40, 26) + circ(196, 40, 26) } },
+} as const;
+
 export const WEAR_PIECES = {
   // 헤어 (2026-10-13): 처음 고른 주민의 머리를 떼어 내 누구나 바꿔 쓸 수 있게 했다
   "avatar.hair.short": { slot: "hair", hair: HAIRS.boy },
   "avatar.hair.long": { slot: "hair", hair: HAIRS.girl },
+  ...MORE_HAIRS,
   "avatar.top.stripe": { slot: "top", top: { color: "#ffffff", deco: (v: View) => (v === "side" ? recolor(L("M126 168h34M126 184h36M126 200h36", 3), "#4f8fe0") : recolor(L("M116 168h56M114 184h60M114 200h60", 3), "#4f8fe0")) } },
   "avatar.top.hoodie": {
     slot: "top",
