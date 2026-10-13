@@ -66,6 +66,7 @@ import {
 } from "@/lib/art/props";
 import { crayonGrain, softBush, softFirework, softFireworkFace, softCloud, softDock, softFlowerBlue, softFlowerPink, softHedge, softLily, softMountain, softRipple, softShore, softSun, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
+import { createFireflies } from "./fireflies";
 import { createNightSky } from "./night-sky";
 import { actPropKey, createResidents, residentPetKey, residentWalkKey } from "./residents";
 import { dropSvg, guitarSvg, heartSvg, marshmallowSvg, NOTE_KINDS, noteSvg, strumHandSvg, wateringCanSvg } from "@/lib/art/plaza-acts";
@@ -394,6 +395,7 @@ export function createTownScene(
     private stuck: { x: number; y: number; since: number; retried?: boolean } = { x: 0, y: 0, since: 0 }; // 길을 가다 막혔는지 보는 용도
     private touch = false; // 손가락으로 쓰는 화면 (안내 문구를 "탭해서"로)
     private nightSky: ReturnType<typeof createNightSky> | null = null;
+    private fireflies: ReturnType<typeof createFireflies> | null = null; // 저녁·밤에 떠다니는 반딧불이
     private residents: ReturnType<typeof createResidents> | null = null; // 광장을 돌아다니는 이웃 주민 (TOWN-12)
     private ringFlowers: Point[] = []; // 광장 둘레 꽃 (이웃 주민이 물을 준다)
     private dayOnly: PhaserNS.GameObjects.Image[] = []; // 낮에만 보이는 해·구름
@@ -849,6 +851,8 @@ export function createTownScene(
       }
       for (const w of windows) addLight(w.x, w.y, w.r, 0xffb85c, "window", 0.35);
       const fire = addLight(CAMPFIRE_POS.x, CAMPFIRE_POS.y - 40, 420, 0xff9a3d, "fire", 1);
+      // 반딧불이: 산 앞 풀밭부터 호숫가까지, 둘레 숲 위에도 떠다닌다
+      this.fireflies = createFireflies(this, Phaser, { x: -FOREST + 80, y: HORIZON + 30, w: WORLD.width + FOREST * 2 - 160, h: LAKE_TOP + 60 - HORIZON - 30, depth: SKY_DEPTH + 2 });
       if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
         this.tweens.add({ targets: fire, scale: { from: fire.scale * 0.95, to: fire.scale * 1.05 }, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       }
@@ -867,6 +871,7 @@ export function createTownScene(
           l.image.setAlpha(alpha).setVisible(alpha > 0.01);
         }
         this.nightSky?.setNight(sky.lamps);
+        this.fireflies?.setNight(sky.lamps);
         for (const o of this.dayOnly) o.setAlpha(1 - sky.lamps).setVisible(sky.lamps < 0.99);
         this.game.canvas.dataset.sky = sky.phase;
         this.game.canvas.dataset.lamps = sky.lamps > 0.5 ? "on" : "off";
