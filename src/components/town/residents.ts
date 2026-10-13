@@ -7,7 +7,7 @@
 // 주민은 부딪힘 계산(물리)을 하지 않고 길찾기 칸(WalkGrid)으로 나무·건물을 비켜 걷는다. 내 캐릭터와는 겹쳐 지나갈 수 있다.
 import type * as PhaserNS from "phaser";
 import { CHAR_FOOT_Y, characterViewKey, lookHasViews, WALK_FRAMES, type CharView, type WalkFrame } from "@/lib/art/character-views";
-import { ACT_PROP_SIZE, NOTE_KINDS, ROD_TIP, type ActProp } from "@/lib/art/plaza-acts";
+import { ACT_PROP_SIZE, NOTE_KINDS, ROD_GRIP, ROD_TIP, type ActProp } from "@/lib/art/plaza-acts";
 import { findPath, type Point, type WalkGrid } from "./pathfinding";
 import type { TownResident } from "./types";
 
@@ -465,8 +465,9 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
         const [rod, bob] = w.props;
         if (!rod || !bob) break;
         const { width: rw, height: rh } = ACT_PROP_SIZE.rod;
-        // 손잡이(그림 왼쪽 위)가 배 앞에 오게
-        const rx = w.x + rw / 2 - 9, ry = w.y - world.size * 0.36 + rh / 2 - 4;
+        // 손잡이가 캐릭터 앞모습의 오른손(보는 사람 기준 오른쪽, 허리 높이)에 오게
+        const hand = { x: w.x + world.size * 0.16, y: w.y - world.size * 0.29 };
+        const rx = hand.x - ROD_GRIP.x * rw + rw / 2, ry = hand.y - ROD_GRIP.y * rh + rh / 2;
         rod.setPosition(rx, ry).setDepth(w.y + 9);
         const tip = { x: rx - rw / 2 + ROD_TIP.x * rw, y: ry - rh / 2 + ROD_TIP.y * rh };
         // 찌는 물결 따라 살랑, 가끔 쏙 들어갔다 나온다 (입질)

@@ -98,9 +98,10 @@ export function heartSvg(): string {
   return draw("heart", () => S("M16 26C6 18 2 12 4 7C6 2 13 2 16 8C19 2 26 2 28 7C30 12 26 18 16 26Z", "#f58aa8", 3));
 }
 
-/** 낚싯대: 앞(호수 쪽)을 보고 두 손으로 배 앞에서 손잡이를 잡고, 대는 오른쪽 아래 물 쪽으로 뻗는다 (끝 = 그림의 오른쪽 아래 ROD_TIP).
- *  낚싯줄은 그림이 아니라 장면에서 대 끝부터 찌까지 선으로 긋는다 */
+/** 낚싯대: 앞(호수 쪽)을 본 캐릭터가 오른손으로 손잡이(ROD_GRIP)를 잡고, 대는 오른쪽 아래 물 쪽으로 뻗는다 (끝 = ROD_TIP).
+ *  손은 캐릭터 그림의 손을 그대로 쓴다 (소품에 손을 그리면 손이 넷이 된다). 낚싯줄은 장면에서 대 끝부터 찌까지 선으로 긋는다 */
 export const ROD_TIP = { x: 97 / 100, y: 108 / 112 };
+export const ROD_GRIP = { x: 16 / 100, y: 18 / 112 };
 export function rodSvg(): string {
   return draw("rod", () => {
     let o = "";
@@ -113,9 +114,6 @@ export function rodSvg(): string {
     o += F(E(36, 30, 2.6), "#4f7fb0");
     // 줄 고리
     o += L("M70 82L74 78M84 96L88 92", 2.4, "#5a3a24");
-    // 손잡이를 잡은 두 손
-    o += S(E(12, 12, 8, 7.5), SKIN, 2.8);
-    o += S(E(24, 26, 7.5, 7), SKIN, 2.8);
     return o;
   });
 }
