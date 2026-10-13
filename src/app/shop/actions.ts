@@ -3,7 +3,8 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { avatarEquips, items, pointLedger, userItems } from "@/db/schema";
+import { avatarEquips, items, pointLedger, profiles, userItems } from "@/db/schema";
+import { isHairColor } from "@/lib/art/avatar";
 import { isForSale } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
@@ -104,4 +105,15 @@ export async function saveTriedLook(itemIds: number[]): Promise<SaveLookResult> 
     if (uniqueViolation(err) !== null) return { ok: false, error: t("이미 가지고 있는 아이템이에요") };
     throw err;
   }
+}
+
+/** 머리 색 바꾸기 (2026-10-13): 무료, 언제든. null이면 헤어를 그린 그대로의 색. 입은 헤어 모두에 같은 색을 쓴다 */
+export async function setHairColor(color: string | null): Promise<{ ok: boolean; error?: string }> {
+  const viewer = await requireMember();
+  const t = await getT();
+  if (color !== null && !isHairColor(color)) return { ok: false, error: t("고를 수 없는 색이에요") };
+  // DB CHECK profiles_hair_color_check가 한 번 더 막는다
+  await db.update(profiles).set({ hairColor: color }).where(eq(profiles.userId, viewer.userId));
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
