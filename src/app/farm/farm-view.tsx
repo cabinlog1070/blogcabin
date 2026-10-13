@@ -14,7 +14,9 @@ import {
   GENDER_LABEL,
   MAX_ACTIVE_ANIMALS,
   PET_ACCESSORIES,
+  PET_COLORS,
   PET_NAME_MAX,
+  type PetColor,
   petDisplayName,
   petLevel,
   petLevelProgress,
@@ -29,11 +31,13 @@ import {
   careAnimal,
   claimEgg,
   type FarmResult,
+  hatchAllEggs,
   hatchEgg,
   renamePet,
   setCarriedPet,
   setDisplayedCard,
   setPetAccessory,
+  setPetColor,
   givePotion,
 } from "./actions";
 import { FarmField, type FieldPet } from "./farm-field";
@@ -41,13 +45,24 @@ import { FarmField, type FieldPet } from "./farm-field";
 type FreeEgg = { kind: "starter"; label: string } | { kind: "level"; level: number; label: string };
 type Pet = FarmAnimal & { name: string; assetKey: string; growExp: number; maxLevel: number };
 
+/** 색 고르기 버튼의 동그란 견본 (기본 = 동물마다 다른 색이라 무지개) */
+const COLOR_SWATCH: Record<PetColor, string> = {
+  default: "conic-gradient(#f6a24e, #9fd88f, #8ccbe8, #f7b8c8, #f6a24e)",
+  brown: "#c49468",
+  yellow: "#ffe06e",
+  red: "#f0847a",
+  black: "#3f3735",
+  white: "#fbf8f1",
+  pink: "#f7b8c8",
+};
+
 /** 돌보기 버튼 아이콘 (CARE_ACTIONS의 이모지 대신) */
 const CARE_ICON: Record<CareAction, IconName> = { feed: "carrot", pet: "hand" };
 
 const isPet = (a: FarmAnimal): a is Pet => a.status !== "egg" && !!a.assetKey && !!a.growExp && !!a.maxLevel && !!a.name;
 /** 화면에 보이는 펫 이름: 기본 이름(종류 이름)은 번역한다 */
 const shownName = (t: T, p: Pet) => petDisplayName(t, p.name, p.speciesName);
-const toField = (t: T, p: Pet): FieldPet => ({ id: p.id, name: shownName(t, p), assetKey: p.assetKey, stage: animalStage(p.growth, p.growExp), accessory: p.accessory });
+const toField = (t: T, p: Pet): FieldPet => ({ id: p.id, name: shownName(t, p), assetKey: p.assetKey, stage: animalStage(p.growth, p.growExp), accessory: p.accessory, color: p.color });
 
 /* eslint-disable @next/next/no-img-element -- 코드로 만든 SVG(data URI)라 next/image 최적화가 필요 없다 */
 
@@ -55,7 +70,9 @@ export function FarmView({
   active,
   grown,
   freeEggs,
-  slotsLeft,
+  nestLeft,
+  fieldLeft,
+  maxEggs,
   coins,
   potions,
   species,
@@ -67,7 +84,9 @@ export function FarmView({
   active: FarmAnimal[];
   grown: FarmAnimal[];
   freeEggs: FreeEgg[];
-  slotsLeft: number;
+  nestLeft: number; // 알 둥지에 남은 자리
+  fieldLeft: number; // 풀밭(키우는 동물)에 남은 자리
+  maxEggs: number;
   coins: number;
   potions: number;
   species: SpeciesCard[];
@@ -112,6 +131,7 @@ export function FarmView({
         walkingPet={carried ? toField(t, carried) : null}
         onPet={setOpenId}
         onEgg={setOpenId}
+        onHatchAll={fieldLeft > 0 && !pending ? () => run(hatchAllEggs) : null}
         onDecorate={() => setDecorating(true)}
       />
 
@@ -122,14 +142,16 @@ export function FarmView({
             <Icon name="egg" size={26} className="-mt-1" /> {t("알 받기")}
           </h2>
           <p className="mt-1 text-xs text-ink-soft">
-            {slotsLeft <= 0 ? t("자리가 꽉 찼어요. 다 키운 뒤에 받을 수 있어요") : t("레벨 {every}마다 무료 알을 하나씩 받아요 · 남은 자리 {left}", { every: eggEvery, left: slotsLeft })}
+            {nestLeft <= 0
+              ? t("알 둥지가 꽉 찼어요. 부화시킨 뒤에 받을 수 있어요")
+              : t("레벨 {every}마다 무료 알을 하나씩 받아요 · 알 둥지 남은 자리 {left} / {max}", { every: eggEvery, left: nestLeft, max: maxEggs })}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {freeEggs.map((egg) => (
               <button
                 key={egg.kind === "level" ? egg.level : "starter"}
                 type="button"
-                disabled={pending || slotsLeft <= 0}
+                disabled={pending || nestLeft <= 0}
                 onClick={() => run(() => claimEgg(egg.kind, egg.kind === "level" ? egg.level : undefined))}
                 className="btn bg-sun py-1.5 text-sm text-ink"
               >
@@ -138,13 +160,24 @@ export function FarmView({
             ))}
             <button
               type="button"
-              disabled={pending || slotsLeft <= 0 || coins < eggPrice}
+              disabled={pending || nestLeft <= 0 || coins < eggPrice}
               onClick={() => run(buyEgg)}
               className="btn bg-paper py-1.5 text-sm text-ink"
             >
               <Icon name="coin" size={18} /> {t("{price}으로 알 사기", { price: eggPrice })}
             </button>
           </div>
+          {eggs.length > 0 && (
+            <button
+              type="button"
+              disabled={pending || fieldLeft <= 0}
+              onClick={() => run(hatchAllEggs)}
+              className="btn mt-3 bg-leaf py-1.5 text-sm text-white"
+              data-hatch-all-card
+            >
+              <Icon name="egg" size={18} /> {t("알 {n}개 한 번에 부화시키기", { n: Math.min(eggs.length, Math.max(fieldLeft, 0)) || eggs.length })}
+            </button>
+          )}
         </section>
 
         {/* 농장 가게: 물약 */}
@@ -169,7 +202,9 @@ export function FarmView({
         <section className="card p-4 md:col-span-2">
           <h2 className="font-display text-xl">
             <Icon name="pet" size={26} className="-mt-1" /> {t("내 동물")}{" "}
-            <span className="text-sm text-ink-soft">{t("키우는 중 {n} / {max}", { n: growing.length + eggs.length, max: MAX_ACTIVE_ANIMALS })}</span>
+            <span className="text-sm text-ink-soft">
+              {t("키우는 중 {n} / {max}", { n: growing.length, max: MAX_ACTIVE_ANIMALS })} · {t("알 {n} / {max}", { n: eggs.length, max: maxEggs })}
+            </span>
           </h2>
           {growing.length + eggs.length === 0 ? (
             <p className="mt-2 text-sm text-ink-soft">{t("아직 키우는 동물이 없어요. 위에서 알을 받아 보세요!")}</p>
@@ -185,7 +220,7 @@ export function FarmView({
               {growing.map((p) => (
                 <li key={p.id}>
                   <button type="button" onClick={() => setOpenId(p.id)} className="btn bg-paper py-1 pl-1 text-sm text-ink" aria-label={t("{name} 상태창 열기", { name: shownName(t, p) })}>
-                    <PetArt assetKey={p.assetKey} stage={animalStage(p.growth, p.growExp)} accessory={p.accessory} size={32} />
+                    <PetArt assetKey={p.assetKey} stage={animalStage(p.growth, p.growExp)} accessory={p.accessory} color={p.color} size={32} />
                     {shownName(t, p)} · Lv.{petLevel(p.growth, p.growExp, p.maxLevel)}
                     {p.carried && (
                       <span className="text-xs text-sky">
@@ -235,7 +270,7 @@ export function FarmView({
                 <li key={p.id} data-card-id={p.id}>
                   <button type="button" onClick={() => setOpenId(p.id)} className="relative block" aria-label={t("{name} 카드 보기", { name: shownName(t, p) })}>
                     <PetCard
-                      pet={{ name: shownName(t, p), assetKey: p.assetKey, accessory: p.accessory, level: p.maxLevel }}
+                      pet={{ name: shownName(t, p), assetKey: p.assetKey, accessory: p.accessory, color: p.color, level: p.maxLevel }}
                       speciesName={p.speciesName ? t(p.speciesName) : ""}
                       grownAt={p.grownAt}
                       locale={locale}
@@ -267,9 +302,25 @@ export function FarmView({
               <img src={toAnimalDataUri(eggSvg(192))} alt="" width={96} height={96} aria-hidden />
               <h2 className="mt-2 font-display text-2xl">{t("알")}</h2>
               <p className="text-sm text-ink-soft">{t("무엇이 나올지 몰라요. 성별도 태어날 때 정해져요.")}</p>
-              <button type="button" disabled={pending} onClick={() => run(() => hatchEgg(opened.id))} className="btn mt-4 bg-leaf text-white">
-                <Icon name="egg" size={20} /> {t("부화시키기")}
-              </button>
+              {fieldLeft <= 0 && <p className="mt-2 text-sm font-bold text-berry">{t("풀밭이 꽉 찼어요. 다 키운 뒤에 부화시켜 주세요")}</p>}
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <button type="button" disabled={pending || fieldLeft <= 0} onClick={() => run(() => hatchEgg(opened.id))} className="btn bg-leaf text-white">
+                  <Icon name="egg" size={20} /> {t("부화시키기")}
+                </button>
+                {eggs.length > 1 && (
+                  <button
+                    type="button"
+                    disabled={pending || fieldLeft <= 0}
+                    onClick={() => {
+                      setOpenId(null);
+                      run(hatchAllEggs);
+                    }}
+                    className="btn bg-sun text-ink"
+                  >
+                    <Icon name="egg" size={20} /> {t("모두 부화시키기")}
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </Modal>
@@ -281,14 +332,14 @@ export function FarmView({
             <h2 className="font-display text-2xl">
               <Icon name="hat" size={30} className="-mt-1" /> {t("펫 꾸미기")}
             </h2>
-            <p className="text-sm text-ink-soft">{t("무료예요. 펫마다 하나씩 골라 주세요. 농장, 상태창, 광장, 카드에 모두 보여요.")}</p>
+            <p className="text-sm text-ink-soft">{t("무료예요. 펫마다 꾸미기와 색을 골라 주세요. 농장, 상태창, 광장, 카드에 모두 보여요.")}</p>
             {allPets.length === 0 ? (
               <p className="mt-4 rounded-xl bg-cream p-4 text-center text-sm text-ink-soft">{t("아직 꾸밀 펫이 없어요. 알을 부화시켜 보세요!")}</p>
             ) : (
               <ul className="mt-4 space-y-3">
                 {allPets.map((p) => (
                   <li key={p.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-cream p-2" data-decorate-pet={p.id}>
-                    <PetArt assetKey={p.assetKey} stage={animalStage(p.growth, p.growExp)} accessory={p.accessory} size={56} />
+                    <PetArt assetKey={p.assetKey} stage={animalStage(p.growth, p.growExp)} accessory={p.accessory} color={p.color} size={56} />
                     <span className="min-w-16 font-bold">{shownName(t, p)}</span>
                     <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("{name} 꾸미기", { name: shownName(t, p) })}>
                       {PET_ACCESSORIES.map((a) => (
@@ -301,6 +352,24 @@ export function FarmView({
                           className={`rounded-full border-2 px-2.5 py-1 text-xs font-bold ${p.accessory === a.value ? "border-[#ff8fb0] bg-[#ffe3ec]" : "border-line bg-paper"}`}
                         >
                           {t(a.label)}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex w-full flex-wrap items-center gap-1.5 pl-1" role="group" aria-label={t("{name} 색", { name: shownName(t, p) })}>
+                      <span className="text-xs font-bold text-ink-soft">{t("색")}</span>
+                      {PET_COLORS.map((c) => (
+                        <button
+                          key={c.value}
+                          type="button"
+                          aria-pressed={p.color === c.value}
+                          disabled={pending}
+                          onClick={() => run(() => setPetColor(p.id, c.value))}
+                          data-pet-color={c.value}
+                          title={t(c.label)}
+                          className={`flex items-center gap-1 rounded-full border-2 py-0.5 pl-0.5 pr-2 text-xs font-bold ${p.color === c.value ? "border-[#ff8fb0] bg-[#ffe3ec]" : "border-line bg-paper"}`}
+                        >
+                          <span aria-hidden className="inline-block h-4 w-4 rounded-full border border-ink/20" style={{ background: COLOR_SWATCH[c.value] }} />
+                          {t(c.label)}
                         </button>
                       ))}
                     </div>
@@ -344,7 +413,7 @@ function PetStatus({
           className="grid h-28 w-28 shrink-0 place-items-center rounded-full border-4 border-bark/70 bg-gradient-to-b from-[#dff3d2] to-[#b6e09f]"
           data-pet-portrait
         >
-          <PetArt assetKey={pet.assetKey} stage={stage} accessory={pet.accessory} size={92} />
+          <PetArt assetKey={pet.assetKey} stage={stage} accessory={pet.accessory} color={pet.color} size={92} />
         </div>
         <div className="min-w-0 flex-1 pr-6">
           {editing ? (

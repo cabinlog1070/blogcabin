@@ -18,6 +18,7 @@ export async function listItemsWithOwnership(userId: string) {
       isStarter: items.isStarter,
       assetKey: items.assetKey,
       owned: sql<boolean>`${userItems.userId} IS NOT NULL`,
+      color: userItems.color, // 가구 색 (가진 가구만)
       ownerCount: sql<number>`(SELECT COUNT(*)::int FROM ${userItems} o WHERE o.item_id = ${items.id})`,
     })
     .from(items)

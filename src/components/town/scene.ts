@@ -40,7 +40,6 @@ import {
   farmSvg,
   toDataUri,
   TREE_SIZE,
-  treeSvg,
   type HouseStage,
 } from "@/lib/art/town";
 import {
@@ -54,8 +53,6 @@ import {
   flowersSvg,
   GRASS_SIZE,
   grassSvg,
-  LAUNDRY_SIZE,
-  laundrySvg,
   MAILBOX_SIZE,
   mailboxSvg,
   PLANTER_SIZE,
@@ -67,14 +64,22 @@ import {
   STUMP_SIZE,
   stumpSvg,
 } from "@/lib/art/props";
+import { crayonGrain, softBush, softFirework, softFireworkFace, softCloud, softDock, softFlowerBlue, softFlowerPink, softHedge, softLily, softMountain, softRipple, softShore, softSun, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
+import { createNightSky } from "./night-sky";
+import { actPropKey, createResidents, residentPetKey, residentWalkKey } from "./residents";
+import { dropSvg, guitarSvg, heartSvg, marshmallowSvg, NOTE_KINDS, noteSvg, strumHandSvg, wateringCanSvg } from "@/lib/art/plaza-acts";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
 
 type PhaserLib = typeof PhaserNS;
 
 export const WORLD = { width: 1800, height: 1400 };
+const GRASS = 0x8dbc5f; // 풀밭 바닥 색 (광장과 둘레 숲이 같은 색)
+const GROUND_DEPTH = -1_000_000; // 땅은 둘레 숲의 나무(깊이 = 음수 y)보다도 뒤에
 const CENTER = { x: WORLD.width / 2, y: WORLD.height / 2 };
+// 걸을 수 있는 광장 바깥을 빙 둘러싼 숲의 두께. 큰 화면에서 광장 밖이 보여도 숲 속 빈터처럼 보인다
+const FOREST = 760;
 const PLAZA_RADIUS = 230;
 // 걷기·조이스틱·탭 이동 모두 같은 속도 (달리기 정도, 일정하게)
 const SPEED = 330;
@@ -82,6 +87,7 @@ const INTERACT_DISTANCE = 90;
 const PLAYER_SIZE = 72; // 캐릭터 그림 크기
 const PET_SIZE = 58; // 따라다니는 펫 그림 크기 (TOWN-09)
 const PET_BEHIND = 48; // 캐릭터 뒤 얼마나 떨어져서 따라오는지
+const RESIDENT_PET_SIZE = 50; // 이웃 주민이 데리고 다니는 펫 (내 펫보다 조금 작게)
 const WALK_STEP_MS = 140; // 걷는 그림을 넘기는 간격
 // 가상 조이스틱 (터치 화면 전용, TOWN-02)
 const JOYSTICK = { radius: 56, thumb: 26, margin: 28, deadZone: 8 };
@@ -127,11 +133,14 @@ const FARM_POS = { x: CENTER.x - 480, y: CENTER.y + 200 };
 const MY_HOUSE_POS = { x: CENTER.x, y: CENTER.y + PLAZA_RADIUS + 210 };
 // 캠프파이어 그림의 아랫변 가운데 (TOWN-02: 예전 분수와 같은 자리·크기)
 const CAMPFIRE_POS = { x: CENTER.x, y: CENTER.y + CAMPFIRE_SIZE.height / 2 };
+const CAMPFIRE_SOLID = { w: 150, h: 70 };
+// 불가의 통나무 의자 (아랫변 가운데): 왼쪽·오른쪽·위쪽 양옆 (아래쪽은 캐릭터가 처음 서는 자리라 비운다). 이웃 주민이 앉는다 (TOWN-12)
+const BENCH_SPOTS = [[-150, 20], [150, 20], [-100, -95], [100, -95]].map(([dx, dy]) => ({ x: CENTER.x + dx, y: CENTER.y + dy }));
+const PLAYER_START = { x: CENTER.x, y: CENTER.y + 160 };
 
 // ===== 꾸밈 소품 (2026-10-08 디자인 시안 지도 느낌). 건물 자리·길·광장 입구는 그대로 두고 빈 풀밭에만 놓는다 =====
 const PROP_ART = {
   mailbox: { draw: mailboxSvg, size: MAILBOX_SIZE },
-  laundry: { draw: laundrySvg, size: LAUNDRY_SIZE },
   crate: { draw: crateSvg, size: CRATE_SIZE },
   barrel: { draw: barrelSvg, size: BARREL_SIZE },
   planter: { draw: planterSvg, size: PLANTER_SIZE },
@@ -145,10 +154,11 @@ const PROP_ART = {
 type PropKind = keyof typeof PROP_ART;
 /** 자리를 정해 둔 소품: (x, y) = 아랫변 가운데, s = 크기 배율, solid = 부딪히는 영역(없으면 지나갈 수 있다) */
 type PropSpot = { kind: PropKind; x: number; y: number; s?: number; solid?: { w: number; h: number } };
-// 빨래대: 왼쪽 위 이웃 집 두 채 사이 뒤쪽
-const LAUNDRY_POS = { x: 290, y: 178 };
+// 하늘: 예전 빨래대 자리(y 178) 뒤쪽부터는 숲 대신 하늘이 열린다 (2026-10-12 정지원 님). 걸을 수 있는 곳도 이 아래까지
+const HORIZON = 150;
+// 호숫가: 내 집 아래쪽 숲 자리는 호수 (2026-10-12 정지원 님). 걸을 수 있는 곳 아래 가장자리 바로 밑에서 물이 시작한다
+const LAKE_TOP = WORLD.height + 6;
 const FIXED_PROPS: PropSpot[] = [
-  { kind: "laundry", ...LAUNDRY_POS, s: 0.9, solid: { w: 58, h: 8 } },
   // 이정표: 위쪽 길에서 내려온 가운데 길이 광장으로 들어오는 갈림목 (오른쪽 가장자리, 출석 체크 이름표 아래)
   { kind: "signpost", x: CENTER.x + 84, y: CENTER.y - 188, s: 0.8, solid: { w: 12, h: 8 } },
   // 상점 옆: 오른쪽에 상자·통, 왼쪽 앞에 꽃 화분
@@ -162,9 +172,7 @@ const FIXED_PROPS: PropSpot[] = [
   { kind: "crate", x: CENTER.x + 200, y: CENTER.y + 120, s: 0.62, solid: { w: 22, h: 8 } },
   { kind: "stump", x: CENTER.x - 172, y: CENTER.y + 106, s: 0.8, solid: { w: 22, h: 8 } },
   { kind: "crate", x: CENTER.x - 210, y: CENTER.y - 88, s: 0.75, solid: { w: 26, h: 10 } },
-  // 동물 농장 앞 양옆으로 이어지는 울타리
-  { kind: "fence", x: FARM_POS.x - 176, y: FARM_POS.y - 20, s: 1, solid: { w: 80, h: 10 } },
-  { kind: "fence", x: FARM_POS.x + 176, y: FARM_POS.y - 20, s: 1, solid: { w: 80, h: 10 } },
+  // 동물 농장은 그림 안에 동그란 울타리가 있어 따로 울타리를 두지 않는다
 ];
 
 const charKey = (asset: string) => `char:${asset}`;
@@ -189,7 +197,23 @@ export function townTextures(data: TownData, t: T) {
     list.set(houseKey(h.stage, roof), toDataUri(houseSvg(h.stage, roof)));
   }
   const pet = data.player?.pet;
-  if (pet) list.set("pet", toAnimalDataUri(animalSvg(pet.assetKey, pet.stage, PET_SIZE * 2, pet.accessory)));
+  if (pet) list.set("pet", toAnimalDataUri(animalSvg(pet.assetKey, pet.stage, PET_SIZE * 2, pet.accessory, pet.color)));
+  // 광장을 돌아다니는 이웃 주민과 그 펫 (TOWN-12). 같은 모습이면 그림을 같이 쓴다
+  for (const r of data.residents) {
+    for (const view of CHAR_VIEWS) {
+      for (const frame of CHAR_FRAMES) list.set(residentWalkKey(r.look, view, frame), characterViewDataUri(r.look, view, frame, PLAYER_SIZE * 2));
+    }
+    if (r.pet) list.set(residentPetKey(r.pet), toAnimalDataUri(animalSvg(r.pet.assetKey, r.pet.stage, RESIDENT_PET_SIZE * 2, r.pet.accessory, r.pet.color)));
+  }
+  if (data.residents.length) {
+    list.set(actPropKey("guitar"), toDataUri(guitarSvg()));
+    list.set(actPropKey("hand"), toDataUri(strumHandSvg()));
+    list.set(actPropKey("marshmallow"), toDataUri(marshmallowSvg()));
+    list.set(actPropKey("can"), toDataUri(wateringCanSvg()));
+    list.set(actPropKey("drop"), toDataUri(dropSvg()));
+    list.set(actPropKey("heart"), toDataUri(heartSvg()));
+    for (const c of NOTE_KINDS) list.set(actPropKey(`note:${c}`), toDataUri(noteSvg(c)));
+  }
   list.set("board", toDataUri(boardSvg(t)));
   list.set("attendance", toDataUri(attendanceSvg(t)));
   list.set("shop", toDataUri(shopSvg(t)));
@@ -199,7 +223,26 @@ export function townTextures(data: TownData, t: T) {
   list.set("bench", toDataUri(benchSvg()));
   list.set("lamp", toDataUri(lampSvg()));
   list.set("farm", toDataUri(farmSvg()));
-  for (const kind of ["round", "pine", "bush", "blossom"] as const) list.set(`tree:${kind}`, toDataUri(treeSvg(kind)));
+  list.set("tree:bush", toDataUri(softBush()));
+  // 둘레 숲: 파스텔 크레용 그림체 (2026-10-12 정지원 님 시안)
+  for (const kind of ["green", "lime", "blossom"] as const) list.set(`soft:${kind}`, toDataUri(softTree(kind)));
+  list.set("soft:flower-blue", toDataUri(softFlowerBlue()));
+  list.set("soft:sun", toDataUri(softSun()));
+  list.set("soft:cloud", toDataUri(softCloud()));
+  list.set("soft:cloud-night", toDataUri(softCloud(true)));
+  for (const k of ["warm", "cool", "pink"] as const) list.set(`fw:${k}`, toDataUri(softFirework(k)));
+  list.set("fw:bunny", toDataUri(softFireworkFace("bunny")));
+  list.set("fw:cat", toDataUri(softFireworkFace("cat")));
+  list.set("soft:grain", toDataUri(crayonGrain()));
+  list.set("soft:shore", toDataUri(softShore()));
+  list.set("soft:dock", toDataUri(softDock()));
+  list.set("soft:lily", toDataUri(softLily()));
+  list.set("soft:lily-flower", toDataUri(softLily(true)));
+  list.set("soft:ripple", toDataUri(softRipple()));
+  list.set("soft:mountain", toDataUri(softMountain()));
+  list.set("soft:mountain-far", toDataUri(softMountain(true)));
+  list.set("soft:hedge", toDataUri(softHedge()));
+  list.set("soft:flower-pink", toDataUri(softFlowerPink()));
   for (const [kind, art] of Object.entries(PROP_ART)) list.set(propKey(kind as PropKind), toDataUri(art.draw()));
   return [...list].map(([key, uri]) => ({ key, uri }));
 }
@@ -233,14 +276,14 @@ function layout(data: TownData, t: T) {
   // 상점
   structures.push({ texture: "shop", ...SHOP_POS, w: SHOP_SIZE.width, h: SHOP_SIZE.height, solid: { w: SHOP_SIZE.width * 0.86, h: 60 }, label: t("상점"), sub: t("꾸미기·가구·배경") });
   entrances.push({
-    label: t("상점"), emoji: "🏪", x: SHOP_POS.x + 40, y: SHOP_POS.y + 24, target: need("/shop"),
+    label: t("상점"), emoji: "🏪", x: SHOP_POS.x, y: SHOP_POS.y + 24, target: need("/shop"),
     area: { x: SHOP_POS.x - SHOP_SIZE.width / 2, y: SHOP_POS.y - SHOP_SIZE.height, w: SHOP_SIZE.width, h: SHOP_SIZE.height },
     promptY: SHOP_POS.y - SHOP_SIZE.height - 6,
   });
 
   // 동물 농장: 알을 받아 동물을 키운다
   structures.push({
-    texture: "farm", ...FARM_POS, w: FARM_SIZE.width, h: FARM_SIZE.height, solid: { w: FARM_SIZE.width * 0.94, h: 100 },
+    texture: "farm", ...FARM_POS, w: FARM_SIZE.width, h: FARM_SIZE.height, solid: { w: FARM_SIZE.width * 0.94, h: FARM_SIZE.height * 0.59 },
     label: t("동물 농장"), sub: t("펫 키우기 · 카드 도감"),
   });
   entrances.push({
@@ -250,6 +293,7 @@ function layout(data: TownData, t: T) {
   });
 
   // 집: 내 집 + 이웃집
+  const walking = new Set(data.residents.map((r) => r.slug));
   const addHouse = (h: TownHouse, pos: { x: number; y: number }, mine: boolean) => {
     // 크기·벽 위치는 주인 레벨로 정한 단계를 따른다 (TOWN-11)
     const { width: w, height: hh, wall } = HOUSE_STAGES[h.stage];
@@ -260,8 +304,8 @@ function layout(data: TownData, t: T) {
       // 블로그 이름이 길면 옆집과 겹치지 않게 줄인다 (집 간격 260)
       label: mine ? t("내 집") : t("{nickname}의 집", { nickname: h.nickname }), sub: h.title.length > 16 ? `${h.title.slice(0, 16)}…` : h.title,
     });
-    // 집 주인 캐릭터가 문 옆(벽 오른쪽 끝)에 서 있다
-    structures.push({ texture: charKey(h.characterAsset), x: pos.x + wallW / 2 + 4, y: pos.y + 2, w: 46, h: 46 });
+    // 집 주인 캐릭터가 문 옆(벽 오른쪽 끝)에 서 있다. 광장을 돌아다니는 이웃(TOWN-12)은 집 앞에 서 있지 않는다
+    if (!walking.has(h.slug)) structures.push({ texture: charKey(h.characterAsset), x: pos.x + wallW / 2 + 4, y: pos.y + 2, w: 46, h: 46 });
     // 빨간 우체통: 집 앞 왼쪽 모서리 (문·계단은 비운다). 집이 클수록 조금 크게
     const mk = 0.58 + 0.07 * h.stage;
     structures.push({
@@ -283,10 +327,10 @@ function layout(data: TownData, t: T) {
   });
 
   // 캠프파이어 (예전 분수 자리, 부딪히는 영역도 같다). 불꽃은 createCampfireFlames()가 위에 겹친다
-  structures.push({ texture: "campfire", ...CAMPFIRE_POS, w: CAMPFIRE_SIZE.width, h: CAMPFIRE_SIZE.height, solid: { w: 150, h: 70 } });
-  // 불가의 통나무 의자: 왼쪽·오른쪽·위쪽 양옆 (아래쪽은 캐릭터가 처음 서는 자리라 비운다)
-  for (const [dx, dy] of [[-150, 20], [150, 20], [-100, -95], [100, -95]]) {
-    structures.push({ texture: "bench", x: CENTER.x + dx, y: CENTER.y + dy, w: BENCH_SIZE.width, h: BENCH_SIZE.height, solid: { w: BENCH_SIZE.width * 0.86, h: 14 } });
+  structures.push({ texture: "campfire", ...CAMPFIRE_POS, w: CAMPFIRE_SIZE.width, h: CAMPFIRE_SIZE.height, solid: CAMPFIRE_SOLID });
+  // 불가의 통나무 의자
+  for (const b of BENCH_SPOTS) {
+    structures.push({ texture: "bench", ...b, w: BENCH_SIZE.width, h: BENCH_SIZE.height, solid: { w: BENCH_SIZE.width * 0.86, h: 14 } });
   }
   // 랜턴 기둥 (예전 가로등 자리)
   for (const p of LAMP_POSITIONS) {
@@ -349,6 +393,10 @@ export function createTownScene(
     private occupied: Rect[] = []; // 그림·이름표가 차지한 영역 (풀밭 소품을 흩어 놓을 때 피한다)
     private stuck: { x: number; y: number; since: number; retried?: boolean } = { x: 0, y: 0, since: 0 }; // 길을 가다 막혔는지 보는 용도
     private touch = false; // 손가락으로 쓰는 화면 (안내 문구를 "탭해서"로)
+    private nightSky: ReturnType<typeof createNightSky> | null = null;
+    private residents: ReturnType<typeof createResidents> | null = null; // 광장을 돌아다니는 이웃 주민 (TOWN-12)
+    private ringFlowers: Point[] = []; // 광장 둘레 꽃 (이웃 주민이 물을 준다)
+    private dayOnly: PhaserNS.GameObjects.Image[] = []; // 낮에만 보이는 해·구름
     private glows: { image: PhaserNS.GameObjects.Image; kind: "lamp" | "window" | "fire"; base: number }[] = [];
     private entrances: Entrance[] = [];
     private prompt!: PhaserNS.GameObjects.Text;
@@ -368,7 +416,7 @@ export function createTownScene(
     create() {
       for (const [key, canvas] of images) if (!this.textures.exists(key)) this.textures.addCanvas(key, canvas);
 
-      this.physics.world.setBounds(0, 0, WORLD.width, WORLD.height);
+      this.physics.world.setBounds(0, HORIZON + 20, WORLD.width, WORLD.height - HORIZON - 20);
       this.drawGround();
 
       const walls = this.physics.add.staticGroup();
@@ -378,13 +426,36 @@ export function createTownScene(
       for (const s of structures) this.placeStructure(s, walls);
       this.createCampfireFlames();
       this.plantTrees(walls);
+      this.plantForest();
       this.scatterProps(walls);
       // 길찾기 칸: 발 상자(28×16) 반만큼 + 여유 3px 넓혀서 막는다
       this.grid = new WalkGrid(WORLD.width, WORLD.height, this.solids, { x: 17, y: 11 });
       this.createSky(windows);
+      if (data.residents.length) {
+        const rng = new Phaser.Math.RandomDataGenerator([String(Date.now())]);
+        this.residents = createResidents(this, Phaser, data.residents, {
+          grid: this.grid,
+          benches: BENCH_SPOTS,
+          flowers: this.ringFlowers,
+          campfire: { ...CAMPFIRE_POS, ...CAMPFIRE_SOLID },
+          // 광장 둘레를 주로 걷고, 가끔 길을 따라 멀리 간다
+          roam: (r = rng) => {
+            if (r.frac() < 0.65) {
+              const a = r.realInRange(0, Math.PI * 2), d = r.between(PLAZA_RADIUS - 60, PLAZA_RADIUS + 200);
+              return { x: CENTER.x + Math.cos(a) * d, y: CENTER.y + Math.sin(a) * d * 0.8 };
+            }
+            return { x: r.between(150, WORLD.width - 150), y: r.between(HORIZON + 140, WORLD.height - 60) };
+          },
+          start: PLAYER_START,
+          player: () => ({ x: this.feet?.x ?? PLAYER_START.x, y: this.feet?.y ?? PLAYER_START.y }),
+          font,
+          size: PLAYER_SIZE,
+          petSize: RESIDENT_PET_SIZE,
+        });
+      }
 
       // 플레이어: 발 상자(물리) + 그림
-      this.feet = this.add.zone(CENTER.x, CENTER.y + 160, 28, 16);
+      this.feet = this.add.zone(PLAYER_START.x, PLAYER_START.y, 28, 16);
       this.physics.add.existing(this.feet);
       this.playerBody = this.feet.body as PhaserNS.Physics.Arcade.Body;
       this.playerBody.setCollideWorldBounds(true);
@@ -424,7 +495,8 @@ export function createTownScene(
         .setVisible(false);
 
       // 카메라
-      this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
+      // 카메라는 둘레 숲까지 비춘다 (걷는 곳은 그대로 WORLD 안)
+      this.cameras.main.setBounds(-FOREST, -FOREST, WORLD.width + FOREST * 2, WORLD.height + FOREST * 2);
       this.cameras.main.startFollow(this.feet, true, 0.12, 0.12, 0, 20);
       this.cameras.main.setBackgroundColor("#8aba5c");
 
@@ -440,7 +512,16 @@ export function createTownScene(
       const phone = window.matchMedia?.(PHONE_MEDIA).matches;
       if (!phone && window.matchMedia?.("(pointer: coarse)").matches) this.createJoystick();
       this.touch = Boolean(phone || this.joystick);
-      this.cameras.main.setZoom((phone ? PHONE_ZOOM : 1) * dpr);
+      // 큰 컴퓨터 화면에서는 광장 둘레의 숲이 보인다. 숲보다도 창이 큰 아주 넓은 화면에서만
+      // 빈 곳이 남지 않게 그만큼 확대한다 (그림은 2배로 그려 둬서 2배까지는 선명하다)
+      const baseZoom = (phone ? PHONE_ZOOM : 1) * dpr;
+      const fitZoom = () => {
+        const zoom = Math.max(baseZoom, this.scale.width / (WORLD.width + FOREST * 2), this.scale.height / (WORLD.height + FOREST * 2));
+        this.cameras.main.setZoom(zoom);
+        this.game.canvas.dataset.zoom = (zoom / dpr).toFixed(3); // CSS 기준 확대 배율 (e2e 확인용)
+      };
+      fitZoom();
+      this.scale.on("resize", fitZoom);
       this.game.canvas.dataset.joystick = this.joystick ? "on" : "off"; // e2e 확인용
 
       this.input.on("pointerdown", (pointer: PhaserNS.Input.Pointer) => {
@@ -483,7 +564,7 @@ export function createTownScene(
 
     /**
      * 화면 CSS 좌표 → 고정(scrollFactor 0) 물체 좌표. 카메라가 가운데를 기준으로 확대(dpr배)돼 있어서 되돌려 준다.
-     * 조이스틱은 휴대폰이 아닐 때만 있으므로 카메라 확대 = dpr
+     * 조이스틱은 휴대폰이 아닐 때만 있으므로 카메라 확대 = dpr (아주 큰 화면에서는 광장을 채우려고 더 크다)
      */
     private screenToFixed(x: number, y: number) {
       const zoom = this.cameras.main.zoom;
@@ -562,6 +643,7 @@ export function createTownScene(
       this.player.setDepth(this.feet.y + 8);
       this.nameTag.setDepth(this.feet.y + 9);
       this.updatePet(moving);
+      this.residents?.update(this.game.loop.delta / 1000);
 
       this.updatePrompt();
     }
@@ -777,13 +859,15 @@ export function createTownScene(
         const shade = mixColor(0xffffff, sky.tint, sky.alpha);
         const glowImages = new Set<unknown>(this.glows.map((l) => l.image));
         for (const o of this.children.list) {
-          if (o instanceof Phaser.GameObjects.Image && !glowImages.has(o) && !o.getData("light")) o.setTint(shade);
+          if ((o instanceof Phaser.GameObjects.Image || o instanceof Phaser.GameObjects.TileSprite) && !glowImages.has(o) && !o.getData("light")) o.setTint(shade);
         }
         for (const l of this.glows) {
           // 캠프파이어: 낮에도 살짝(0.22), 밤에는 더 밝게. 가로등·창문: 저녁부터 켜진다
           const alpha = l.kind === "fire" ? 0.22 + 0.4 * sky.lamps : l.base * sky.lamps;
           l.image.setAlpha(alpha).setVisible(alpha > 0.01);
         }
+        this.nightSky?.setNight(sky.lamps);
+        for (const o of this.dayOnly) o.setAlpha(1 - sky.lamps).setVisible(sky.lamps < 0.99);
         this.game.canvas.dataset.sky = sky.phase;
         this.game.canvas.dataset.lamps = sky.lamps > 0.5 ? "on" : "off";
       };
@@ -822,14 +906,11 @@ export function createTownScene(
 
     private drawGround() {
       const rng = new Phaser.Math.RandomDataGenerator(["blogcabin"]);
-      const g = this.add.graphics().setDepth(-10);
+      const g = this.add.graphics();
 
-      // 잔디: 은은한 체크 무늬 타일
+      // 잔디: 한 가지 색 (체크 무늬는 2026-10-12 정지원 님 요청으로 뺐다)
       const TILE = 80;
-      for (let x = 0; x < WORLD.width; x += TILE)
-        for (let y = 0; y < WORLD.height; y += TILE) {
-          g.fillStyle((x / TILE + y / TILE) % 2 ? 0x8aba5c : 0x8fbe61).fillRect(x, y, TILE, TILE); // 시안처럼 차분한 잔디
-        }
+      g.fillStyle(GRASS).fillRect(0, 0, WORLD.width, WORLD.height);
       // 풀 포기
       g.lineStyle(2, 0x6f9c46, 0.9);
       for (let i = 0; i < 420; i++) {
@@ -861,14 +942,16 @@ export function createTownScene(
         g.fillStyle(rng.pick([0xcdb07e, 0xeedab0, 0xbd9e6c]), 0.85)
           .fillEllipse(CENTER.x + Math.cos(a) * r, CENTER.y + Math.sin(a) * r, rng.between(3, 8), rng.between(2, 5));
       }
-      // 광장 둘레 풀포기·꽃 (길이 지나가는 곳은 비운다)
-      for (let a = 0; a < 360; a += 7) {
+      // 광장 둘레 꽃 (길이 지나가는 곳은 비운다): 땅을 구운 뒤 분홍·파란 꽃 그림을 땅 바로 위에 심는다
+      const ringFlowers = this.ringFlowers as { x: number; y: number; key: string; s: number }[];
+      for (let a = 0; a < 360; a += 8) {
         if (a % 90 < 16 || a % 90 > 74) continue;
         const rad = Phaser.Math.DegToRad(a + rng.between(-2, 2));
-        const x = CENTER.x + Math.cos(rad) * (PLAZA_RADIUS + 30);
-        const y = CENTER.y + Math.sin(rad) * (PLAZA_RADIUS + 30);
-        g.fillStyle(0x6f9c46).fillCircle(x, y, 8);
-        if (rng.frac() < 0.45) g.fillStyle(rng.pick([0xf3a6b8, 0xf6d77a, 0xfffaf0])).fillCircle(x + rng.between(-3, 3), y - 3, 3.5);
+        const r = PLAZA_RADIUS + 28 + rng.between(-4, 6);
+        ringFlowers.push({
+          x: CENTER.x + Math.cos(rad) * r, y: CENTER.y + Math.sin(rad) * r + 10,
+          key: rng.frac() < 0.4 ? "soft:flower-blue" : "soft:flower-pink", s: rng.realInRange(0.7, 0.9),
+        });
       }
 
       // 들꽃
@@ -884,7 +967,141 @@ export function createTownScene(
       // 밤에 어둡게 칠할 수 있게(tint) 그림 한 장으로 굽는다
       g.generateTexture("ground", WORLD.width, WORLD.height);
       g.destroy();
-      this.add.image(0, 0, "ground").setOrigin(0).setDepth(-10);
+      this.add.image(0, 0, "ground").setOrigin(0).setDepth(GROUND_DEPTH);
+      for (const f of ringFlowers) {
+        this.add.image(f.x, f.y, f.key).setOrigin(0.5, 1).setDisplaySize(FLOWERS_SIZE.width * f.s, FLOWERS_SIZE.height * f.s).setDepth(GROUND_DEPTH + 1);
+      }
+
+      // 둘레 숲 바닥: 광장과 같은 잔디 무늬를 숲 전체에 깐다
+      if (!this.textures.exists("forest-floor")) {
+        const f = this.add.graphics();
+        f.fillStyle(GRASS).fillRect(0, 0, TILE * 2, TILE * 2);
+        f.lineStyle(2, 0x6f9c46, 0.9);
+        for (const [x, y] of [[22, 30], [110, 52], [60, 120], [140, 140]]) {
+          f.beginPath();
+          f.moveTo(x - 4, y - 5).lineTo(x - 1, y).lineTo(x + 1, y - 7).lineTo(x + 3, y).lineTo(x + 6, y - 4);
+          f.strokePath();
+        }
+        f.generateTexture("forest-floor", TILE * 2, TILE * 2);
+        f.destroy();
+      }
+      this.add
+        .tileSprite(-FOREST, -FOREST, WORLD.width + FOREST * 2, WORLD.height + FOREST * 2, "forest-floor")
+        .setOrigin(0)
+        .setDepth(GROUND_DEPTH - 1);
+      this.drawHorizonSky();
+      this.drawLake();
+    }
+
+    /** 아래쪽 호수 (크레용 그림체): 물 바탕 + 크레용 결, 위에 모래·갈대 물가 띠, 잔물결·연잎, 가운데 길 끝에는 나무 선착장 */
+    private drawLake() {
+      const W = WORLD.width + FOREST * 2, top = LAKE_TOP + 24, H = WORLD.height + FOREST - top + 20;
+      if (!this.textures.exists("lake")) {
+        const tex = this.textures.createCanvas("lake", 8, H)!;
+        const ctx = tex.getContext();
+        const water = ctx.createLinearGradient(0, 0, 0, H);
+        water.addColorStop(0, "#9fd3ec");
+        water.addColorStop(0.4, "#8cc8e8");
+        water.addColorStop(1, "#74b4de");
+        ctx.fillStyle = water;
+        ctx.fillRect(0, 0, 8, H);
+        tex.refresh();
+      }
+      const D = GROUND_DEPTH + 2;
+      this.add.image(-FOREST, top, "lake").setOrigin(0).setDisplaySize(W, H).setDepth(D);
+      this.add.tileSprite(-FOREST, top, W, H, "soft:grain").setOrigin(0).setTileScale(0.5).setAlpha(0.55).setDepth(D + 0.1);
+      this.add.tileSprite(-FOREST, LAKE_TOP - 16, W, 45, "soft:shore").setOrigin(0).setTileScale(0.5).setDepth(D + 0.3);
+      const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-lake"]);
+      for (let i = 0; i < 70; i++) {
+        this.add.image(rng.between(-FOREST, WORLD.width + FOREST), rng.between(top + 30, top + H - 30), "soft:ripple").setDisplaySize(32, 8).setDepth(D + 0.2);
+      }
+      for (let i = 0; i < 22; i++) {
+        const x = rng.between(-FOREST, WORLD.width + FOREST);
+        if (Math.abs(x - CENTER.x) < 70) continue;
+        const s = rng.realInRange(0.8, 1.2);
+        this.add.image(x, rng.between(top + 40, top + H - 30), rng.frac() < 0.35 ? "soft:lily-flower" : "soft:lily").setDisplaySize(30 * s, 20 * s).setDepth(D + 0.2);
+      }
+      // 나무 선착장: 가운데 길이 호수로 이어진다
+      this.add.image(CENTER.x, LAKE_TOP - 8, "soft:dock").setOrigin(0.5, 0).setDisplaySize(50, 85).setDepth(D + 0.4);
+    }
+
+    /** 위쪽 하늘: 파스텔 하늘색 + 구름 + 멀리 보이는 언덕. 그림 한 장으로 구워서 밤에는 다른 그림처럼 어두워진다(tint) */
+    private drawHorizonSky() {
+      const W = WORLD.width + FOREST * 2, H = HORIZON + FOREST + 24;
+      if (!this.textures.exists("horizon-sky")) {
+        const g = this.add.graphics();
+        const top = [0xd3ecf9, 0xf3faf7] as const, BANDS = 24;
+        for (let i = 0; i < BANDS; i++) {
+          const k = i / (BANDS - 1);
+          const c = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(top[0]), Phaser.Display.Color.ValueToColor(top[1]), 100, k * 100);
+          g.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b)).fillRect(0, (H * i) / BANDS, W, H / BANDS + 1);
+        }
+                // 맨 아래는 풀밭 색으로 이어진다 (산·덤불 그림이 그 위에 선다)
+        g.fillStyle(GRASS).fillRect(0, H - 24, W, 24);
+        g.generateTexture("horizon-sky", W, H);
+        g.destroy();
+      }
+      this.add.image(-FOREST, -FOREST, "horizon-sky").setOrigin(0).setDepth(GROUND_DEPTH + 2);
+      // 밤하늘 (별·불꽃놀이): 낮 하늘 위에 겹쳐 두고 밤에만 보인다
+      this.nightSky = createNightSky(this, Phaser, { x: -FOREST, y: -FOREST, w: W, h: HORIZON + FOREST, horizon: HORIZON, depth: GROUND_DEPTH + 3, frontDepth: GROUND_DEPTH + 6.5 });
+      // 크레용 해와 파란 구름 (정지원 님 시안). 산보다 앞에 띄워 가려지지 않게 하고, 밤에는 숨긴다
+      this.dayOnly.push(this.add.image(WORLD.width - 330, HORIZON - 96, "soft:sun").setDisplaySize(80, 80).setDepth(GROUND_DEPTH + 7));
+      for (const [x, y, w] of [[-420, -150, 92], [120, -110, 84], [560, -96, 76], [1080, -120, 90], [1820, -104, 74], [2240, -130, 86]] as const) {
+        this.dayOnly.push(this.add.image(x, HORIZON + y, "soft:cloud").setDisplaySize(w, (w * 130) / 240).setDepth(GROUND_DEPTH + 7));
+      }
+      // 둘러싼 산 (정지원 님 시안): 종 모양 초록 산을 두 겹(뒤는 옅게)으로 세우고, 발치를 짙은 덤불 줄로 덮는다
+      const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-mountains"]);
+      const BASE = HORIZON + 6;
+      for (const [key, step, h0, h1, depth] of [["soft:mountain-far", 200, 70, 92, 4], ["soft:mountain", 260, 50, 74, 5]] as const) {
+        for (let x = -FOREST + rng.between(0, step / 2); x < WORLD.width + FOREST + step; x += rng.between(step * 0.8, step * 1.2)) {
+          const h = rng.between(h0, h1);
+          this.add.image(x, BASE, key).setOrigin(0.5, 1).setDisplaySize((h * 360) / 200, h).setDepth(GROUND_DEPTH + depth);
+        }
+      }
+      this.add.tileSprite(-FOREST, BASE + 6, WORLD.width + FOREST * 2, 40, "soft:hedge").setOrigin(0, 1).setTileScale(0.5).setDepth(GROUND_DEPTH + 6);
+    }
+
+    /**
+     * 둘레 숲: 걸을 수 있는 곳 바깥을 나무로 둘러싼다. 바깥이라 부딪힘은 없다 (광장 경계가 막는다).
+     * 광장 가장자리는 경계선이 보이지 않게 촘촘히, 멀어질수록 듬성듬성 심고 사이에 꽃·풀을 둔다.
+     * 처음에 끝까지 빽빽하게 채웠더니 답답하고 무섭다는 의견이 있어 밝고 성기게 바꿨다 (2026-10-12)
+     */
+    private plantForest() {
+      const rng = new Phaser.Math.RandomDataGenerator(["blogcabin-forest"]);
+      const GAP = { x: 76, y: 56 };
+      // 가장자리의 나무는 광장 쪽으로 조금 걸쳐서 경계선이 보이지 않게 한다
+      const EDGE = 14;
+      let count = 0;
+      for (let y = -FOREST + 60; y < WORLD.height + FOREST + 100; y += GAP.y) {
+        const row = Math.round(y / GAP.y);
+        for (let x = -FOREST; x < WORLD.width + FOREST; x += GAP.x) {
+          const tx = x + (row % 2 ? GAP.x / 2 : 0) + rng.between(-20, 20);
+          const ty = y + rng.between(-14, 14);
+          const inside = tx > -EDGE && tx < WORLD.width + EDGE && ty > 12 && ty < WORLD.height + 60;
+          if (inside || ty < HORIZON + 30 || ty > LAKE_TOP - 6) continue; // 하늘·호수 쪽에는 심지 않는다
+          // 광장에서 떨어진 거리: 가까운 두 줄은 촘촘히, 그 바깥은 절반쯤 비워 풀밭이 보이게
+          const out = Math.max(-tx, tx - WORLD.width, -ty, ty - WORLD.height - 60, 0);
+          const skip = out < 110 ? 0.05 : out < 260 ? 0.35 : 0.55;
+          if (rng.frac() < skip) {
+            if (rng.frac() < 0.5) {
+              const key = rng.pick(["soft:flower-blue", "soft:flower-pink", "soft:flower-pink"]);
+              const s = rng.realInRange(0.8, 1.05);
+              this.add.image(tx, ty, key).setOrigin(0.5, 1).setDisplaySize(FLOWERS_SIZE.width * s, FLOWERS_SIZE.height * s).setDepth(ty);
+            }
+            continue;
+          }
+          // 몽글몽글한 파스텔 나무: 초록 위주로 연두·분홍을 섞는다
+          const kind = rng.pick(["green", "green", "green", "lime", "lime", "blossom"]);
+          const scale = rng.realInRange(0.95, 1.3);
+          this.add
+            .image(tx, ty, `soft:${kind}`)
+            .setOrigin(0.5, 1)
+            .setDisplaySize(TREE_SIZE.width * scale, TREE_SIZE.height * scale)
+            .setDepth(ty);
+          count++;
+        }
+      }
+      this.game.canvas.dataset.forestTrees = String(count); // e2e 확인용
     }
 
     /** 나무: 길, 광장, 건물 자리를 피해서 심는다 */
@@ -893,23 +1110,23 @@ export function createTownScene(
       const blocked = [
         { ...BOARD_POS, r: 190 }, { ...SHOP_POS, r: 170 }, { ...FARM_POS, r: 190 }, { ...MY_HOUSE_POS, r: 150 },
         ...NEIGHBOR_SLOTS.map((p) => ({ ...p, r: 160 })),
-        // 자리를 정해 둔 소품(빨래대 등)과 겹치지 않게
+        // 자리를 정해 둔 소품(이정표·상자 등)과 겹치지 않게
         ...FIXED_PROPS.map((p) => ({ x: p.x, y: p.y, r: (PROP_ART[p.kind].size.width * (p.s ?? 1)) / 2 + 40 })),
       ];
       let planted = 0;
       for (let i = 0; i < 400 && planted < 46; i++) {
         const x = rng.between(40, WORLD.width - 40);
-        const y = rng.between(90, WORLD.height - 20);
+        const y = rng.between(HORIZON + 110, WORLD.height - 20);
         if (Phaser.Math.Distance.Between(x, y, CENTER.x, CENTER.y) < PLAZA_RADIUS + 110) continue;
         if (Math.abs(x - CENTER.x) < 95 || Math.abs(y - CENTER.y) < 95) continue;
         if (y > 380 && y < 490) continue;
         if (y > WORLD.height - 490 && y < WORLD.height - 380) continue;
         if (blocked.some((b) => Phaser.Math.Distance.Between(x, y - 60, b.x, b.y - 60) < b.r)) continue;
-        // 오두막 마을이라 소나무를 많이 심는다
-        const kind = rng.pick(["pine", "pine", "pine", "round", "bush", "blossom"]);
-        const scale = kind === "bush" ? 0.75 : rng.realInRange(0.9, 1.15);
+        // 둘레 숲과 같은 몽글몽글한 파스텔 나무만 심는다 (소나무는 그림체가 달라 2026-10-12에 뺐다)
+        const kind = rng.pick(["soft:green", "soft:green", "soft:lime", "tree:bush", "soft:blossom"]);
+        const scale = kind === "tree:bush" ? 0.75 : rng.realInRange(0.9, 1.15);
         this.placeStructure(
-          { texture: `tree:${kind}`, x, y, w: TREE_SIZE.width * scale, h: TREE_SIZE.height * scale, solid: { w: 26 * scale, h: 12 } },
+          { texture: kind, x, y, w: TREE_SIZE.width * scale, h: TREE_SIZE.height * scale, solid: { w: 26 * scale, h: 12 } },
           walls,
         );
         planted++;
@@ -928,12 +1145,14 @@ export function createTownScene(
           const s = rng.realInRange(s0, s1);
           const w = width * s, h = height * s;
           const x = rng.between(30, WORLD.width - 30);
-          const y = rng.between(110, WORLD.height - 10);
+          const y = rng.between(HORIZON + 50, WORLD.height - 10);
           if (Phaser.Math.Distance.Between(x, y, CENTER.x, CENTER.y) < PLAZA_RADIUS + 60) continue;
           // 길(가장자리 여유 12px), 건물·나무·이름표·다른 소품 자리는 피한다
           if (ROADS.some(([rx, ry, rw, rh]) => hits(x, y, w, h, { x: rx, y: ry, w: rw, h: rh }, 12))) continue;
           if (this.occupied.some((o) => hits(x, y, w, h, o, 6))) continue;
-          this.placeStructure({ texture: propKey(kind), x, y, w, h, solid: kind === "rock" ? { w: w * 0.6, h: 8 } : undefined }, walls);
+          // 꽃 포기는 분홍 꽃과 파란 꽃을 섞어 심는다
+          const texture = kind === "flowers" && rng.frac() < 0.45 ? "soft:flower-blue" : propKey(kind);
+          this.placeStructure({ texture, x, y, w, h, solid: kind === "rock" ? { w: w * 0.6, h: 8 } : undefined }, walls);
           placed++;
         }
       }

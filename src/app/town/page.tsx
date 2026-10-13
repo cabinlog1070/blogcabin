@@ -8,7 +8,7 @@ import { getViewer, needsAccountSetup } from "@/server/dal";
 import { getCarriedPet } from "@/server/farm";
 import { getDailyQuests, questProgress } from "@/server/quests";
 import { getT } from "@/server/i18n";
-import { favoriteHouses, getMyHouse, getNeighbors, getPopularHouses, hasAttendedToday } from "@/server/town";
+import { favoriteHouses, getMyHouse, getNeighbors, getPopularHouses, getResidents, hasAttendedToday } from "@/server/town";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -32,12 +32,13 @@ export default async function TownPage(props: PageProps<"/town">) {
   const { welcome } = await props.searchParams;
 
   // 회원: 즐겨찾기한 이웃의 집만 (TOWN-04·08), 방문자: 인기 블로그 100곳 중 무작위 10곳
-  const [myNeighbors, myHouse, attendedToday, pet, quests] = await Promise.all([
+  const [myNeighbors, myHouse, attendedToday, pet, quests, residents] = await Promise.all([
     member ? getNeighbors(member.userId) : getPopularHouses(),
     member ? getMyHouse(member.userId) : null,
     member ? hasAttendedToday(member.userId) : false,
     member ? getCarriedPet(member.userId) : null,
     member ? getDailyQuests(member.userId) : null,
+    member ? getResidents(member.userId) : [],
   ]);
 
   const data: TownData = {
@@ -45,11 +46,12 @@ export default async function TownPage(props: PageProps<"/town">) {
       ? {
           nickname: member.profile.nickname,
           characterAsset: member.profile.characterAsset,
-          pet: pet ? { name: pet.name, assetKey: pet.assetKey, stage: pet.stage, accessory: pet.accessory } : null,
+          pet: pet ? { name: pet.name, assetKey: pet.assetKey, stage: pet.stage, accessory: pet.accessory, color: pet.color } : null,
         }
       : null,
     myHouse,
     neighbors: member ? favoriteHouses(myNeighbors) : myNeighbors,
+    residents,
     panel: myNeighbors,
     noFavorites: Boolean(member) && !myNeighbors.some((h) => h.favorite),
     attendedToday,

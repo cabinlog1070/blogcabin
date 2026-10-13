@@ -36,6 +36,9 @@ const enumText =
 const oneOf = (col: AnyPgColumn, values: readonly string[]) =>
   sql`${col} IN (${sql.raw(values.map((v) => `'${v}'`).join(", "))})`;
 
+/** 가구 색 (src/lib/art/furniture.ts의 FURNITURE_COLORS와 같은 목록) */
+export const FURNITURE_COLORS = ["wood", "pink", "sky", "mint", "lemon", "lilac", "white", "navy"] as const;
+
 export const ITEM_TYPES = [
   "character",
   "background",
@@ -87,6 +90,9 @@ export const animalGender = enumText(ANIMAL_GENDERS);
 // 펫 꾸미기 (무료): 없음·리본·꽃·스카프. 그림은 src/lib/art/animals.ts
 export const PET_ACCESSORIES = ["none", "ribbon", "flower", "scarf"] as const;
 export const petAccessory = enumText(PET_ACCESSORIES);
+// 펫 색 (무료, 2026-10-12): default = 동물마다 정해진 색. 그림은 src/lib/art/crayon-animals.ts
+export const PET_COLORS = ["default", "brown", "yellow", "red", "black", "white", "pink"] as const;
+export const petColor = enumText(PET_COLORS);
 export const FARM_ITEM_KINDS = ["potion"] as const;
 export const farmItemKind = enumText(FARM_ITEM_KINDS);
 // 알림 종류 (GAME-08). pet_level_up = 내 동물 레벨업 (TOWN-09, ref_id = 동물 ID)
@@ -223,8 +229,13 @@ export const userItems = pgTable(
     acquiredAt: timestamp("acquired_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // 가구 색 (SHOP-05, 2026-10-13). 가구에만 쓰고, null이면 그린 그대로의 기본 색
+    color: text("color"),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.itemId] })],
+  (t) => [
+    primaryKey({ columns: [t.userId, t.itemId] }),
+    check("user_items_color_check", oneOf(t.color, FURNITURE_COLORS)),
+  ],
 );
 
 // 아바타 꾸미기 착용 (SHOP-06): 회원마다 부위별로 0~1개
@@ -300,9 +311,15 @@ export const profiles = pgTable(
     }),
     // 초대 보상을 준 시각. NULL에서 한 번만 바뀌므로 친구 1명당 한 번만 지급된다 (GAME-09)
     inviteRewardedAt: timestamp("invite_rewarded_at", { withTimezone: true }),
+    // 상태 메시지 (TOWN-12): 즐겨찾기한 이웃의 광장에서 내 캐릭터에 가까이 오면 머리 위 말풍선으로 보인다. 비우면 NULL
+    statusMessage: text("status_message"),
     createdAt: createdAt(),
   },
   (t) => [
+    check(
+      "profiles_status_message_check",
+      sql`char_length(${t.statusMessage}) BETWEEN 1 AND 30`,
+    ),
     check(
       "profiles_nickname_check",
       sql`char_length(${t.nickname}) BETWEEN 2 AND 12`,
@@ -654,6 +671,7 @@ export const userAnimals = pgTable(
     name: text("name"),
     gender: animalGender("gender"),
     accessory: petAccessory("accessory").notNull().default("none"),
+    color: petColor("color").notNull().default("default"),
     carried: boolean("carried").notNull().default(false), // 데리고 다니는 펫 (회원당 한 마리)
     createdAt: createdAt(),
     hatchedAt: timestamp("hatched_at", { withTimezone: true }), // 만난 날
@@ -687,6 +705,7 @@ export const userAnimals = pgTable(
     check("user_animals_source_check", oneOf(t.source, EGG_SOURCES)),
     check("user_animals_gender_check", oneOf(t.gender, ANIMAL_GENDERS)),
     check("user_animals_accessory_check", oneOf(t.accessory, PET_ACCESSORIES)),
+    check("user_animals_color_check", oneOf(t.color, PET_COLORS)),
     check(
       "user_animals_level_check",
       sql`(${t.source} = 'level') = (${t.sourceLevel} IS NOT NULL)`,

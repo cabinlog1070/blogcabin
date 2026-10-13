@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/db";
-import { accounts } from "@/db/schema";
+import { accounts, profiles } from "@/db/schema";
 import { WithdrawForm } from "@/app/settings/account/withdraw-form";
 import { getBlogByOwner, getCategories } from "@/server/blog";
 import { requireMember } from "@/server/dal";
@@ -24,6 +24,7 @@ export default async function BlogSettingsPage() {
     .select({ id: accounts.id })
     .from(accounts)
     .where(and(eq(accounts.userId, viewer.userId), eq(accounts.providerId, "credential")));
+  const [{ statusMessage }] = await db.select({ statusMessage: profiles.statusMessage }).from(profiles).where(eq(profiles.userId, viewer.userId));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -34,7 +35,7 @@ export default async function BlogSettingsPage() {
 
       <section className="card mt-6 p-6">
         <h2 className="mb-4 font-display text-xl">{t("기본 정보")}</h2>
-        <BlogInfoForm nickname={viewer.profile.nickname} title={blog.title} description={blog.description} />
+        <BlogInfoForm nickname={viewer.profile.nickname} title={blog.title} description={blog.description} statusMessage={statusMessage} />
         <p className="mt-3 text-sm text-ink-soft">{t("블로그 주소: {address} (주소는 바꿀 수 없어요)", { address: `/@${blog.slug}` })}</p>
       </section>
 

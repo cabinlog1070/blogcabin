@@ -4,6 +4,7 @@ import { and, count, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { avatarEquips, blogs, items, profiles, roomFurniture, userItems } from "@/db/schema";
+import { isFurnitureColor } from "@/lib/art/furniture";
 import { isRoofColor } from "@/lib/art/town";
 import { clampPct, MAX_FURNITURE } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
@@ -100,6 +101,20 @@ export async function placeFurniture(itemId: number, x: number, y: number): Prom
 export async function removeFurniture(itemId: number): Promise<ActionResult> {
   const viewer = await requireMember();
   await db.delete(roomFurniture).where(and(eq(roomFurniture.userId, viewer.userId), eq(roomFurniture.itemId, itemId)));
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** 가구 색 바꾸기 (SHOP-05, 2026-10-13): 가진 가구마다 8가지 중 하나, null이면 기본 색. 무료, 언제든 바꿀 수 있다 */
+export async function setFurnitureColor(itemId: number, color: string | null): Promise<ActionResult> {
+  const viewer = await requireMember();
+  const t = await getT();
+  if (color !== null && !isFurnitureColor(color)) return { ok: false, error: t("고를 수 없는 색이에요") };
+  const owned = await ownedItem(viewer.userId, itemId);
+  if (!owned) return { ok: false, error: t("가지고 있지 않은 아이템이에요") };
+  if (owned.type !== "furniture") return { ok: false, error: t("가구만 색을 바꿀 수 있어요") };
+  // DB CHECK user_items_color_check가 한 번 더 막는다
+  await db.update(userItems).set({ color }).where(and(eq(userItems.userId, viewer.userId), eq(userItems.itemId, itemId)));
   revalidatePath("/", "layout");
   return { ok: true };
 }

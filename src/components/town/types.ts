@@ -10,12 +10,22 @@ export type TownHouse = {
 };
 
 /** 데리고 다니는 펫 (TOWN-09): 광장에서 내 캐릭터 뒤를 따라온다 */
-export type TownPet = { name: string; assetKey: string; stage: "baby" | "teen" | "adult"; accessory: "none" | "ribbon" | "flower" | "scarf" };
+export type TownPet = { name: string; assetKey: string; stage: "baby" | "teen" | "adult"; accessory: "none" | "ribbon" | "flower" | "scarf"; color?: "default" | "brown" | "yellow" | "red" | "black" | "white" | "pink" };
+
+/** 광장을 돌아다니는 이웃 주민 (TOWN-12): 즐겨찾기한 이웃이 데리고 다니는 펫과 함께 걷고, 가까이 가면 상태 메시지 말풍선을 띄운다 */
+export type TownResident = {
+  slug: string;
+  nickname: string;
+  look: string; // 캐릭터 모습 키 (입은 꾸미기 포함)
+  statusMessage: string | null;
+  pet: Omit<TownPet, "name"> | null;
+};
 
 export type TownData = {
   player: { nickname: string; characterAsset: string; pet: TownPet | null } | null; // null = 로그인하지 않은 방문자
   myHouse: TownHouse | null;
   neighbors: TownHouse[]; // 광장에 집으로 보이는 블로그 (회원: 즐겨찾기 최대 10, 방문자: 인기 100곳 중 무작위 10)
+  residents: TownResident[]; // 광장을 돌아다니는 즐겨찾기 이웃 (회원만, 방문자는 빈 목록)
   panel: TownHouse[]; // 🏘 이웃집 패널 목록 (회원: 내 이웃 전부 ⭐ 먼저, 방문자: 광장의 집과 같음)
   noFavorites: boolean; // 즐겨찾기한 이웃이 없는 회원 → 안내 문구 (TOWN-04)
   attendedToday: boolean;

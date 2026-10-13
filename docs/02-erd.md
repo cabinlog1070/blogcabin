@@ -1,7 +1,9 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
+- 버전: 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
+- 1.1 (2026-10-12, 광장 이웃 주민(TOWN-12): 상태 메시지 `profiles.status_message`(1~30자, 비우면 NULL). 마이그레이션 `0018_profile_status_message`)
+- 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
 - 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
 - 0.8 (2026-10-08, PostgreSQL enum 타입 12개를 text + CHECK로 바꿈(마이그레이션 `0010_enums_to_text`). 같은 구조를 Crowfoot 문서 673 "BlogCabin ERD"(https://crowfoot.java21.net/workspaces/43/models/673)로 그려 운영 DB에 배포했다)
 - 0.7 (2026-10-08, 배치 D: 방문자 수 `blog_visits`(BLOG-06), 글 조회 기록 `post_views`(POST-06), 로그인 시도 제한 `login_attempts`(NF-10), 즐겨찾는 이웃 `follows.is_favorite`(TOWN-08), 지붕 색 `blogs.roof_color`(TOWN-07), 친구 초대 `profiles.invite_code`·`invited_by`·`invite_rewarded_at`와 원장 사유 `invite`·`invited`(GAME-09), 회원 탈퇴를 위한 `comments.author_id` NULL 허용(AUTH-06). 마이그레이션 `0009_batch_d`)
@@ -96,6 +98,7 @@ erDiagram
         text invite_code UK "초대 코드 6자리 (0·O·1·I 없음)"
         text invited_by FK "나를 초대한 회원 (SET NULL)"
         timestamptz invite_rewarded_at "초대 보상을 준 시각 (한 번만)"
+        text status_message "상태 메시지 1~30자 (광장 말풍선, TOWN-12)"
         timestamptz created_at
     }
     blogs {
@@ -123,6 +126,7 @@ erDiagram
         text user_id PK, FK
         int item_id PK, FK
         timestamptz acquired_at
+        text color "가구 색 (null = 기본)"
     }
     avatar_equips {
         text user_id PK, FK
@@ -230,6 +234,7 @@ erDiagram
         text name "펫 이름 1~10자 (알이면 NULL)"
         animal_gender gender "male / female (알이면 NULL)"
         pet_accessory accessory "none / ribbon / flower / scarf"
+        pet_color color "default / brown / yellow / red / black / white / pink (0019)"
         boolean carried "데리고 다니기 (회원당 1)"
         timestamptz hatched_at "만난 날"
         timestamptz grown_at
@@ -343,6 +348,7 @@ FOREIGN KEY (item_id, slot) REFERENCES items (id, slot)                         
 ```
   두 번째 외래 키를 위해 `items`에 UNIQUE `(id, slot)`를 둔다 (`id`만으로도 유일하지만, 외래 키는 묶음 그대로의 UNIQUE가 필요하다).
 - 가구 배치 `room_furniture (user_id, item_id, x, y)`: 기본 키 `(user_id, item_id)` → 같은 가구는 한 미니룸에 하나(다시 놓으면 위치만 바뀜). `(user_id, item_id) → user_items` 복합 외래 키로 가진 가구만 놓는다. 위치는 미니룸 기준 **비율(0~100%)**, 가구 가운데 좌표라서 화면 크기가 달라도 같은 자리에 보인다 (CHECK `0 ≤ x, y ≤ 100`).
+- 가구 색 `user_items.color` (2026-10-13, 마이그레이션 `0017_furniture_color`): 가진 가구마다 방 테마에 맞춰 고르는 색. CHECK로 8가지(`wood`·`pink`·`sky`·`mint`·`lemon`·`lilac`·`white`·`navy`)만 받고, null이면 그린 그대로의 기본 색이다. 배치(`room_furniture`)가 아니라 보유(`user_items`)에 두어서 미니룸에서 뺐다가 다시 놓아도 고른 색이 남는다. 그림에는 색을 붙인 가구 키(`furn.chair@pink`)를 넘긴다.
 - "한 미니룸에 5개까지"는 행 수 제한이라 CHECK로 막을 수 없어서, 서버(`placeFurniture`)가 회원 잠금(`lockUser`)을 건 트랜잭션 안에서 센다. 동시에 두 개를 놓아도 6개가 되지 않는다.
 - 캐릭터를 그리는 곳(헤더, 광장, 미니룸, 댓글)은 `lookSql()`(`src/server/look.ts`)이 만든 **모습 키**(`char.boy+avatar.hat.straw` 처럼 캐릭터 키에 입은 꾸미기를 `+`로 붙인 값)를 받는다. 그림 쪽(`src/lib/art/characters.ts`)이 이 키를 풀어서 겹쳐 그린다.
 - 상점에서 빠진 캐릭터(모험가·고양이 등)는 `items` 행을 지우지 않는다. 이미 산 회원의 `user_items`·장착이 그대로 남아야 하기 때문이다. 상점은 `type = 'character'`를 보여주지도 팔지도 않는다 (`isForSale`, `src/lib/shop.ts`).
@@ -363,7 +369,8 @@ FOREIGN KEY (item_id, slot) REFERENCES items (id, slot)                         
 - **레벨업 알림**: 성장치를 더하는 트랜잭션(`addGrowth`)이 전후 레벨을 비교해 오른 레벨마다 `notifications`에 `pet_level_up`을 넣는다. 부분 유니크 인덱스 `(user_id, ref_id, level) WHERE kind = 'pet_level_up'` + `ON CONFLICT DO NOTHING`으로 같은 동물·같은 레벨은 한 번만. 알림 문구의 펫 이름은 저장하지 않고 읽을 때 `user_animals.name`과 잇는다.
 - **데리고 다니기는 한 마리**: `carried boolean` + 부분 유니크 인덱스 `user_animals_carried_uq (user_id) WHERE carried`. 다른 펫을 고르면 같은 트랜잭션에서 먼저 모두 `false`로 바꾸고 새 펫을 `true`로. 알은 데리고 다닐 수 없다 (CHECK `user_animals_carried_check`).
 - **프로필 전시 카드**: `profiles.displayed_animal_id` + 복합 외래 키 `(user_id, displayed_animal_id) → user_animals (user_id, id)` (3.3과 같은 방식). 남의 동물은 DB가 막는다. 대상 쪽에 `UNIQUE (user_id, id)`가 필요해서 `user_animals_user_id_uq`를 만들었다. "다 키운 동물만"은 Server Action이 확인한다 (다 키운 동물은 다시 어려지지 않는다).
-- **펫 꾸미기**는 무료라 아이템 표(`items`)가 아니라 ENUM `pet_accessory` 한 칸이다.
+- **펫 꾸미기**는 무료라 아이템 표(`items`)가 아니라 ENUM `pet_accessory` 한 칸이다. **펫 색**(2026-10-12)도 같은 이유로 `color` 한 칸(`pet_color`, 기본 `default` = 동물마다 정해진 색, CHECK `user_animals_color_check`, 마이그레이션 0019).
+- **알 둥지 10개 · 풀밭 10마리**(2026-10-12)는 DB 제약이 아니라 Server Action이 `lockUser` 트랜잭션 안에서 `status`별로 세어 막는다 (`countAnimals`).
 - **물약 가방** `farm_items (user_id, kind)` = 가진 개수. 잔액(코인)과 달리 개수는 원장에 넣을 경험치·코인이 아니라서 칸으로 둔다. 살 때 `quantity + 1`(UPSERT)과 원장 `potion_purchase`(코인 −50)를 같은 트랜잭션에, 쓸 때 `quantity > 0`인 행만 `−1`로 바꿔서 0개면 아무 행도 안 바뀐다. CHECK `quantity >= 0`.
 - 물 주기는 물약으로 바뀌었다. `care_action`의 `water` 값은 옛 기록 때문에 남기고 화면과 Server Action에서는 받지 않는다 (ENUM 값을 지우려면 타입을 새로 만들어야 해서 위험하다).
 
@@ -472,6 +479,7 @@ COMMIT
 | `care_action` | `feed`, `pet`, `water`(옛 물 주기 기록, 새로 쓰지 않음) |
 | `animal_gender` | `male`, `female` (0008) |
 | `pet_accessory` | `none`, `ribbon`, `flower`, `scarf` (0008) |
+| `pet_color` | `default`, `brown`, `yellow`, `red`, `black`, `white`, `pink` (0019) |
 | `farm_item_kind` | `potion` (0008) |
 
 정해진 값만 들어가도록 PostgreSQL ENUM 타입을 쓴다. 어제 SQLite 블로그에서 `post_types` 코드 테이블로 했던 일을 DB 타입으로 처리하는 방법이다.

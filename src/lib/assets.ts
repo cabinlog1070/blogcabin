@@ -3,4 +3,14 @@
 export { canWear, characterDataUri, characterSvg, composeLook, MANNEQUIN, parseLook, VISITOR_CHARACTER } from "./art/characters";
 export { backgroundAccent, backgroundDataUri, backgroundSvg } from "./art/backgrounds";
 export { AVATAR_PIECES, SLOT_LABEL, SLOT_ORDER, type AvatarSlot } from "./art/avatar";
-export { furnitureDataUri, furnitureInfo, furnitureSvg } from "./art/furniture";
+export {
+  FURNITURE_COLOR_KEYS,
+  FURNITURE_COLORS,
+  furnitureDataUri,
+  furnitureInfo,
+  furnitureSvg,
+  isFurnitureColor,
+  paintedFurnitureKey,
+  parseFurnitureKey,
+  type FurnitureColor,
+} from "./art/furniture";

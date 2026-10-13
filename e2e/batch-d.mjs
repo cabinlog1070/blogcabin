@@ -49,6 +49,8 @@ try {
   const b = await member(B);
 
   // ════════ TOWN-08 즐겨찾는 이웃 · TOWN-04 광장 집 ════════
+  // 가입하면 공지사항 블로그를 이웃으로 자동 추가하므로, 이웃이 하나도 없는 상태에서 시작하도록 지운다
+  await db.query("DELETE FROM follows WHERE follower_id = $1", [a.uid]);
   await a.page.goto(`${BASE}/@${A}`);
   const list = a.page.locator("[data-my-neighbors]");
   check("TOWN-08 이웃이 없으면 안내 문구", await list.getByText("아직 이웃이 없어요. 마을 소식에서 마음에 드는 블로그를 이웃으로 추가해 보세요.").isVisible());
@@ -66,6 +68,8 @@ try {
     await db.query("INSERT INTO follows (follower_id, followee_id, created_at) VALUES ($1, $2, now() - make_interval(mins => $3))", [a.uid, f.uid, 100 - i]);
   }
   await a.page.goto(`${BASE}/@${A}`);
+  // 내 이웃 탭은 앞의 몇 명만 보여 주고 접혀 있다: 펼쳐서 센다
+  await list.getByRole("button", { name: /이웃 더보기/ }).click();
   check("TOWN-08 내 블로그 홈에 내 이웃 목록 12명", (await list.locator("[data-neighbor]").count()) === 12);
   check("TOWN-08 처음에는 모두 ☆", (await list.getByRole("button", { name: /즐겨찾기$/ }).count()) === 12);
   await b.page.goto(`${BASE}/@${A}`);
@@ -94,6 +98,9 @@ try {
   const a2page = await a.ctx.newPage();
   await a2page.goto(`${BASE}/@${A}`);
   await a.page.reload();
+  // 접힌 목록에는 즐겨찾기한 이웃만 보여서, 두 화면 모두 펼친다
+  await list.getByRole("button", { name: /이웃 더보기/ }).click();
+  await a2page.locator("[data-my-neighbors]").getByRole("button", { name: /이웃 더보기/ }).click();
   await Promise.all([
     list.locator(`[data-neighbor="${fakes[0].slug}"]`).getByRole("button").click(),
     a2page.locator(`[data-my-neighbors] [data-neighbor="${fakes[10].slug}"]`).getByRole("button").click(),
@@ -282,7 +289,7 @@ try {
     await page.goto(`${BASE}/write`);
     await page.locator(".ProseMirror").waitFor();
     await page.getByPlaceholder("제목").fill(title);
-    if (visibility === "private") await page.getByRole("radio", { name: "🔒 비공개" }).click();
+    if (visibility === "private") await page.getByRole("radio", { name: "🔒 서로 이웃만" }).click();
     await page.locator(".ProseMirror").click();
     await page.keyboard.insertText(body);
     await page.getByRole("button", { name: "발행하기" }).click();

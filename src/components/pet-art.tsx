@@ -1,13 +1,14 @@
 import type { CSSProperties } from "react";
 import { animalSvg, toAnimalDataUri } from "@/lib/art/animals";
-import { formatMetDate, type AnimalStage, type PetAccessory } from "@/lib/farm";
+import { formatMetDate, type AnimalStage, type PetAccessory, type PetColor } from "@/lib/farm";
 import { makeT, type Locale } from "@/lib/i18n";
 
-/** 농장 펫 그림 (코드로 그린 SVG). 꾸미기(리본·꽃·스카프)를 함께 그린다 */
+/** 농장 펫 그림 (코드로 그린 SVG). 꾸미기(리본·꽃·스카프)와 고른 색을 함께 그린다 */
 export function PetArt({
   assetKey,
   stage,
   accessory = "none",
+  color = "default",
   size = 64,
   className = "",
   style,
@@ -15,6 +16,7 @@ export function PetArt({
   assetKey: string;
   stage: AnimalStage;
   accessory?: PetAccessory;
+  color?: PetColor;
   size?: number;
   className?: string;
   style?: CSSProperties;
@@ -22,11 +24,12 @@ export function PetArt({
   return (
     // eslint-disable-next-line @next/next/no-img-element -- 코드로 만든 SVG(data URI)라 최적화가 필요 없다
     <img
-      src={toAnimalDataUri(animalSvg(assetKey, stage, size * 2, accessory))}
+      src={toAnimalDataUri(animalSvg(assetKey, stage, size * 2, accessory, color))}
       alt=""
       width={size}
       height={size}
       draggable={false}
+      data-color={color}
       className={className}
       style={style}
       aria-hidden
@@ -43,7 +46,7 @@ export function PetCard({
   className = "",
   locale = "ko",
 }: {
-  pet: { name: string; assetKey: string; accessory: PetAccessory; level: number };
+  pet: { name: string; assetKey: string; accessory: PetAccessory; color?: PetColor; level: number };
   speciesName?: string;
   grownAt?: Date | null;
   size?: "sm" | "md";
@@ -61,7 +64,7 @@ export function PetCard({
         ✨
       </span>
       <div className="mt-2 grid place-items-center rounded-xl bg-white/70" style={{ width: art + 8, height: art + 8 }}>
-        <PetArt assetKey={pet.assetKey} stage="adult" accessory={pet.accessory} size={art} />
+        <PetArt assetKey={pet.assetKey} stage="adult" accessory={pet.accessory} color={pet.color} size={art} />
       </div>
       <span className="mt-1 max-w-full truncate font-display text-sm">{pet.name}</span>
       {speciesName && <span className="text-[11px] text-ink-soft">{speciesName}</span>}
