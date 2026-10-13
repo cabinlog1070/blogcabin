@@ -129,6 +129,41 @@ export async function addComment(_prev: CommentState, formData: FormData): Promi
   return { ok: Date.now() };
 }
 
+const editCommentSchema = commentSchema.pick({ content: true }).extend({
+  commentId: z.coerce.number().int().positive().max(MAX_DB_INT, msg("잘못된 요청이에요")),
+});
+
+/** 내가 쓴 댓글·답글의 내용 고치기. 작성자만 (블로그 주인·관리자는 지울 수만 있다) */
+export async function editComment(_prev: CommentState, formData: FormData): Promise<CommentState> {
+  const viewer = await requireMember();
+  const t = await getT();
+  const parsed = editCommentSchema.safeParse({
+    commentId: formData.get("commentId"),
+    content: formData.get("content") ?? "",
+  });
+  if (!parsed.success) return { error: t(parsed.error.issues[0].message) };
+  const { commentId, content } = parsed.data;
+
+  const [row] = await db
+    .select({ postId: comments.postId, authorId: comments.authorId, content: comments.content })
+    .from(comments)
+    .where(and(eq(comments.id, commentId), isNull(comments.deletedAt)));
+  // 비공개로 바뀌어 더는 볼 수 없는 글의 댓글도 고칠 수 없다
+  if (!row || row.authorId !== viewer.userId || !(await findVisiblePost(row.postId, viewer.userId))) {
+    return { error: t("댓글을 찾을 수 없어요") };
+  }
+  // 그대로면 "수정됨"을 붙이지 않는다 (폼은 줄바꿈을 \r\n으로 보내서 줄바꿈 모양은 비교하지 않는다)
+  const lf = (s: string) => s.replace(/\r\n/g, "\n");
+  if (lf(row.content) === lf(content)) return { ok: Date.now() };
+
+  await db
+    .update(comments)
+    .set({ content, editedAt: new Date() })
+    .where(and(eq(comments.id, commentId), eq(comments.authorId, viewer.userId), isNull(comments.deletedAt)));
+  revalidatePath("/", "layout");
+  return { ok: Date.now() };
+}
+
 export async function deleteComment(commentId: number) {
   const viewer = await requireMember();
   if (parseId(commentId) === null) return;

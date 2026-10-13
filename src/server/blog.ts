@@ -323,6 +323,7 @@ export async function getComments(postId: number) {
       content: comments.content,
       createdAt: comments.createdAt,
       deletedAt: comments.deletedAt,
+      editedAt: comments.editedAt,
       authorId: comments.authorId,
       nickname: profiles.nickname,
       characterAsset: lookSql(characterItem.assetKey, profiles.userId),

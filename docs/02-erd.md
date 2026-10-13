@@ -5,6 +5,7 @@
 - 이전 버전: 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
 - 버전: 1.3 (2026-10-13, 글 예약 발행(POST-11): 예약 글은 `posts.created_at`에 올라갈 미래 시각을 적고, 그 시각 전에는 주인에게만 보인다(칸을 따로 두지 않음: 시각이 되면 바꾸는 작업 없이 `created_at <= now()` 조건으로 목록·광장·검색에 나타나고 날짜·순서도 그대로 맞는다). 관리자 글 광장 게시판 게시 시간 `posts.pin_hours`(0~720, 0 = 걸지 않음, 회원 글은 0, 기존 관리자 글은 168). 마이그레이션 `0020_post_schedule_pin`)
 - 버전: 1.3 (2026-10-13, 헤어: 꾸미기 부위 `hair`(`0020_hair_slot`), 머리 색 `profiles.hair_color`(9색, 비우면 NULL, `0021_hair_color`))
+- 버전: 1.3 (2026-10-13, 댓글 수정(SOC-01): `comments.edited_at`(고친 적 없으면 NULL, 화면에 "수정됨"). 마이그레이션 `0020_comment_edited`)
 - 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
 - 1.1 (2026-10-12, 광장 이웃 주민(TOWN-12): 상태 메시지 `profiles.status_message`(1~30자, 비우면 NULL). 마이그레이션 `0018_profile_status_message`)
 - 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
@@ -185,6 +186,7 @@ erDiagram
         text content "1~1000자"
         timestamptz created_at
         timestamptz deleted_at "삭제 표시"
+        timestamptz edited_at "마지막으로 고친 시각"
     }
     post_likes {
         int post_id PK, FK
