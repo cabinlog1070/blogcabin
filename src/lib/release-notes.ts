@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.19.0",
+        title: msg("반딧불이가 날아다니는 저녁 광장"),
+        changes: [
+          { kind: "new", text: msg("저녁부터 밤까지 광장과 숲 위로 반딧불이가 은은하게 깜빡이며 떠다녀요.") },
+          { kind: "improved", text: msg("밤 광장의 가로등 불빛을 연하게 바꿨어요.") },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [
