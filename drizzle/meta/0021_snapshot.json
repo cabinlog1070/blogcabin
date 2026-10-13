@@ -1,5 +1,5 @@
 {
-  "id": "e1fca036-241e-436d-915f-66103e702be2",
+  "id": "7374d8b8-bac6-4065-8e80-bcfbae33bb5b",
   "prevId": "5e7dbd46-0d2f-4459-ab3f-5e1b01365d2f",
   "version": "7",
   "dialect": "postgresql",
@@ -2249,7 +2249,7 @@
         },
         "profiles_hair_color_check": {
           "name": "profiles_hair_color_check",
-          "value": "\"profiles\".\"hair_color\" IN ('black', 'brown', 'caramel', 'blonde', 'red', 'pink', 'blue', 'purple')"
+          "value": "\"profiles\".\"hair_color\" IN ('black', 'brown', 'caramel', 'blonde', 'red', 'pink', 'blue', 'purple', 'mint')"
         },
         "profiles_nickname_check": {
           "name": "profiles_nickname_check",

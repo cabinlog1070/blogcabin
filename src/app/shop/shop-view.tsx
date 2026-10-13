@@ -224,7 +224,7 @@ function AvatarSection({
                 aria-pressed={on}
                 aria-label={c ? t(HAIR_COLORS[c].label) : t("기본 색")}
                 title={c ? t(HAIR_COLORS[c].label) : t("기본 색")}
-                className={`grid h-7 w-7 place-items-center rounded-full border-2 sm:h-8 sm:w-8 ${on ? "border-ink ring-2 ring-honey" : "border-line"}`}
+                className={`grid h-6 w-6 place-items-center rounded-full border-2 sm:h-8 sm:w-8 ${on ? "border-ink ring-2 ring-honey" : "border-line"}`}
                 // 색 동그라미는 고를 색 그 자체를 보여 준다 (그림 색이라 테마 토큰이 아니다)
                 style={{ background: c ? HAIR_COLORS[c].hex : HAIR_DEFAULT_SWATCH }}
               />

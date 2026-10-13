@@ -30,6 +30,7 @@ export const HAIR_COLORS = {
   pink: { label: msg("분홍"), hex: "#ef9ab8" },
   blue: { label: msg("파랑"), hex: "#6f9be0" },
   purple: { label: msg("보라"), hex: "#a283d8" },
+  mint: { label: msg("민트"), hex: "#7fd4c0" },
 } as const;
 /** "기본 색" 동그라미: 짧은 머리와 긴 머리의 원래 색을 반반 */
 export const HAIR_DEFAULT_SWATCH = `linear-gradient(135deg, ${WEAR_PIECES["avatar.hair.short"].hair.c} 50%, ${WEAR_PIECES["avatar.hair.long"].hair.c} 50%)`;

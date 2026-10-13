@@ -92,7 +92,7 @@ export const PET_ACCESSORIES = ["none", "ribbon", "flower", "scarf"] as const;
 export const petAccessory = enumText(PET_ACCESSORIES);
 // 펫 색 (무료, 2026-10-12): default = 동물마다 정해진 색. 그림은 src/lib/art/crayon-animals.ts
 /** 머리 색 (src/lib/art/avatar.ts의 HAIR_COLORS와 같은 목록) */
-export const HAIR_COLORS = ["black", "brown", "caramel", "blonde", "red", "pink", "blue", "purple"] as const;
+export const HAIR_COLORS = ["black", "brown", "caramel", "blonde", "red", "pink", "blue", "purple", "mint"] as const;
 export const PET_COLORS = ["default", "brown", "yellow", "red", "black", "white", "pink"] as const;
 export const petColor = enumText(PET_COLORS);
 export const FARM_ITEM_KINDS = ["potion"] as const;
