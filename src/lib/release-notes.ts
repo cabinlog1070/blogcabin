@@ -58,6 +58,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
             text: msg("미니룸 오른쪽 끝에 세운 캐릭터와 펫, 농장 오른쪽 울타리 쪽으로 간 동물이 갑자기 작아지던 문제를 고쳤어요. 이제 어디에 있어도 크기가 같아요."),
             images: [{ src: "/release-notes/1.32.1/miniroom-edge-after.webp", alt: msg("미니룸 오른쪽 끝에서도 같은 크기로 서 있는 캐릭터와 펫"), before: "/release-notes/1.32.1/miniroom-edge-before.webp" }],
           },
+          { kind: "fixed", text: msg("아이폰에서 광장의 [이웃집] 버튼에 ▶와 ▾ 표시가 함께 보이던 문제를 고쳤어요.") },
           { kind: "fixed", text: msg("미니룸 끝에 선 캐릭터의 닉네임이 잘리지 않고, 컴퓨터 화면의 [미니룸 꾸미기] 버튼은 바닥을 가리지 않게 위 오른쪽으로 옮겼어요.") },
           {
             kind: "fixed",
