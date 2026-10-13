@@ -63,3 +63,7 @@ export const clampPetSpot = (s: RoomSpot): RoomSpot => ({
  *  (기본 자리의 캐릭터 기준으로 가운데가 72%보다 아래인 가구가 앞에 보인다. 전과 같다) */
 export const roomDepth = (kind: "furniture" | "character" | "pet", y: number) =>
   20 + Math.round(2 * (kind === "furniture" ? y : y - 16)) + (kind === "furniture" ? 0 : 1);
+
+/** 꾸미기 화면 탭 (2026-10-13): 캐릭터 꾸미기 / 미니룸 꾸미기 / 집 테마. 주소 ?tab=으로 바로 연다 */
+export type ClosetTab = "char" | "room" | "house";
+export const CLOSET_TABS: ClosetTab[] = ["char", "room", "house"];
