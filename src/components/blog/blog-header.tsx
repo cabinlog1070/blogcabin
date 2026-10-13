@@ -79,7 +79,7 @@ export async function BlogHeader({
           </div>
         </div>
         {/* 좁은 화면에서는 버튼 3개를 한 줄에 같은 너비로 놓고, 글자가 두 줄로 깨지지 않게 한다 (이슈 #5) */}
-        <div className={isOwner ? "grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto" : "flex gap-2"}>
+        <div className={isOwner ? "grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto" : "flex flex-wrap gap-2"}>
           {isOwner ? (
             <>
               <Link href="/write" className="btn whitespace-nowrap bg-leaf text-white max-sm:gap-1 max-sm:px-2 max-sm:text-sm">{t("✏️ 글쓰기")}</Link>
@@ -112,11 +112,11 @@ export async function BlogHeader({
           locale={locale}
           className="border-b-2 border-line md:rounded-2xl md:border-2"
         />
-        {/* 미니룸 가구 배치는 꾸미기 화면 위쪽 미니룸에서 한다 */}
+        {/* 미니룸 가구 배치는 꾸미기 화면 위쪽 미니룸에서 한다. 버튼은 위 오른쪽 구석에 (아래에 두면 바닥에 선 캐릭터·펫·닉네임을 가렸다) */}
         {isOwner && (
           <Link
             href="/closet?tab=room"
-            className="btn absolute right-3 top-3 z-30 bg-paper/90 px-3 py-1 text-sm text-ink backdrop-blur-sm md:bottom-6 md:right-6 md:top-auto"
+            className="btn absolute right-3 top-3 z-30 bg-paper/90 px-3 py-1 text-sm text-ink backdrop-blur-sm md:right-6 md:top-6"
             data-miniroom-edit
           >
             {t("미니룸 꾸미기 >")}

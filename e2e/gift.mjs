@@ -87,13 +87,17 @@ await modal.waitFor({ timeout: 15000 });
 check("선물 팝업에 관리자가 적은 말", (await modal.locator("[data-gift-message]").innerText()).includes(`이벤트 참여 고마워요! ${tag}`));
 check("선물 팝업에 코인과 아이템 2개", (await modal.locator("[data-gift-coins]").innerText()).includes("300") && (await modal.locator("[data-gift-items] li:not([data-gift-pet])").count()) === 2);
 check("선물 팝업에 드래곤 알", (await modal.locator("[data-gift-pet]").innerText()).includes("드래곤 알"));
+check("펫 알을 받은 팝업에 [동물 농장으로 가기]", (await modal.locator("[data-gift-go-farm]").count()) === 1);
 await member.screenshot({ path: `${outDir}/gift-3-popup.png` });
 await modal.getByRole("button", { name: "받은 선물 보기" }).click();
 await member.waitForURL(/\/gifts$/);
 await member.locator("[data-gift-list] li").first().waitFor();
 check("받은 선물 화면에 선물 하나", (await member.locator("[data-gift-list] > li").count()) === 1);
 check("받은 선물 화면에 드래곤 알", (await member.locator("[data-gift-list] [data-gift-pet]").count()) === 1);
+check("선물 팝업·화면의 펫 알은 동물 농장으로", (await member.locator("[data-gift-pet-link]").getAttribute("href")) === "/farm" && (await member.locator("[data-gift-farm-link]").count()) === 1);
 await member.screenshot({ path: `${outDir}/gift-4-list.png`, fullPage: true });
+await member.locator("[data-gift-pet-link]").click();
+check("받은 선물에서 알을 누르면 동물 농장", await member.waitForURL(/\/farm$/).then(() => true, () => false));
 const { rows: [seen] } = await db.query("SELECT read_at FROM notifications WHERE user_id = $1 AND kind = 'gift'", [m.id]);
 check("팝업을 닫으면 선물 알림 읽음", seen.read_at !== null);
 

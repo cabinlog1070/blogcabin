@@ -50,6 +50,45 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.32.4",
+        title: msg("선물 받은 알에서 농장으로"),
+        changes: [
+          { kind: "improved", text: msg("받은 선물 화면과 선물 팝업에서 펫 알을 누르면 동물 농장으로 바로 가요. 펫 알을 받은 선물 팝업에는 [농장으로 가기] 버튼도 있어요.") },
+        ],
+      },
+      {
+        version: "1.32.3",
+        title: msg("저녁 광장 캐릭터 밝기"),
+        changes: [
+          { kind: "fixed", text: msg("저녁·밤에 광장에 들어가면 캐릭터와 이웃이 잠깐 낮처럼 밝다가 어두워지던 문제를 고쳤어요. 이제 처음부터 광장과 같은 밤빛이에요.") },
+        ],
+      },
+      {
+        version: "1.32.2",
+        title: msg("불꽃놀이 구경 자리"),
+        changes: [
+          { kind: "improved", text: msg("저녁에 불꽃놀이를 구경하는 이웃이 광장 맨 위 덤불 바로 아래, 가운데 길 끝 둘레에 서요. 집과 겹치지 않아요.") },
+        ],
+      },
+      {
+        version: "1.32.1",
+        title: msg("미니룸·농장 끝자리 크기"),
+        changes: [
+          {
+            kind: "fixed",
+            text: msg("미니룸 오른쪽 끝에 세운 캐릭터와 펫, 농장 오른쪽 울타리 쪽으로 간 동물이 갑자기 작아지던 문제를 고쳤어요. 이제 어디에 있어도 크기가 같아요."),
+            images: [{ src: "/release-notes/1.32.1/miniroom-edge-after.webp", alt: msg("미니룸 오른쪽 끝에서도 같은 크기로 서 있는 캐릭터와 펫"), before: "/release-notes/1.32.1/miniroom-edge-before.webp" }],
+          },
+          { kind: "fixed", text: msg("아이폰에서 광장의 [이웃집] 버튼에 ▶와 ▾ 표시가 함께 보이던 문제를 고쳤어요.") },
+          { kind: "fixed", text: msg("미니룸 끝에 선 캐릭터의 닉네임이 잘리지 않고, 컴퓨터 화면의 [미니룸 꾸미기] 버튼은 바닥을 가리지 않게 위 오른쪽으로 옮겼어요.") },
+          {
+            kind: "fixed",
+            text: msg("휴대폰에서 즐겨찾기가 꽉 찼을 때 나오는 안내 글씨가 잘리던 문제를 고쳤어요. 이제 버튼 아래에 보여요."),
+            images: [{ src: "/release-notes/1.32.1/favorite-message-after.webp", alt: msg("즐겨찾기 버튼 아래에 다 보이는 안내 글씨"), before: "/release-notes/1.32.1/favorite-message-before.webp" }],
+          },
+        ],
+      },
+      {
         version: "1.32.0",
         title: msg("꾸미기 머리 색과 펫 알 선물"),
         changes: [

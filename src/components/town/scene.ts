@@ -475,8 +475,8 @@ export function createTownScene(
           flowers: this.ringFlowers,
           // 낚시: 아래 물가(걸을 수 있는 맨 아래 줄). 선착장 앞은 비운다
           fishSpots: this.freeSpots(WORLD.height - 16, 180, 110),
-          // 불꽃놀이 구경: 광장 맨 위쪽, 하늘 바로 아래
-          skySpots: this.freeSpots(HORIZON + 44, 150, 0),
+          // 불꽃놀이 구경: 덤불 바로 아래 풀밭 띠, 가운데 길 위쪽 끝 둘레에서 집·건물과 겹치지 않는 곳 (정지원 님 지정 2026-10-13)
+          skySpots: this.watchSpots(),
           fireworks: () => this.nightSky?.fireworks() ?? false,
           campfire: { ...CAMPFIRE_POS, ...CAMPFIRE_SOLID },
           // 광장 둘레를 주로 걷고, 가끔 길을 따라 멀리 간다
@@ -970,14 +970,25 @@ export function createTownScene(
         this.tweens.add({ targets: fire, scale: { from: fire.scale * 0.95, to: fire.scale * 1.05 }, duration: 700, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
       }
 
+      // 땅·건물·나무·캐릭터 그림마다 흰색과 하늘색을 섞은 색을 곱해(tint) 어둡게 한다. 불꽃·불빛·글자는 그대로 둔다
+      let shade = 0xffffff;
+      const glowImages = new Set<unknown>(this.glows.map((l) => l.image));
+      const paint = (o: unknown) => {
+        if ((o instanceof Phaser.GameObjects.Image || o instanceof Phaser.GameObjects.TileSprite) && o.displayList === this.children && !glowImages.has(o) && !o.getData("light")) o.setTint(shade);
+      };
+      // 나중에 생기는 그림(내 캐릭터·이웃·펫·마시멜로 같은 소품)도 바로 물들인다.
+      // 전에는 다음 apply(30초 뒤)까지 낮처럼 밝다가 갑자기 어두워졌다 (2026-10-13 정지원 님 제보).
+      // 불빛 표시(setData("light"))는 만든 뒤에 붙으므로, 그 프레임을 그리기 직전에 칠한다
+      const fresh: unknown[] = [];
+      this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, (o: unknown) => fresh.push(o));
+      this.events.on(Phaser.Scenes.Events.PRE_RENDER, () => {
+        if (fresh.length) for (const o of fresh.splice(0)) paint(o);
+      });
+
       const apply = () => {
         const sky = lightAt(localHour());
-        // 땅·건물·나무·캐릭터 그림마다 흰색과 하늘색을 섞은 색을 곱해(tint) 어둡게 한다. 불꽃·불빛·글자는 그대로 둔다
-        const shade = mixColor(0xffffff, sky.tint, sky.alpha);
-        const glowImages = new Set<unknown>(this.glows.map((l) => l.image));
-        for (const o of this.children.list) {
-          if ((o instanceof Phaser.GameObjects.Image || o instanceof Phaser.GameObjects.TileSprite) && !glowImages.has(o) && !o.getData("light")) o.setTint(shade);
-        }
+        shade = mixColor(0xffffff, sky.tint, sky.alpha);
+        for (const o of this.children.list) paint(o);
         for (const l of this.glows) {
           // 캠프파이어: 낮에도 살짝(0.22), 밤에는 더 밝게. 가로등·창문: 저녁부터 켜진다
           const alpha = l.kind === "fire" ? 0.22 + 0.4 * sky.lamps : l.base * sky.lamps;
@@ -1111,13 +1122,30 @@ export function createTownScene(
       this.drawLake();
     }
 
-    /** 한 줄(y)에서 걸어 설 수 있는 자리들: step 간격으로, 가운데 길에서 skip 안쪽은 뺀다 (이웃 주민의 낚시·불꽃놀이 구경 자리) */
+    /** 한 줄(y)에서 걸어 설 수 있는 자리들: step 간격으로, 가운데 길에서 skip 안쪽은 뺀다 (이웃 주민의 낚시 자리) */
     private freeSpots(y: number, step: number, skip: number): Point[] {
       const spots: Point[] = [];
       for (let x = 160; x <= WORLD.width - 160; x += step) {
         if (Math.abs(x - CENTER.x) < skip) continue;
         const { cx, cy } = this.grid.cellOf({ x, y });
         if ([-2, -1, 0, 1, 2].every((d) => this.grid.isFree(cx + d, cy))) spots.push({ x, y });
+      }
+      return spots;
+    }
+
+    /** 불꽃놀이 구경 자리: 덤불 바로 아래 줄에서 가운데 길에 가까운 순서로, 서 있는 캐릭터(이름표까지)가 집·건물 그림과 겹치지 않는 곳 4자리 */
+    private watchSpots(): Point[] {
+      const y = HORIZON + 40, w = 48, h = PLAYER_SIZE + 22;
+      const spots: Point[] = [];
+      for (let d = 0; d <= 420 && spots.length < 4; d += 18) {
+        for (const x of d ? [CENTER.x - d, CENTER.x + d] : [CENTER.x]) {
+          if (spots.length >= 4 || spots.some((s) => Math.abs(s.x - x) < 96)) continue;
+          const { cx, cy } = this.grid.cellOf({ x, y });
+          if (!this.grid.isFree(cx, cy)) continue;
+          const box = { x: x - w / 2, y: y - h, w, h: h + 8 };
+          if (this.occupied.some((o) => box.x < o.x + o.w && o.x < box.x + box.w && box.y < o.y + o.h && o.y < box.y + box.h)) continue;
+          spots.push({ x, y });
+        }
       }
       return spots;
     }
