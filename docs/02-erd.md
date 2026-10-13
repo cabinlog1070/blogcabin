@@ -1,8 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
-- 1.2 (2026-10-13, 헤어: 꾸미기 부위 `hair`(`0020_hair_slot`), 머리 색 `profiles.hair_color`(8색, 비우면 NULL, `0021_hair_color`))
+- 버전: 1.3 (2026-10-13, 헤어: 꾸미기 부위 `hair`(`0020_hair_slot`), 머리 색 `profiles.hair_color`(8색, 비우면 NULL, `0021_hair_color`))
+- 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
 - 1.1 (2026-10-12, 광장 이웃 주민(TOWN-12): 상태 메시지 `profiles.status_message`(1~30자, 비우면 NULL). 마이그레이션 `0018_profile_status_message`)
 - 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
 - 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
