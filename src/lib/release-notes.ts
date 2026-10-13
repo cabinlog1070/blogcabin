@@ -38,6 +38,11 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.29.1",
+        title: msg("상점 저장하기 다듬기"),
+        changes: [{ kind: "improved", text: msg("상점에서 [저장하기]를 눌러도 광장으로 나가지 않고 상점에 그대로 있어요. 입어 보거나 머리 색을 골라 본 것은 [저장하기]를 눌러야 저장되고, 누르지 않고 나가면 원래 모습 그대로예요.") }],
+      },
+      {
         version: "1.29.0",
         title: msg("관리자 선물"),
         changes: [

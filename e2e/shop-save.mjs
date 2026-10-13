@@ -32,17 +32,24 @@ try {
   await avatar.getByRole("tab", { name: /^헤어/ }).click();
   const hairNames = await names();
   check("헤어 탭: 헤어 10가지", hairNames.length === 10 && hairNames.includes("양쪽 똥머리"), hairNames.join(","));
-  // 머리 색 (2026-10-13): 헤어 탭에서만 동그라미가 보이고, 누르면 바로 저장된다
+  // 머리 색 (2026-10-13): 헤어 탭에서만 동그라미가 보이고, 고르면 미리 보기만 바뀐다. [저장하기]를 눌러야 저장된다
   const preview = () => page.locator("[data-try-on] img").first().getAttribute("src");
   const plainLook = await preview();
   await page.getByRole("button", { name: "금발", exact: true }).click();
-  await page.getByRole("status").filter({ hasText: "머리 색을 바꿨어요" }).waitFor();
-  check("머리 색: 금발로 저장", (await one("SELECT hair_color FROM profiles WHERE user_id = $1", [uid])).hair_color === "blonde");
-  // 크레용 그림은 색을 파스텔로 옮겨 칠해서 색 코드를 그대로 찾을 수 없다: 그림이 바뀌었는지와 헤더 얼굴 모습 키로 본다
+  // 크레용 그림은 색을 파스텔로 옮겨 칠해서 색 코드를 그대로 찾을 수 없다: 그림이 바뀌었는지로 본다
   check("머리 색: 미리 입어 보기 캐릭터 그림이 바뀜", (await preview()) !== plainLook);
+  check("머리 색: 고르기만 하면 저장 안 됨", (await one("SELECT hair_color FROM profiles WHERE user_id = $1", [uid])).hair_color === null);
+  await page.reload();
+  check("머리 색: 저장 안 하고 나갔다 오면 원래대로", (await preview()) === plainLook && (await one("SELECT hair_color FROM profiles WHERE user_id = $1", [uid])).hair_color === null);
+  await avatar.getByRole("tab", { name: /^헤어/ }).click();
+  await page.getByRole("button", { name: "금발", exact: true }).click();
+  await page.locator("[data-save-look]").click();
+  await page.getByRole("status").filter({ hasText: "저장했어요" }).waitFor();
+  check("머리 색: [저장하기]로 금발 저장, 상점에 그대로", (await one("SELECT hair_color FROM profiles WHERE user_id = $1", [uid])).hair_color === "blonde" && page.url().endsWith("/shop"));
   await page.getByRole("button", { name: "기본 색", exact: true }).click();
-  await page.getByRole("status").filter({ hasText: "머리 색을 바꿨어요" }).waitFor();
-  check("머리 색: 기본 색으로 되돌림", (await one("SELECT hair_color FROM profiles WHERE user_id = $1", [uid])).hair_color === null);
+  await page.locator("[data-save-look]").click();
+  await page.getByRole("status").filter({ hasText: "저장했어요" }).waitFor();
+  check("머리 색: 기본 색으로 되돌려 저장", (await one("SELECT hair_color FROM profiles WHERE user_id = $1", [uid])).hair_color === null);
   await page.screenshot({ path: `${outDir}/shop-category-hair.png`, clip: { x: 0, y: 150, width: 1280, height: 600 } });
   await avatar.getByRole("tab", { name: /^전체/ }).click();
   check("머리 색 동그라미는 헤어 탭에서만", (await page.locator("[data-hair-colors]").count()) === 0);
@@ -70,9 +77,21 @@ try {
   await page.getByRole("button", { name: "밀짚모자 입어 보기" }).click();
   await page.screenshot({ path: `${outDir}/shop-save-ready.png`, clip: { x: 0, y: 150, width: 1280, height: 750 } });
 
+  // 저장 안 하고 나갔다 오면 입어 본 것이 남지 않는다
+  await page.reload();
+  check("저장 안 하고 나가면 입어 본 옷이 남지 않음", (await save.isDisabled()) && (await one("SELECT COUNT(*)::int n FROM avatar_equips WHERE user_id = $1", [uid])).n === 1);
+  await avatar.getByRole("tab", { name: /^모자/ }).click();
+  await page.getByRole("button", { name: "밀짚모자 입어 보기" }).click();
+  await avatar.getByRole("tab", { name: /^하의/ }).click();
+  await page.getByRole("button", { name: "반바지 입어 보기" }).click();
+  const triedLook = await preview();
   await save.click();
-  await page.waitForURL(/\/town/);
-  check("저장하면 광장으로 나감", page.url().includes("/town"));
+  await page.getByRole("status").filter({ hasText: "저장했어요" }).waitFor();
+  await page.waitForLoadState("networkidle");
+  check("저장해도 상점에 그대로", page.url().endsWith("/shop"));
+  check("저장 뒤 미리 보기는 저장한 모습 그대로", (await preview()) === triedLook);
+  check("저장 뒤 입어 보는 중 표시는 지워짐", await save.isDisabled());
+  await page.screenshot({ path: `${outDir}/shop-saved.png`, clip: { x: 0, y: 150, width: 1280, height: 600 } });
   const worn = await db.query("SELECT i.name FROM avatar_equips ae JOIN items i ON i.id = ae.item_id WHERE ae.user_id = $1 ORDER BY i.name", [uid]);
   // 긴 머리 주민은 가입할 때부터 "긴 머리" 헤어를 입고 있다 (2026-10-13)
   check("밀짚모자·반바지를 입음 (가입 때 헤어 그대로)", worn.rows.map((r) => r.name).sort().join(",") === ["긴 머리", "밀짚모자", "반바지"].sort().join(","), worn.rows.map((r) => r.name).join(","));
