@@ -35,7 +35,7 @@ export function FavoriteStar({ followeeId, nickname, favorite }: { followeeId: s
   }
 
   return (
-    <div className="relative">
+    <>
       <button
         type="button"
         disabled={pending}
@@ -48,13 +48,11 @@ export function FavoriteStar({ followeeId, nickname, favorite }: { followeeId: s
       >
         {on ? "⭐" : "☆"}
       </button>
-      <p
-        role="status"
-        aria-live="polite"
-        className="absolute right-0 top-full z-30 mt-1 w-max max-w-[16rem] text-right text-sm font-bold text-berry"
-      >
+      {/* 안내는 버튼 줄 아래 새 줄에 (예전에는 버튼 위에 띄워서 휴대폰에서 카드 밖으로 잘렸다).
+          부모 버튼 줄이 flex-wrap이라 basis-full로 다음 줄, order-last로 이웃 버튼 뒤에 온다 */}
+      <p role="status" aria-live="polite" className="order-last basis-full text-sm font-bold text-berry empty:hidden">
         {message}
       </p>
-    </div>
+    </>
   );
 }

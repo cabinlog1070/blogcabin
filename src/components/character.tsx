@@ -52,6 +52,13 @@ export function FurnitureArt({ assetKey, className = "" }: { assetKey: string; c
 /** 미니룸: 장착한 배경 장면 위에 캐릭터가 서 있는 작은 방. 가구는 아래쪽에 있는 것이 앞에 보인다.
  *  테두리·둥근 모서리는 쓰는 쪽이 className으로 정한다. 기본에 넣으면 클래스 순서 때문에 덮어쓰지 못한다 (#23)
  *  꾸미기 화면에서는 furnitureProps(포인터 이벤트)로 가구를 끌어 옮긴다 */
+/** 닉네임을 왼쪽으로 옮길 비율(%): 20~80%에서는 50(가운데), 끝(6·94%)으로 갈수록 0·100으로 (끝에서는 발 자리에서 방 안쪽으로 펼쳐진다) */
+function nicknameShift(x: number): number {
+  if (x > 80) return Math.min(100, 50 + ((x - 80) / 14) * 50);
+  if (x < 20) return Math.max(0, 50 - ((20 - x) / 14) * 50);
+  return 50;
+}
+
 export function MiniRoom({
   characterAsset,
   backgroundAsset: bgKey,
@@ -128,10 +135,11 @@ export function MiniRoom({
         );
       })}
       {/* 캐릭터: 발이 char 자리에 닿게 (닉네임은 발 아래). 아래쪽에 서 있을수록 앞에 보인다 */}
+      {/* w-max: 오른쪽 끝에 세우면 남은 폭에 맞춰 그림이 쪼그라들던 문제 (img의 max-width:100%) */}
       <div
         {...characterProps}
         data-room-character
-        className={`absolute -translate-x-1/2 -translate-y-full ${characterProps ? "cursor-grab touch-none select-none" : "pointer-events-none"}`}
+        className={`absolute w-max -translate-x-1/2 -translate-y-full ${characterProps ? "cursor-grab touch-none select-none" : "pointer-events-none"}`}
         style={{ left: `${char.x}%`, top: `${char.y}%`, zIndex: roomDepth("character", char.y) }}
       >
         <div className="flex items-end">
@@ -145,7 +153,13 @@ export function MiniRoom({
           )}
         </div>
         {nickname && (
-          <span className="absolute left-1/2 top-full -mt-1 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-[2.4cqw] py-0.5 text-[clamp(10px,2.8cqw,14px)] font-bold text-ink shadow">{nickname}</span>
+          // 가운데쯤이면 발 아래 가운데, 양 끝(20% 밖)에 서면 방 안쪽으로 조금씩 밀어 끝에서 닉네임이 잘리지 않게 한다
+          <span
+            style={{ transform: `translateX(-${nicknameShift(char.x)}%)` }}
+            className="absolute left-1/2 top-full -mt-1 whitespace-nowrap rounded-full bg-white/90 px-[2.4cqw] py-0.5 text-[clamp(10px,2.8cqw,14px)] font-bold text-ink shadow"
+          >
+            {nickname}
+          </span>
         )}
       </div>
       {/* 미니룸에 놓은 펫: 방 바닥을 돌아다닌다 */}

@@ -199,7 +199,7 @@ export function FarmField({
       </div>
       {/* eslint-enable @next/next/no-img-element */}
 
-      {/* 돌아다니는 펫 */}
+      {/* 돌아다니는 펫. w-max: 오른쪽 울타리 쪽으로 가도 크기가 줄지 않게 (남은 폭에 맞춰 img가 줄어드는 것 막기) */}
       {pets.map((p, i) => {
         const s = startSpot(i, pets.length);
         return (
@@ -213,7 +213,7 @@ export function FarmField({
             data-pet-id={p.id}
             data-moving="false"
             onClick={() => onPet(p.id)}
-            className="group absolute flex -translate-x-1/2 -translate-y-full flex-col items-center outline-none"
+            className="group absolute flex w-max -translate-x-1/2 -translate-y-full flex-col items-center outline-none"
             style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, zIndex: 10 + Math.round(s.y * 100) }}
             aria-label={t("{name} 상태 보기", { name: p.name })}
           >

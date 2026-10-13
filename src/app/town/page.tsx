@@ -88,9 +88,10 @@ export default async function TownPage(props: PageProps<"/town">) {
       {(panel.length > 0 || noFavorites) && (
         <section data-neighbor-panel className="absolute left-3 top-3 z-[5] max-w-[calc(100%-1.5rem)] sm:max-w-xs phone:hidden">
           <details open className="group rounded-2xl border border-line bg-paper/95 shadow-md backdrop-blur">
-            <summary className="cursor-pointer list-none px-3 py-2 font-display text-lg">
+            {/* 사파리는 list-none만으로는 기본 ▶ 표시가 남아서 ::-webkit-details-marker도 숨긴다 */}
+            <summary className="cursor-pointer list-none px-3 py-2 font-display text-lg [&::-webkit-details-marker]:hidden">
               {t("🏘 이웃집")} <span className="text-sm text-ink-soft">{panel.length}</span>
-              <span className="float-right text-sm text-ink-soft group-open:rotate-180">▾</span>
+              <span className="float-right ml-2 text-sm text-ink-soft group-open:rotate-180">▾</span>
             </summary>
             {noFavorites && (
               <p data-no-favorites className="mx-2 mb-2 rounded-lg bg-honey px-2 py-1.5 text-sm">
