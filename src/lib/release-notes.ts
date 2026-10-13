@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.19.0",
+        title: msg("관리자 선물"),
+        changes: [
+          { kind: "new", text: msg("관리자가 보낸 선물이 도착하면 알림과 함께 선물 팝업이 떠요. 관리자가 적은 말과 받은 코인·아이템을 보여 주고, 받은 아이템은 바로 내 것이 돼요.") },
+          { kind: "new", text: msg("관리자 화면에서 주민을 한 명 이상(또는 모든 주민) 골라 코인과 아이템을 선물하고, 보낼 때마다 함께 보낼 말을 적을 수 있어요."), admin: true },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [

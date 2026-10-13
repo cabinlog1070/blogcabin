@@ -31,6 +31,7 @@ const REASON_LABEL: Record<string, { icon: IconName; emoji: string; text: string
   invite: { icon: "invite", emoji: "🤝", text: msg("친구 초대") }, // 내가 초대한 친구가 첫 글을 씀 (GAME-09)
   invited: { icon: "invite", emoji: "🤝", text: msg("친구 초대") }, // 초대받아 가입하고 첫 글을 씀
   admin_grant: { icon: "achievement", emoji: "🎁", text: msg("관리자 지급") },
+  admin_gift: { icon: "gift", emoji: "🎁", text: msg("관리자 선물") },
   social_link: { icon: "invite", emoji: "🔗", text: msg("소셜 로그인 연동") },
 };
 

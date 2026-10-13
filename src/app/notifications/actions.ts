@@ -7,6 +7,7 @@ import {
   getNotificationState,
   listNotifications,
   markAllNotificationsRead,
+  markGiftSeen,
   markLevelUpsSeen,
   markNotificationRead,
   NOTIFICATION_PANEL_SIZE,
@@ -50,5 +51,13 @@ export async function readAllNotifications() {
 export async function seeLevelUps() {
   const viewer = await requireMember();
   await markLevelUpsSeen(viewer.userId);
+  revalidatePath("/", "layout");
+}
+
+/** 선물 팝업 [확인]·[받은 선물 보기]: 그 선물 알림을 읽음으로 */
+export async function seeGift(notificationId: number) {
+  const viewer = await requireMember();
+  if (parseId(notificationId) === null) return;
+  await markGiftSeen(viewer.userId, notificationId);
   revalidatePath("/", "layout");
 }

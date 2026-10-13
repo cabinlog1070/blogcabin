@@ -1,7 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
+- 버전: 1.3 (2026-10-13, 관리자 선물: `gifts`·`gift_items`, 원장 사유 `admin_gift`(ref_id = 선물 ID), 알림 종류 `gift`(ref_id = 선물 ID). 마이그레이션 `0020_admin_gift`. 3.3-7)
+- 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
 - 1.1 (2026-10-12, 광장 이웃 주민(TOWN-12): 상태 메시지 `profiles.status_message`(1~30자, 비우면 NULL). 마이그레이션 `0018_profile_status_message`)
 - 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
 - 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
@@ -57,6 +58,11 @@ erDiagram
     user_animals ||--o{ animal_cares : "돌보기 기록"
     user_animals |o--o| profiles : "프로필 전시 카드"
     users ||--o{ farm_items : "농장 가방 (물약)"
+
+    users ||--o{ gifts : "받은 선물"
+    users |o--o{ gifts : "보낸 관리자"
+    gifts ||--o{ gift_items : "담긴 아이템"
+    items ||--o{ gift_items : ""
 
     users |o--o{ profiles : "나를 초대한 회원 (invited_by)"
     blogs ||--o{ blog_visits : "방문 기록 (하루 1번)"
@@ -212,6 +218,18 @@ erDiagram
         timestamptz created_at
         timestamptz read_at "NULL = 안 읽음"
     }
+    gifts {
+        int id PK
+        text sender_id FK "보낸 관리자 (탈퇴하면 NULL)"
+        text recipient_id FK "받은 주민"
+        text message "함께 보낸 말 1~200자"
+        int coins "0 이상"
+        timestamptz created_at
+    }
+    gift_items {
+        int gift_id PK,FK
+        int item_id PK,FK
+    }
     animal_species {
         int id PK
         text code UK
@@ -295,6 +313,7 @@ erDiagram
 | 보상 | `attendances`, `point_ledger` | GAME-02~05 |
 | 첨부 | `attachments` | POST-07, POST-09 |
 | 알림 | `notifications` | GAME-06, GAME-08 (SOC-01~03, TOWN-09에서 만듦) |
+| 관리자 선물 | `gifts`, `gift_items` | 관리자 선물 보내기 (2026-10-13) |
 | 동물 농장 | `animal_species`, `user_animals`, `animal_cares`, `farm_items` (+ `profiles.displayed_animal_id`) | TOWN-09, GAME-05 |
 | 방문·조회 기록 | `blog_visits`, `post_views` | BLOG-06, POST-06 |
 | 로그인 시도 제한 | `login_attempts` (어느 테이블도 가리키지 않음) | NF-10 |
@@ -393,6 +412,14 @@ FOREIGN KEY (item_id, slot) REFERENCES items (id, slot)                         
 - "같은 소셜 계정은 사이트 전체에서 한 번만"은 원장으로는 지킬 수 없다: `point_ledger.user_id`가 `ON DELETE CASCADE`라 탈퇴하면 그 회원의 `social_link` 행도 지워져 같은 소셜 계정을 새 회원에 붙이면 또 받는다. 그래서 준 소셜 계정을 `social_link_rewards (provider_id, account_hash) PK`에 남긴다. 소셜 번호는 그대로 두지 않고 `HMAC-SHA256(BETTER_AUTH_SECRET, "kakao:회원번호")`만 둔다(제품 담당 결정 2026-10-11: 탈퇴한 사람의 소셜 번호를 남기지 않음, 같은 계정 판별은 그대로 됨). `users`를 가리키지 않아 탈퇴해도 남고(`login_attempts`와 같은 이유), 회원을 가리키는 칸 없이 소셜 쪽 ID의 해시만 둔다. 보상 트랜잭션은 이 표에 `INSERT … ON CONFLICT DO NOTHING`이 성공했을 때만 원장에 넣는다.
 - 원장의 부분 유니크 인덱스 `point_ledger_social_link_uq (ref_id) WHERE reason = 'social_link'`는 살아 있는 회원끼리 겹치지 않게 하는 이중 장치로 남겨 둔다.
 
+### 3.3-7 관리자 선물 (2026-10-13, 마이그레이션 0020)
+
+- 관리자가 주민을 골라 코인·아이템을 보내고, 보낼 때마다 함께 보낼 말(1~200자)을 적는다. `gifts` 한 행 = 받는 주민 한 명에게 간 선물 하나. 여러 명에게 보내면 주민마다 한 행씩 생긴다.
+- 코인은 원장에 사유 `admin_gift`, ref_id = 선물 ID로 넣는다. 선물마다 ID가 달라서 같은 주민에게 몇 번이든 보낼 수 있다 (원장에 유니크 제약 없음). `gifts.coins`는 무엇을 보냈는지 보여 주기 위한 기록이고 잔액 계산은 원장만 쓴다.
+- 아이템은 `user_items`에 바로 넣고 `gift_items`(N:M)에 남긴다. 이미 가진 아이템은 빼고, 받을 게 하나도 없으면(코인 0, 아이템 모두 보유) 그 주민에게는 선물을 만들지 않는다. 레벨 제한은 선물에는 걸지 않는다.
+- 받은 주민에게 알림 `gift`(actor_id = 보낸 관리자, ref_id = 선물 ID)를 남긴다. 안 읽은 선물 알림은 다음 화면에서 선물 팝업으로 하나씩 보이고, 팝업을 닫으면 읽음이 된다. 함께 보낸 말은 저장한 그대로 보여 주고 번역하지 않는다.
+- 삭제: 받은 주민이 탈퇴하면 선물도 지운다(`CASCADE`). 보낸 관리자가 지워지면 `sender_id`만 비운다(`SET NULL`).
+
 ### 3.4 코인과 경험치는 저장하지 않고 원장에서 계산 (정규화)
 
 `profiles`에 `coins`, `exp` 컬럼을 두지 않는다. 대신 모든 변화를 `point_ledger`에 한 줄씩 쌓는다.
@@ -472,8 +499,8 @@ COMMIT
 | `item_type` | `character`, `background`, `furniture`, `avatar` (마이그레이션 0006) |
 | `avatar_slot` | `top`, `bottom`, `hat`, `shoes` (그리는 순서는 몸 → 하의 → 상의 → 신발 → 모자, `src/lib/art/avatar.ts`) |
 | `visibility` | `public`, `private` |
-| `notification_kind` | `level_up`, `like`, `comment`, `reply`, `pet_level_up` (마이그레이션 0007) |
-| `ledger_reason` | `signup`, `attendance`, `attendance_streak`, `post`, `comment`, `like_received`, `purchase`, `farm_care`, `farm_grown`, `egg_purchase`, `potion_purchase`(0008), `invite`·`invited`(친구 초대, 0009), `admin_grant`(관리자 지급, 0011) |
+| `notification_kind` | `level_up`, `like`, `comment`, `reply`, `pet_level_up` (마이그레이션 0007), `gift`(관리자 선물, 0020) |
+| `ledger_reason` | `signup`, `attendance`, `attendance_streak`, `post`, `comment`, `like_received`, `purchase`, `farm_care`, `farm_grown`, `egg_purchase`, `potion_purchase`(0008), `invite`·`invited`(친구 초대, 0009), `admin_grant`(관리자 지급, 0011), `social_link`(0012), `admin_gift`(관리자 선물, 0020) |
 | `animal_status` | `egg`, `growing`, `grown` |
 | `egg_source` | `starter`, `level`, `shop` |
 | `care_action` | `feed`, `pet`, `water`(옛 물 주기 기록, 새로 쓰지 않음) |

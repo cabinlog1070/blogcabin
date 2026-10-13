@@ -7,7 +7,7 @@ export const ICON_NAMES = [
   "notice", "inquiry", "write", "search", "category", "invite",
   "pet", "shop", "background", "furniture", "clothes", "hat",
   "settings", "level", "alert", "news", "achievement", "home",
-  "egg", "potion", "carrot", "hand", "calendar", "lock", "logout", "back", "campfire",
+  "egg", "potion", "carrot", "hand", "calendar", "lock", "logout", "back", "campfire", "gift",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 

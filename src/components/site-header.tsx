@@ -38,7 +38,7 @@ export async function SiteHeader() {
 
         {member && wallet && notice && loginMethods ? (
           <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
-            <NotificationBell unread={notice.unread} popup={notice.popup} />
+            <NotificationBell unread={notice.unread} popup={notice.popup} gifts={notice.gifts} />
             <LevelBadge
               level={wallet.level}
               exp={wallet.exp}

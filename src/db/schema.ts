@@ -73,6 +73,8 @@ export const LEDGER_REASONS = [
   "invited",
   // 관리자가 관리자 화면에서 직접 준 코인·경험치 (ref_id = 준 관리자 ID)
   "admin_grant",
+  // 관리자가 선물 보내기로 보낸 코인 (ref_id = 선물 ID, 2026-10-13)
+  "admin_gift",
   // 주민이 프로필 메뉴에서 소셜 로그인을 연동함 (ref_id = "kakao:회원번호", 소셜 계정마다 사이트 전체에서 한 번)
   "social_link",
 ] as const;
@@ -102,6 +104,8 @@ export const NOTIFICATION_KINDS = [
   "comment",
   "reply",
   "pet_level_up",
+  // 관리자가 보낸 선물 (ref_id = 선물 ID, actor_id = 보낸 관리자, 2026-10-13)
+  "gift",
 ] as const;
 export const notificationKind = enumText(NOTIFICATION_KINDS);
 
@@ -818,6 +822,43 @@ export const postViews = pgTable(
     primaryKey({ columns: [t.postId, t.date, t.viewerKey] }),
     check("post_views_viewer_key_check", viewerKeyCheck(t.viewerKey)),
   ],
+);
+
+// ===== 관리자 선물 (2026-10-13) =====
+// 관리자가 주민을 골라 보내는 선물 하나 = 받는 주민 한 명. 여러 명에게 보내면 주민마다 한 행씩 생긴다.
+// 코인은 원장(admin_gift, ref_id = 선물 ID)에, 아이템은 user_items에 바로 넣고, 여기에는 무엇을 보냈는지와 함께 보낸 말을 남긴다
+export const GIFT_MESSAGE_MAX = 200;
+export const gifts = pgTable(
+  "gifts",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    senderId: text("sender_id").references(() => users.id, { onDelete: "set null" }), // 보낸 관리자 (탈퇴하면 NULL)
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    message: text("message").notNull(),
+    coins: integer("coins").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("gifts_recipient_created_idx").on(t.recipientId, t.createdAt.desc()),
+    check("gifts_coins_check", sql`${t.coins} >= 0`),
+    check("gifts_message_check", sql`char_length(${t.message}) BETWEEN 1 AND ${sql.raw(String(GIFT_MESSAGE_MAX))}`),
+  ],
+);
+
+// 선물 ↔ 아이템 (N:M): 선물에 담긴 아이템
+export const giftItems = pgTable(
+  "gift_items",
+  {
+    giftId: integer("gift_id")
+      .notNull()
+      .references(() => gifts.id, { onDelete: "cascade" }),
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => items.id),
+  },
+  (t) => [primaryKey({ columns: [t.giftId, t.itemId] })],
 );
 
 // ===== 로그인 시도 제한 (NF-10) =====
