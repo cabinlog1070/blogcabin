@@ -1,13 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CharacterArt } from "@/components/character";
 import { useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 import { IconEmoji } from "@/components/icon-emoji";
 import { canWear, composeLook, MANNEQUIN, SLOT_LABEL, SLOT_ORDER, type AvatarSlot } from "@/lib/assets";
+import { msg } from "@/lib/i18n";
 import { SORTS, sortItems, type ItemType, type SortKey } from "@/lib/shop";
+import { saveTriedLook } from "./actions";
 import { ShopGrid, type ShopItem } from "./shop-grid";
+
+/** 옷 카테고리 탭 (2026-10-13): 전체 + 헤어·모자·상의·하의·신발. 한 벌로 된 옷(기모노)은 상의에 있다.
+ *  헤어는 아직 부위(AvatarSlot)가 없어서 빈 탭으로 "곧 나와요"를 보여 준다. 헤어 아이템이 slot "hair"로 들어오면 그대로 채워진다 */
+type Category = "all" | "hair" | AvatarSlot;
+const CATEGORIES: Category[] = ["all", "hair", "hat", "top", "bottom", "shoes"];
+const CATEGORY_LABEL: Record<Category, string> = { all: msg("전체"), hair: msg("헤어"), ...SLOT_LABEL };
 
 /** 상점 본문: 정렬 고르기 + 세 구역 (SHOP-01). 정렬은 기억하지 않는다 (열 때마다 레벨순) */
 export function ShopView({
@@ -81,8 +90,12 @@ function AvatarSection({
 }) {
   // 남자·여자 주민이 아니면(예전에 산 캐릭터) 마네킹에 입혀 본다
   const t = useT();
+  const router = useRouter();
   const wearer = canWear(character) ? character : MANNEQUIN;
   const [tried, setTried] = useState<Partial<Record<AvatarSlot, ShopItem>>>({});
+  const [category, setCategory] = useState<Category>("all");
+  const [saving, startSave] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const slotOf = (assetKey: string) => items.find((i) => i.assetKey === assetKey)?.slot;
   // 지금 입은 것에서 입어 본 부위만 바꾼다
@@ -90,11 +103,32 @@ function AvatarSection({
     (a): a is string => Boolean(a),
   );
   const triedList = SLOT_ORDER.map((s) => tried[s]).filter((i): i is ShopItem => Boolean(i));
+  const inCategory = (c: Category) => (c === "all" ? items : items.filter((i) => (i.slot as string | null) === c));
+  const shown = inCategory(category);
+
+  // 저장하기: 없는 옷은 한꺼번에 사고, 입어 본 그대로 입은 채 광장으로 나간다
+  const cost = triedList.filter((i) => !i.owned).reduce((sum, i) => sum + i.price, 0);
+  const lockedTried = triedList.find((i) => level < i.requiredLevel);
+  const short = cost > coins;
+  const blocker = lockedTried
+    ? t("{name}은(는) 레벨 {level}부터 입을 수 있어요", { name: t(lockedTried.name), level: lockedTried.requiredLevel })
+    : short
+      ? t("코인이 {n}개 부족해요", { n: cost - coins })
+      : null;
 
   function tryOn(item: ShopItem) {
     if (!item.slot) return;
     const slot = item.slot;
+    setError(null);
     setTried((prev) => ({ ...prev, [slot]: prev[slot]?.id === item.id ? undefined : item }));
+  }
+
+  function save() {
+    startSave(async () => {
+      const r = await saveTriedLook(triedList.map((i) => i.id));
+      if (!r.ok) return setError(r.error);
+      router.push("/town");
+    });
   }
 
   return (
@@ -112,15 +146,60 @@ function AvatarSection({
           ) : (
             <p className="text-sm text-ink-soft">{t("아이템 그림을 누르면 사기 전에 내 캐릭터에 입혀 볼 수 있어요.")}</p>
           )}
-          <p className="mt-1 text-xs text-ink-soft">
-            <Icon name="lock" size={14} /> {t("잠긴 옷은 그 레벨이 되어야 사고 입을 수 있어요.")}
-          </p>
+          {error || blocker ? (
+            <p role="alert" className="mt-1 text-xs font-bold text-berry">
+              {error ?? blocker}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-ink-soft">
+              <Icon name="lock" size={14} /> {t("잠긴 옷은 그 레벨이 되어야 사고 입을 수 있어요.")}
+            </p>
+          )}
         </div>
-        <button type="button" onClick={() => setTried({})} disabled={!triedList.length} className="btn bg-paper text-sm text-ink">
-          {t("원래대로")}
-        </button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto">
+          <button
+            type="button"
+            onClick={save}
+            disabled={!triedList.length || Boolean(blocker) || saving}
+            className="btn bg-leaf text-sm text-white"
+            data-save-look
+          >
+            {cost ? (
+              <span>
+                {t("사서 입고 저장하기")} (<Icon name="coin" size={16} /> {cost.toLocaleString()})
+              </span>
+            ) : (
+              t("저장하기")
+            )}
+          </button>
+          <button type="button" onClick={() => (setTried({}), setError(null))} disabled={!triedList.length || saving} className="btn bg-paper text-sm text-ink">
+            {t("원래대로")}
+          </button>
+        </div>
       </div>
-      <ShopGrid items={items} level={level} coins={coins} onTry={tryOn} triedIds={triedList.map((i) => i.id)} />
+      <div role="tablist" aria-label={t("옷 종류")} className="-mx-4 mb-3 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:gap-1.5 sm:px-0">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c}
+            type="button"
+            role="tab"
+            aria-selected={category === c}
+            onClick={() => setCategory(c)}
+            data-shop-category={c}
+            className={`shrink-0 rounded-full px-2.5 py-1.5 text-sm font-bold sm:px-3.5 ${category === c ? "bg-honey text-ink" : "bg-cream text-ink-soft hover:bg-honey/60"}`}
+          >
+            {t(CATEGORY_LABEL[c])} <span className="font-normal">{inCategory(c).length}</span>
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel">
+        {shown.length === 0 && (
+          <p className="card p-6 text-center text-sm text-ink-soft" data-shop-empty>
+            {category === "hair" ? t("헤어 스타일은 곧 상점에 들어와요. 조금만 기다려 주세요!") : t("이 종류의 옷은 아직 없어요.")}
+          </p>
+        )}
+        <ShopGrid items={shown} level={level} coins={coins} onTry={tryOn} triedIds={triedList.map((i) => i.id)} />
+      </div>
     </>
   );
 }
