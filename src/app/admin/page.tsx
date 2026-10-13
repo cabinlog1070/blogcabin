@@ -90,9 +90,12 @@ export default async function AdminPage() {
       <h1 className="font-display text-3xl">
         <Icon name="level" size={34} className="-mt-1" /> {t("관리자")}
       </h1>
-      <p className="mt-3">
+      <p className="mt-3 flex flex-wrap gap-2">
         <Link href="/admin/members" className="btn btn-basic" data-admin-members-link>
           <Icon name="search" size={20} /> {t("회원 관리 (조회·글/댓글 삭제·강제 탈퇴)")}
+        </Link>
+        <Link href="/admin/content" className="btn btn-basic" data-admin-content-link>
+          <Icon name="write" size={20} /> {t("글 관리 (전체 글·댓글 보기·삭제)")}
         </Link>
       </p>
 
@@ -146,7 +149,10 @@ export default async function AdminPage() {
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">
-        <h2 className="mb-3 font-display text-xl">{t("최근 30일 글")}</h2>
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-display text-xl">{t("최근 30일 글")}</h2>
+          <Link href="/admin/content" className="text-sm text-sky underline">{t("글 관리에서 전체 보기")}</Link>
+        </div>
         {recentPosts.length ? (
           <table className="w-full text-left text-sm">
             <thead className="text-ink-soft">

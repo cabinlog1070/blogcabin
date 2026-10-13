@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.19.0",
+        title: msg("관리자 글 관리"),
+        changes: [
+          { kind: "new", text: msg("관리자 화면에 글 관리가 생겼어요. 기간 제한 없이 모든 글과 댓글을 탭으로 나눠 최신순으로 보고, 찾고, 지울 수 있어요."), admin: true },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [
