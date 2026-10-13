@@ -175,6 +175,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
                   deleted: false,
                   content: c.content,
                   createdAtText: formatDateTime(c.createdAt, locale),
+                  edited: Boolean(c.editedAt),
                   authorId: c.authorId,
                   nickname: c.nickname,
                   characterAsset: c.characterAsset,

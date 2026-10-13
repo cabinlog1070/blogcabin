@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.19.0",
+        title: msg("댓글 고치기"),
+        changes: [
+          { kind: "new", text: msg("내가 남긴 댓글과 답글을 [수정]으로 고칠 수 있어요. 고친 댓글에는 작은 '수정됨' 표시가 붙어요.") },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [

@@ -1,7 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
+- 버전: 1.3 (2026-10-13, 댓글 수정(SOC-01): `comments.edited_at`(고친 적 없으면 NULL, 화면에 "수정됨"). 마이그레이션 `0020_comment_edited`)
+- 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
 - 1.1 (2026-10-12, 광장 이웃 주민(TOWN-12): 상태 메시지 `profiles.status_message`(1~30자, 비우면 NULL). 마이그레이션 `0018_profile_status_message`)
 - 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
 - 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
@@ -175,6 +176,7 @@ erDiagram
         text content "1~1000자"
         timestamptz created_at
         timestamptz deleted_at "삭제 표시"
+        timestamptz edited_at "마지막으로 고친 시각"
     }
     post_likes {
         int post_id PK, FK

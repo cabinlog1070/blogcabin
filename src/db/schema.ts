@@ -459,6 +459,7 @@ export const comments = pgTable(
     content: text("content").notNull(),
     createdAt: createdAt(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }), // 답글이 남도록 행은 지우지 않는다
+    editedAt: timestamp("edited_at", { withTimezone: true }), // 마지막으로 고친 시각. 화면에 "수정됨" 표시
   },
   (t) => [
     foreignKey({
