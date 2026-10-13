@@ -1,4 +1,4 @@
-import { EGG_LEVEL_EVERY, EGG_PRICE, MAX_ACTIVE_ANIMALS, POST_GROWTH, POTION_GROWTH, POTION_PRICE } from "@/lib/farm";
+import { EGG_LEVEL_EVERY, EGG_PRICE, MAX_ACTIVE_ANIMALS, MAX_NEST_EGGS, POST_GROWTH, POTION_GROWTH, POTION_PRICE } from "@/lib/farm";
 import { requireMember } from "@/server/dal";
 import { getFarm } from "@/server/farm";
 import { getT } from "@/server/i18n";
@@ -30,7 +30,7 @@ export default async function FarmPage() {
         </div>
         <p className="rounded-full bg-paper px-3 py-1 text-sm shadow-sm">
           {growingBefore}
-          <b>{MAX_ACTIVE_ANIMALS - farm.slotsLeft}</b>
+          <b>{MAX_ACTIVE_ANIMALS - farm.fieldLeft}</b>
           {growingAfter}
         </p>
       </div>
@@ -38,7 +38,9 @@ export default async function FarmPage() {
         active={farm.active}
         grown={farm.grown}
         freeEggs={farm.freeEggs}
-        slotsLeft={farm.slotsLeft}
+        nestLeft={farm.nestLeft}
+        fieldLeft={farm.fieldLeft}
+        maxEggs={MAX_NEST_EGGS}
         coins={wallet.coins}
         potions={farm.potions}
         species={farm.species}

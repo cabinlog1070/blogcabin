@@ -197,13 +197,13 @@ export function townTextures(data: TownData, t: T) {
     list.set(houseKey(h.stage, roof), toDataUri(houseSvg(h.stage, roof)));
   }
   const pet = data.player?.pet;
-  if (pet) list.set("pet", toAnimalDataUri(animalSvg(pet.assetKey, pet.stage, PET_SIZE * 2, pet.accessory)));
+  if (pet) list.set("pet", toAnimalDataUri(animalSvg(pet.assetKey, pet.stage, PET_SIZE * 2, pet.accessory, pet.color)));
   // 광장을 돌아다니는 이웃 주민과 그 펫 (TOWN-12). 같은 모습이면 그림을 같이 쓴다
   for (const r of data.residents) {
     for (const view of CHAR_VIEWS) {
       for (const frame of CHAR_FRAMES) list.set(residentWalkKey(r.look, view, frame), characterViewDataUri(r.look, view, frame, PLAYER_SIZE * 2));
     }
-    if (r.pet) list.set(residentPetKey(r.pet), toAnimalDataUri(animalSvg(r.pet.assetKey, r.pet.stage, RESIDENT_PET_SIZE * 2, r.pet.accessory)));
+    if (r.pet) list.set(residentPetKey(r.pet), toAnimalDataUri(animalSvg(r.pet.assetKey, r.pet.stage, RESIDENT_PET_SIZE * 2, r.pet.accessory, pet.color)));
   }
   if (data.residents.length) {
     list.set(actPropKey("guitar"), toDataUri(guitarSvg()));

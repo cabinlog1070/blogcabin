@@ -134,6 +134,13 @@
       "when": 1791850423876,
       "tag": "0018_profile_status_message",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791850466446,
+      "tag": "0019_pet_color",
+      "breakpoints": true
     }
   ]
 }

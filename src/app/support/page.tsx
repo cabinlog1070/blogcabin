@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { Fragment, type ReactNode } from "react";
 import { Icon } from "@/components/icon";
-import { EGG_LEVEL_EVERY, EGG_PRICE, MAX_ACTIVE_ANIMALS, POST_GROWTH, POTION_GROWTH, POTION_PRICE } from "@/lib/farm";
+import { EGG_LEVEL_EVERY, EGG_PRICE, MAX_ACTIVE_ANIMALS, MAX_NEST_EGGS, POST_GROWTH, POTION_GROWTH, POTION_PRICE } from "@/lib/farm";
 import {
   ATTENDANCE_STREAK_BONUS_EVERY,
   expForLevel,
@@ -144,9 +144,10 @@ const faq = (t: T): { id: string; q: ReactNode; a: ReactNode }[] => [
     a: (
       <p>
         {rich(
-          t("광장의 동물 농장에서 알을 받아요. 첫 알은 무료이고, {every}레벨마다 알을 하나 더 받아요. {coin} {eggPrice}로 살 수도 있어요. 한 번에 {max}마리까지 키울 수 있어요. 밥 주기·쓰다듬기는 하루 한 번씩, 물약({coin} {potionPrice})은 쓸 때마다 성장 + {potionGrowth}, 공개 글로 보상을 받으면 키우는 동물마다 성장 +{postGrowth}이에요. 다 키우면 보상과 카드를 받아요. 한 마리를 골라 데리고 다니면 광장에서 따라와요.", {
+          t("광장의 동물 농장에서 알을 받아요. 첫 알은 무료이고, {every}레벨마다 알을 하나 더 받아요. {coin} {eggPrice}로 살 수도 있어요. 알 둥지에는 알을 {eggs}개까지 놓고, 풀밭에서는 한 번에 {max}마리까지 키울 수 있어요. 밥 주기·쓰다듬기는 하루 한 번씩, 물약({coin} {potionPrice})은 쓸 때마다 성장 + {potionGrowth}, 공개 글로 보상을 받으면 키우는 동물마다 성장 +{postGrowth}이에요. 다 키우면 보상과 카드를 받아요. 한 마리를 골라 데리고 다니면 광장에서 따라와요.", {
               every: EGG_LEVEL_EVERY,
               eggPrice: EGG_PRICE,
+              eggs: MAX_NEST_EGGS,
               max: MAX_ACTIVE_ANIMALS,
               potionPrice: POTION_PRICE,
               potionGrowth: POTION_GROWTH,

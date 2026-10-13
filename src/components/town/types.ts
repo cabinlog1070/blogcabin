@@ -10,7 +10,7 @@ export type TownHouse = {
 };
 
 /** 데리고 다니는 펫 (TOWN-09): 광장에서 내 캐릭터 뒤를 따라온다 */
-export type TownPet = { name: string; assetKey: string; stage: "baby" | "teen" | "adult"; accessory: "none" | "ribbon" | "flower" | "scarf" };
+export type TownPet = { name: string; assetKey: string; stage: "baby" | "teen" | "adult"; accessory: "none" | "ribbon" | "flower" | "scarf"; color?: "default" | "brown" | "yellow" | "red" | "black" | "white" | "pink" };
 
 /** 광장을 돌아다니는 이웃 주민 (TOWN-12): 즐겨찾기한 이웃이 데리고 다니는 펫과 함께 걷고, 가까이 가면 상태 메시지 말풍선을 띄운다 */
 export type TownResident = {

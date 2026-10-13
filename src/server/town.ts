@@ -78,6 +78,7 @@ export async function getResidents(userId: string): Promise<TownResident[]> {
       petGrowth: userAnimals.growth,
       petGrowExp: animalSpecies.growExp,
       petAccessory: userAnimals.accessory,
+      petColor: userAnimals.color,
     })
     .from(blogs)
     .innerJoin(profiles, eq(profiles.userId, blogs.ownerId))
@@ -87,10 +88,10 @@ export async function getResidents(userId: string): Promise<TownResident[]> {
     .leftJoin(animalSpecies, eq(animalSpecies.id, userAnimals.speciesId))
     .orderBy(sql`${lastPublicPostAt} DESC NULLS LAST`, desc(follows.createdAt))
     .limit(TOWN_NEIGHBOR_LIMIT);
-  return rows.map(({ petAsset, petGrowth, petGrowExp, petAccessory, ...r }) => ({
+  return rows.map(({ petAsset, petGrowth, petGrowExp, petAccessory, petColor, ...r }) => ({
     ...r,
     pet: petAsset && petGrowth !== null && petGrowExp !== null && petAccessory
-      ? { assetKey: petAsset, stage: animalStage(petGrowth, petGrowExp), accessory: petAccessory }
+      ? { assetKey: petAsset, stage: animalStage(petGrowth, petGrowExp), accessory: petAccessory, color: petColor ?? undefined }
       : null,
   }));
 }

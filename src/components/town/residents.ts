@@ -17,7 +17,7 @@ export type ResidentAct = "wander" | "sit" | "guitar" | "sing" | "pet" | "water"
 
 /** 주민 걷는 그림 키: 내 캐릭터와 같은 이름 공간("walk")이라 같은 모습이면 그림을 같이 쓴다 */
 export const residentWalkKey = (look: string, view: CharView, frame: WalkFrame) => characterViewKey(look, view, frame, "walk");
-export const residentPetKey = (p: NonNullable<TownResident["pet"]>) => `rpet:${p.assetKey}:${p.stage}:${p.accessory}`;
+export const residentPetKey = (p: NonNullable<TownResident["pet"]>) => `rpet:${p.assetKey}:${p.stage}:${p.accessory}:${p.color ?? "default"}`;
 export const actPropKey = (k: ActProp | `note:${string}`) => `act:${k}`;
 
 const WALK_SPEED = 95; // 내 캐릭터(330)보다 느긋하게

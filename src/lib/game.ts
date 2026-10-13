@@ -35,7 +35,7 @@ export const REWARD_RULES: Record<RewardReason, { exp: number; coins: number; da
   post: { exp: 30, coins: 30, dailyLimit: 3 },
   comment: { exp: 5, coins: 5, dailyLimit: 10 },
   like_received: { exp: 2, coins: 2, dailyLimit: 20 },
-  farm_care: { exp: 2, coins: 0, dailyLimit: 10 }, // 동물 돌보기: 밥·쓰다듬기 (5마리 × 2가지). 물약은 경험치를 주지 않는다
+  farm_care: { exp: 2, coins: 0, dailyLimit: 20 }, // 동물 돌보기: 밥·쓰다듬기 (10마리 × 2가지). 물약은 경험치를 주지 않는다
 };
 
 /** 글 작성 보상을 받으려면 본문이 이 글자 수 이상이어야 한다 */
