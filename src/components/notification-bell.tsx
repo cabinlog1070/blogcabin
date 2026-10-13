@@ -17,6 +17,7 @@ import {
 import { useLocale, useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 import { ItemArt } from "@/components/item-art";
+import { GiftPetEgg } from "@/components/pet-art";
 import { timeAgo } from "@/lib/game";
 import type { GiftView } from "@/server/gifts";
 import type { LevelUpPopup, NotificationView } from "@/server/notifications";
@@ -266,6 +267,8 @@ function GiftModal({ gift, onClose }: { gift: GiftView; onClose: () => void }) {
 
   if (!mounted) return null;
   const shown = gift.items.slice(0, 4);
+  const shownPets = gift.pets.slice(0, Math.max(0, 4 - shown.length));
+  const more = gift.items.length + gift.pets.length - shown.length - shownPets.length;
   return createPortal(
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" data-gift-modal>
       <div role="dialog" aria-modal="true" aria-labelledby="gift-title" className="card w-full max-w-sm p-6 text-center">
@@ -281,7 +284,7 @@ function GiftModal({ gift, onClose }: { gift: GiftView; onClose: () => void }) {
             <Icon name="coin" size={22} /> {t("{n}코인", { n: gift.coins.toLocaleString() })}
           </p>
         )}
-        {shown.length > 0 && (
+        {shown.length + shownPets.length > 0 && (
           <ul className="mt-3 flex flex-wrap justify-center gap-2" data-gift-items>
             {shown.map((it) => (
               <li key={it.id} className="w-20">
@@ -289,9 +292,16 @@ function GiftModal({ gift, onClose }: { gift: GiftView; onClose: () => void }) {
                 <span className="mt-1 block truncate text-xs font-bold">{t(it.name)}</span>
               </li>
             ))}
+            {shownPets.map((p) => (
+              <li key={`pet-${p.id}`} className="w-20" data-gift-pet>
+                <GiftPetEgg assetKey={p.assetKey} />
+                <span className="mt-1 block truncate text-xs font-bold">{t("{name} 알", { name: t(p.name) })}</span>
+              </li>
+            ))}
           </ul>
         )}
-        {gift.items.length > shown.length && <p className="mt-1 text-xs text-ink-soft">{t("외 {n}개", { n: gift.items.length - shown.length })}</p>}
+        {more > 0 && <p className="mt-1 text-xs text-ink-soft">{t("외 {n}개", { n: more })}</p>}
+        {gift.pets.length > 0 && <p className="mt-2 text-xs text-ink-soft">{t("펫 알은 동물 농장 둥지에서 부화시켜요.")}</p>}
         <div className="mt-6 flex justify-center gap-2">
           <button type="button" onClick={() => close(true)} className="btn bg-sun text-ink">
             {t("받은 선물 보기")}

@@ -1,7 +1,7 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 1.8 (2026-10-13, 구조 변경 없음. 예전 상점 캐릭터 9종(`char_human`·`char_cat`·`char_dog`·`char_rabbit`·`char_fox`·`char_panda`·`char_robot`·`char_dragon`·`char_unicorn`)을 `items`에서 지움: 쓰던 주민은 기본 주민(긴 머리 헤어를 입었으면 `char_girl`, 아니면 `char_boy`)과 그 기본 헤어로 바꾸고, `user_items`·`gift_items`에서도 지움. 마이그레이션 `0027_remove_old_characters`)
+- 버전: 1.9 (2026-10-13, 관리자 선물에 펫 알: `gift_pets`(선물 하나에 담긴 펫 종류), 나올 펫이 정해진 알 `user_animals.egg_species_id`(NULL이면 부화할 때 무작위), 알 받은 곳 `gift`. 예전 상점 캐릭터 9종(`char_human`·`char_cat`·`char_dog`·`char_rabbit`·`char_fox`·`char_panda`·`char_robot`·`char_dragon`·`char_unicorn`)을 `items`에서 지우고, 가졌던 주민에게는 캐릭터마다 그 동물 알(판다→곰, 로봇→공룡, 모험가→강아지)을 보낸 사람 없는 선물로 준다. 쓰던 주민은 기본 주민(긴 머리 헤어를 입었으면 `char_girl`, 아니면 `char_boy`)과 그 기본 헤어로 바꾼다. 마이그레이션 `0027_gift_pets`·`0028_remove_old_characters`. 3.3-7)
 - 1.7 (2026-10-13, 관리자 선물: `gifts`·`gift_items`, 원장 사유 `admin_gift`(ref_id = 선물 ID), 알림 종류 `gift`(ref_id = 선물 ID). 마이그레이션 `0026_admin_gift`. 3.3-7)
 - 1.6 (2026-10-13, 댓글 수정(SOC-01): `comments.edited_at`(고친 적 없으면 NULL, 화면에 "수정됨"). 마이그레이션 `0025_comment_edited`)
 - 1.5 (2026-10-13, 헤어: 꾸미기 부위 `hair`(`0023_hair_slot`), 머리 색 `profiles.hair_color`(9색, 비우면 NULL, `0024_hair_color`))
@@ -68,6 +68,9 @@ erDiagram
     users |o--o{ gifts : "보낸 관리자"
     gifts ||--o{ gift_items : "담긴 아이템"
     items ||--o{ gift_items : ""
+    gifts ||--o{ gift_pets : "담긴 펫 알"
+    animal_species ||--o{ gift_pets : ""
+    animal_species |o--o{ user_animals : "나올 펫 (정해진 알)"
 
     users |o--o{ profiles : "나를 초대한 회원 (invited_by)"
     blogs ||--o{ blog_visits : "방문 기록 (하루 1번)"
@@ -242,6 +245,10 @@ erDiagram
         int gift_id PK,FK
         int item_id PK,FK
     }
+    gift_pets {
+        int gift_id PK,FK
+        int species_id PK,FK "태어날 펫"
+    }
     animal_species {
         int id PK
         text code UK
@@ -257,9 +264,10 @@ erDiagram
         int id PK
         text user_id FK
         int species_id FK "알이면 NULL"
+        int egg_species_id FK "나올 펫이 정해진 알 (NULL이면 무작위)"
         animal_status status "egg / growing / grown"
         int growth "성장치 = 펫 경험치"
-        egg_source source "starter / level / shop"
+        egg_source source "starter / level / shop / gift"
         int source_level
         text name "펫 이름 1~10자 (알이면 NULL)"
         animal_gender gender "male / female (알이면 NULL)"
@@ -432,6 +440,8 @@ FOREIGN KEY (item_id, slot) REFERENCES items (id, slot)                         
 - 아이템은 `user_items`에 바로 넣고 `gift_items`(N:M)에 남긴다. 이미 가진 아이템은 빼고, 받을 게 하나도 없으면(코인 0, 아이템 모두 보유) 그 주민에게는 선물을 만들지 않는다. 레벨 제한은 선물에는 걸지 않는다.
 - 받은 주민에게 알림 `gift`(actor_id = 보낸 관리자, ref_id = 선물 ID)를 남긴다. 안 읽은 선물 알림은 다음 화면에서 선물 팝업으로 하나씩 보이고, 팝업을 닫으면 읽음이 된다. 함께 보낸 말은 저장한 그대로 보여 주고 번역하지 않는다.
 - 삭제: 받은 주민이 탈퇴하면 선물도 지운다(`CASCADE`). 보낸 관리자가 지워지면 `sender_id`만 비운다(`SET NULL`).
+- 펫 알 (2026-10-13, 마이그레이션 0027): 고른 펫 종류마다 `gift_pets (gift_id, species_id) PK`에 남기고, 받은 주민에게 `user_animals` 알(`source = 'gift'`, `egg_species_id` = 그 종류)을 넣는다. 부화하면 `egg_species_id`의 펫이 나오고(비중 무작위를 건너뜀), 나머지(이름·성별)는 보통 알과 같다. 펫은 이미 키우고 있어도 보내고, 둥지가 꽉 차 있어도 넣는다. `egg_species_id`는 부화한 뒤에도 남겨 둔다(어떤 알이었는지 기록).
+- 예전 캐릭터 정리 (마이그레이션 0028): 가졌던 캐릭터마다 그 동물 알을, 주민마다 보낸 사람 없는 선물 하나(함께 보낸 말 + `gift_pets`)와 `gift` 알림으로 준다.
 
 ### 3.4 코인과 경험치는 저장하지 않고 원장에서 계산 (정규화)
 

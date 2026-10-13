@@ -4,23 +4,26 @@ import { useActionState, useEffect, useState } from "react";
 import { useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 import { ItemArt } from "@/components/item-art";
+import { PetArt } from "@/components/pet-art";
 import { adminSendGift, type GiftState } from "./actions";
 
 type Member = { userId: string; label: string; search: string };
 type GiftItem = { id: number; type: string; name: string; assetKey: string };
+type GiftPet = { id: number; name: string; assetKey: string };
 
 const TYPE_TABS = [
   { key: "all", label: "전체" },
   { key: "avatar", label: "옷" },
   { key: "furniture", label: "가구" },
   { key: "background", label: "배경" },
+  { key: "pet", label: "펫" },
 ] as const;
 
 /**
- * 관리자 선물 보내기: 받을 주민(여러 명 또는 모든 주민), 코인·아이템, 함께 보낼 말.
+ * 관리자 선물 보내기: 받을 주민(여러 명 또는 모든 주민), 코인·아이템·펫(그 펫이 태어나는 알), 함께 보낼 말.
  * 보내고 나면 고른 것과 적은 말을 비운다 (다음 선물은 새로 고른다)
  */
-export function AdminGiftForm({ members, items, messageMax }: { members: Member[]; items: GiftItem[]; messageMax: number }) {
+export function AdminGiftForm({ members, items, pets, messageMax }: { members: Member[]; items: GiftItem[]; pets: GiftPet[]; messageMax: number }) {
   const [state, action, pending] = useActionState<GiftState, FormData>(adminSendGift, {});
   const t = useT();
   const [query, setQuery] = useState("");
@@ -28,6 +31,7 @@ export function AdminGiftForm({ members, items, messageMax }: { members: Member[
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<(typeof TYPE_TABS)[number]["key"]>("all");
   const [chosen, setChosen] = useState<Set<number>>(new Set());
+  const [chosenPets, setChosenPets] = useState<Set<number>>(new Set());
   const [message, setMessage] = useState("");
   const [coins, setCoins] = useState("");
 
@@ -37,6 +41,7 @@ export function AdminGiftForm({ members, items, messageMax }: { members: Member[
     /* eslint-disable react-hooks/set-state-in-effect -- 서버 응답을 받은 뒤 한 번 비운다 */
     setPicked(new Set());
     setChosen(new Set());
+    setChosenPets(new Set());
     setMessage("");
     setCoins("");
     setEveryone(false);
@@ -46,6 +51,7 @@ export function AdminGiftForm({ members, items, messageMax }: { members: Member[
   const q = query.trim().toLowerCase();
   const shownMembers = q ? members.filter((m) => m.search.includes(q)) : members;
   const shownItems = tab === "all" ? items : items.filter((it) => it.type === tab);
+  const shownPets = tab === "all" || tab === "pet" ? pets : [];
   const toggle = <V,>(set: Set<V>, v: V) => {
     const next = new Set(set);
     if (next.has(v)) next.delete(v);
@@ -126,10 +132,18 @@ export function AdminGiftForm({ members, items, messageMax }: { members: Member[
 
       {/* 아이템 */}
       <fieldset className="min-w-0 lg:col-span-2">
+        {/* 고른 것은 탭을 바꿔 목록에서 안 보여도 보낸다 */}
+        {[...chosen].map((id) => (
+          <input key={`i${id}`} type="hidden" name="itemId" value={id} />
+        ))}
+        {[...chosenPets].map((id) => (
+          <input key={`p${id}`} type="hidden" name="speciesId" value={id} />
+        ))}
         <legend className="mb-1 text-sm font-bold">
-          {t("아이템")} <span className="font-normal text-ink-soft">{t("{n}개 고름", { n: chosen.size })}</span>
+          {t("아이템")} <span className="font-normal text-ink-soft">{t("{n}개 고름", { n: chosen.size + chosenPets.size })}</span>
         </legend>
         <p className="mb-2 text-xs text-ink-soft">{t("받는 주민이 이미 가진 아이템은 빼고 보내요. 레벨이 모자라도 받을 수 있어요.")}</p>
+        <p className="mb-2 text-xs text-ink-soft">{t("펫은 그 펫이 태어나는 알로 농장 둥지에 들어가요. 이미 키우는 펫이어도 보내요.")}</p>
         <div className="mb-2 flex flex-wrap gap-1.5" role="tablist">
           {TYPE_TABS.map((tb) => (
             <button
@@ -153,11 +167,29 @@ export function AdminGiftForm({ members, items, messageMax }: { members: Member[
                   className={`block cursor-pointer rounded-xl border-2 p-1 text-center ${on ? "border-sun bg-honey" : "border-transparent hover:bg-cream"}`}
                   data-gift-item={it.id}
                 >
-                  <input type="checkbox" name="itemId" value={it.id} checked={on} onChange={() => setChosen((s) => toggle(s, it.id))} className="sr-only" />
+                  <input type="checkbox" checked={on} onChange={() => setChosen((s) => toggle(s, it.id))} className="sr-only" />
                   <ItemArt type={it.type} assetKey={it.assetKey} className="h-16" characterSize={56} />
                   <span className="mt-1 block truncate text-xs font-bold">
                     {on && "✓ "}
                     {t(it.name)}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+          {shownPets.map((p) => {
+            const on = chosenPets.has(p.id);
+            return (
+              <li key={`pet-${p.id}`}>
+                <label
+                  className={`block cursor-pointer rounded-xl border-2 p-1 text-center ${on ? "border-sun bg-honey" : "border-transparent hover:bg-cream"}`}
+                  data-gift-pet={p.id}
+                >
+                  <input type="checkbox" checked={on} onChange={() => setChosenPets((s) => toggle(s, p.id))} className="sr-only" />
+                  <PetArt assetKey={p.assetKey} stage="adult" size={64} className="mx-auto h-16 w-auto" />
+                  <span className="mt-1 block truncate text-xs font-bold">
+                    {on && "✓ "}
+                    {t("{name} 알", { name: t(p.name) })}
                   </span>
                 </label>
               </li>

@@ -1,5 +1,5 @@
 {
-  "id": "27459a39-bc3b-40c1-8c71-856dd7af7981",
+  "id": "d2082efa-4c22-48ba-92df-f0b1829e0cef",
   "prevId": "28667390-1914-44cd-9a22-5e690a088aa3",
   "version": "7",
   "dialect": "postgresql",
@@ -692,20 +692,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
         "room_char_x": {
           "name": "room_char_x",
           "type": "real",
@@ -729,6 +715,20 @@
           "type": "real",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},
@@ -793,13 +793,13 @@
           "name": "blogs_title_check",
           "value": "char_length(\"blogs\".\"title\") BETWEEN 1 AND 40"
         },
-        "blogs_room_pet_check": {
-          "name": "blogs_room_pet_check",
-          "value": "(\"blogs\".\"room_pet_x\" IS NULL) = (\"blogs\".\"room_pet_y\" IS NULL) AND \"blogs\".\"room_pet_x\" BETWEEN 0 AND 100 AND \"blogs\".\"room_pet_y\" BETWEEN 0 AND 100"
-        },
         "blogs_room_char_check": {
           "name": "blogs_room_char_check",
           "value": "(\"blogs\".\"room_char_x\" IS NULL) = (\"blogs\".\"room_char_y\" IS NULL) AND \"blogs\".\"room_char_x\" BETWEEN 0 AND 100 AND \"blogs\".\"room_char_y\" BETWEEN 0 AND 100"
+        },
+        "blogs_room_pet_check": {
+          "name": "blogs_room_pet_check",
+          "value": "(\"blogs\".\"room_pet_x\" IS NULL) = (\"blogs\".\"room_pet_y\" IS NULL) AND \"blogs\".\"room_pet_x\" BETWEEN 0 AND 100 AND \"blogs\".\"room_pet_y\" BETWEEN 0 AND 100"
         }
       },
       "isRLSEnabled": false
@@ -1186,6 +1186,246 @@
         "follows_not_self_check": {
           "name": "follows_not_self_check",
           "value": "\"follows\".\"follower_id\" <> \"follows\".\"followee_id\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.gift_items": {
+      "name": "gift_items",
+      "schema": "",
+      "columns": {
+        "gift_id": {
+          "name": "gift_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "gift_items_gift_id_gifts_id_fk": {
+          "name": "gift_items_gift_id_gifts_id_fk",
+          "tableFrom": "gift_items",
+          "tableTo": "gifts",
+          "columnsFrom": [
+            "gift_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "gift_items_item_id_items_id_fk": {
+          "name": "gift_items_item_id_items_id_fk",
+          "tableFrom": "gift_items",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "gift_items_gift_id_item_id_pk": {
+          "name": "gift_items_gift_id_item_id_pk",
+          "columns": [
+            "gift_id",
+            "item_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.gift_pets": {
+      "name": "gift_pets",
+      "schema": "",
+      "columns": {
+        "gift_id": {
+          "name": "gift_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "species_id": {
+          "name": "species_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "gift_pets_gift_id_gifts_id_fk": {
+          "name": "gift_pets_gift_id_gifts_id_fk",
+          "tableFrom": "gift_pets",
+          "tableTo": "gifts",
+          "columnsFrom": [
+            "gift_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "gift_pets_species_id_animal_species_id_fk": {
+          "name": "gift_pets_species_id_animal_species_id_fk",
+          "tableFrom": "gift_pets",
+          "tableTo": "animal_species",
+          "columnsFrom": [
+            "species_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "gift_pets_gift_id_species_id_pk": {
+          "name": "gift_pets_gift_id_species_id_pk",
+          "columns": [
+            "gift_id",
+            "species_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.gifts": {
+      "name": "gifts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "gifts_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "sender_id": {
+          "name": "sender_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recipient_id": {
+          "name": "recipient_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coins": {
+          "name": "coins",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "gifts_recipient_created_idx": {
+          "name": "gifts_recipient_created_idx",
+          "columns": [
+            {
+              "expression": "recipient_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "gifts_sender_id_users_id_fk": {
+          "name": "gifts_sender_id_users_id_fk",
+          "tableFrom": "gifts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "sender_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "gifts_recipient_id_users_id_fk": {
+          "name": "gifts_recipient_id_users_id_fk",
+          "tableFrom": "gifts",
+          "tableTo": "users",
+          "columnsFrom": [
+            "recipient_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "gifts_coins_check": {
+          "name": "gifts_coins_check",
+          "value": "\"gifts\".\"coins\" >= 0"
+        },
+        "gifts_message_check": {
+          "name": "gifts_message_check",
+          "value": "char_length(\"gifts\".\"message\") BETWEEN 1 AND 200"
         }
       },
       "isRLSEnabled": false
@@ -2031,6 +2271,13 @@
           "notNull": true,
           "default": 0
         },
+        "pin_hours": {
+          "name": "pin_hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2044,13 +2291,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "pin_hours": {
-          "name": "pin_hours",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         }
       },
       "indexes": {
@@ -2137,13 +2377,13 @@
           "name": "posts_view_count_check",
           "value": "\"posts\".\"view_count\" >= 0"
         },
-        "posts_visibility_check": {
-          "name": "posts_visibility_check",
-          "value": "\"posts\".\"visibility\" IN ('public', 'private')"
-        },
         "posts_pin_hours_check": {
           "name": "posts_pin_hours_check",
           "value": "\"posts\".\"pin_hours\" BETWEEN 0 AND 720"
+        },
+        "posts_visibility_check": {
+          "name": "posts_visibility_check",
+          "value": "\"posts\".\"visibility\" IN ('public', 'private')"
         }
       },
       "isRLSEnabled": false
@@ -2200,18 +2440,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "hair_color": {
+          "name": "hair_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "hair_color": {
-          "name": "hair_color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
@@ -2296,6 +2536,10 @@
           "name": "profiles_status_message_check",
           "value": "char_length(\"profiles\".\"status_message\") BETWEEN 1 AND 30"
         },
+        "profiles_hair_color_check": {
+          "name": "profiles_hair_color_check",
+          "value": "\"profiles\".\"hair_color\" IN ('black', 'brown', 'caramel', 'blonde', 'red', 'pink', 'blue', 'purple', 'mint')"
+        },
         "profiles_nickname_check": {
           "name": "profiles_nickname_check",
           "value": "char_length(\"profiles\".\"nickname\") BETWEEN 2 AND 12"
@@ -2307,10 +2551,6 @@
         "profiles_invited_by_check": {
           "name": "profiles_invited_by_check",
           "value": "\"profiles\".\"invited_by\" <> \"profiles\".\"user_id\""
-        },
-        "profiles_hair_color_check": {
-          "name": "profiles_hair_color_check",
-          "value": "\"profiles\".\"hair_color\" IN ('black', 'brown', 'caramel', 'blonde', 'red', 'pink', 'blue', 'purple', 'mint')"
         }
       },
       "isRLSEnabled": false
@@ -2623,6 +2863,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "egg_species_id": {
+          "name": "egg_species_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -2805,6 +3051,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "user_animals_egg_species_id_animal_species_id_fk": {
+          "name": "user_animals_egg_species_id_animal_species_id_fk",
+          "tableFrom": "user_animals",
+          "tableTo": "animal_species",
+          "columnsFrom": [
+            "egg_species_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2846,7 +3105,7 @@
         },
         "user_animals_source_check": {
           "name": "user_animals_source_check",
-          "value": "\"user_animals\".\"source\" IN ('starter', 'level', 'shop')"
+          "value": "\"user_animals\".\"source\" IN ('starter', 'level', 'shop', 'gift')"
         },
         "user_animals_gender_check": {
           "name": "user_animals_gender_check",
@@ -3101,186 +3360,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.gift_items": {
-      "name": "gift_items",
-      "schema": "",
-      "columns": {
-        "gift_id": {
-          "name": "gift_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "item_id": {
-          "name": "item_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "gift_items_gift_id_gifts_id_fk": {
-          "name": "gift_items_gift_id_gifts_id_fk",
-          "tableFrom": "gift_items",
-          "tableTo": "gifts",
-          "columnsFrom": [
-            "gift_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "gift_items_item_id_items_id_fk": {
-          "name": "gift_items_item_id_items_id_fk",
-          "tableFrom": "gift_items",
-          "tableTo": "items",
-          "columnsFrom": [
-            "item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "gift_items_gift_id_item_id_pk": {
-          "name": "gift_items_gift_id_item_id_pk",
-          "columns": [
-            "gift_id",
-            "item_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.gifts": {
-      "name": "gifts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "gifts_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "sender_id": {
-          "name": "sender_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recipient_id": {
-          "name": "recipient_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "coins": {
-          "name": "coins",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "gifts_recipient_created_idx": {
-          "name": "gifts_recipient_created_idx",
-          "columns": [
-            {
-              "expression": "recipient_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "gifts_sender_id_users_id_fk": {
-          "name": "gifts_sender_id_users_id_fk",
-          "tableFrom": "gifts",
-          "tableTo": "users",
-          "columnsFrom": [
-            "sender_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "gifts_recipient_id_users_id_fk": {
-          "name": "gifts_recipient_id_users_id_fk",
-          "tableFrom": "gifts",
-          "tableTo": "users",
-          "columnsFrom": [
-            "recipient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "gifts_coins_check": {
-          "name": "gifts_coins_check",
-          "value": "\"gifts\".\"coins\" >= 0"
-        },
-        "gifts_message_check": {
-          "name": "gifts_message_check",
-          "value": "char_length(\"gifts\".\"message\") BETWEEN 1 AND 200"
-        }
-      },
       "isRLSEnabled": false
     }
   },

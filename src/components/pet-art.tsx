@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { animalSvg, toAnimalDataUri } from "@/lib/art/animals";
+import { animalSvg, eggSvg, toAnimalDataUri } from "@/lib/art/animals";
 import { formatMetDate, type AnimalStage, type PetAccessory, type PetColor } from "@/lib/farm";
 import { makeT, type Locale } from "@/lib/i18n";
 
@@ -70,5 +70,16 @@ export function PetCard({
       {speciesName && <span className="text-[11px] text-ink-soft">{speciesName}</span>}
       {grownAt && <span className="whitespace-nowrap text-[10px] text-ink-soft">{formatMetDate(grownAt, locale)}{size === "md" && ` ${t("다 자람")}`}</span>}
     </div>
+  );
+}
+
+/** 선물로 받은 펫 알: 알 옆에 태어날 아기 펫을 작게 그린다 */
+export function GiftPetEgg({ assetKey }: { assetKey: string }) {
+  return (
+    <span className="relative mx-auto block h-16 w-16">
+      {/* eslint-disable-next-line @next/next/no-img-element -- 코드로 만든 SVG(data URI) */}
+      <img src={toAnimalDataUri(eggSvg(128))} alt="" width={52} height={52} draggable={false} className="absolute left-0 top-0" />
+      <PetArt assetKey={assetKey} stage="baby" size={40} className="absolute bottom-0 right-0" />
+    </span>
   );
 }

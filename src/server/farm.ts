@@ -1,5 +1,6 @@
 import "server-only";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { animalCares, animalSpecies, farmItems, notifications, pointLedger, profiles, userAnimals } from "@/db/schema";
 import {
@@ -27,6 +28,8 @@ export type FarmAnimal = {
   growth: number;
   name: string | null; // 펫 이름 (알이면 NULL)
   speciesName: string | null;
+  /** 나올 펫이 정해진 알이면 그 펫 종류 이름 (예전 캐릭터 대신 받은 알) */
+  eggSpeciesName: string | null;
   gender: PetGender | null;
   accessory: PetAccessory;
   color: PetColor;
@@ -42,6 +45,8 @@ export type FarmAnimal = {
 };
 
 export type SpeciesCard = { id: number; name: string; assetKey: string; growExp: number; maxLevel: number; hatchWeight: number };
+
+const eggSpecies = alias(animalSpecies, "egg_species");
 
 /** 농장 화면에 필요한 것: 키우는 알·동물, 다 키운 동물, 받을 수 있는 무료 알 */
 export async function getFarm(userId: string, level: number) {
@@ -60,6 +65,7 @@ export async function getFarm(userId: string, level: number) {
       color: userAnimals.color,
       carried: userAnimals.carried,
       speciesName: animalSpecies.name,
+      eggSpeciesName: eggSpecies.name,
       assetKey: animalSpecies.assetKey,
       growExp: animalSpecies.growExp,
       maxLevel: animalSpecies.maxLevel,
@@ -68,6 +74,7 @@ export async function getFarm(userId: string, level: number) {
     })
     .from(userAnimals)
     .leftJoin(animalSpecies, eq(animalSpecies.id, userAnimals.speciesId))
+    .leftJoin(eggSpecies, eq(eggSpecies.id, userAnimals.eggSpeciesId))
     .where(eq(userAnimals.userId, userId))
     .orderBy(asc(userAnimals.id));
 
@@ -84,6 +91,7 @@ export async function getFarm(userId: string, level: number) {
     growth: r.growth,
     name: r.name,
     speciesName: r.speciesName,
+    eggSpeciesName: r.eggSpeciesName,
     gender: r.gender,
     accessory: r.accessory,
     color: r.color,

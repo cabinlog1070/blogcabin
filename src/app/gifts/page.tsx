@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { ItemArt } from "@/components/item-art";
+import { GiftPetEgg } from "@/components/pet-art";
 import { formatDateTime } from "@/lib/format";
 import { requireMember } from "@/server/dal";
 import { listReceivedGifts } from "@/server/gifts";
@@ -32,7 +33,7 @@ export default async function GiftsPage() {
                 <span className="ml-auto text-xs text-ink-soft">{formatDateTime(g.createdAt, locale)}</span>
               </div>
               <p className="mt-2 whitespace-pre-line break-words rounded-xl bg-honey px-4 py-3">{g.message}</p>
-              {(g.coins > 0 || g.items.length > 0) && (
+              {(g.coins > 0 || g.items.length > 0 || g.pets.length > 0) && (
                 <ul className="mt-3 flex flex-wrap items-end gap-2">
                   {g.coins > 0 && (
                     <li className="flex h-16 items-center gap-1 rounded-xl bg-cream px-3 font-bold">
@@ -43,6 +44,12 @@ export default async function GiftsPage() {
                     <li key={it.id} className="w-20 text-center">
                       <ItemArt type={it.type} assetKey={it.assetKey} className="h-16" characterSize={56} />
                       <span className="mt-1 block truncate text-xs font-bold">{t(it.name)}</span>
+                    </li>
+                  ))}
+                  {g.pets.map((p) => (
+                    <li key={`pet-${p.id}`} className="w-20 text-center" data-gift-pet>
+                      <GiftPetEgg assetKey={p.assetKey} />
+                      <span className="mt-1 block truncate text-xs font-bold">{t("{name} 알", { name: t(p.name) })}</span>
                     </li>
                   ))}
                 </ul>

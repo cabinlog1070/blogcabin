@@ -194,8 +194,15 @@
     {
       "idx": 27,
       "version": "7",
-      "when": 1791850533446,
-      "tag": "0027_remove_old_characters",
+      "when": 1791873253198,
+      "tag": "0027_gift_pets",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791873254279,
+      "tag": "0028_remove_old_characters",
       "breakpoints": true
     }
   ]

@@ -82,7 +82,8 @@ export const ledgerReason = enumText(LEDGER_REASONS);
 // 동물 농장 (TOWN-09)
 export const ANIMAL_STATUSES = ["egg", "growing", "grown"] as const;
 export const animalStatus = enumText(ANIMAL_STATUSES);
-export const EGG_SOURCES = ["starter", "level", "shop"] as const;
+// gift = 관리자 선물로 받은 알 (2026-10-13, 정해진 펫이 나온다: egg_species_id). 없앤 예전 캐릭터 대신 준 알도 선물이다
+export const EGG_SOURCES = ["starter", "level", "shop", "gift"] as const;
 export const eggSource = enumText(EGG_SOURCES);
 // water(물 주기)는 2026-10-08에 물약으로 바뀌어 쓰지 않는다. 옛 기록 때문에 값은 남겨 둔다
 export const CARE_ACTIONS = ["feed", "water", "pet"] as const;
@@ -685,6 +686,8 @@ export const userAnimals = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     speciesId: integer("species_id").references(() => animalSpecies.id),
+    // 나올 펫이 정해진 알 (관리자 선물 알). NULL이면 부화할 때 비중에 따라 무작위
+    eggSpeciesId: integer("egg_species_id").references(() => animalSpecies.id),
     status: animalStatus("status").notNull().default("egg"),
     growth: integer("growth").notNull().default(0),
     source: eggSource("source").notNull(),
@@ -877,6 +880,20 @@ export const giftItems = pgTable(
       .references(() => items.id),
   },
   (t) => [primaryKey({ columns: [t.giftId, t.itemId] })],
+);
+
+// 선물에 담긴 펫 알: 종류마다 하나, 받은 주민 둥지에 그 펫이 나오는 알(user_animals.egg_species_id)로 들어간다
+export const giftPets = pgTable(
+  "gift_pets",
+  {
+    giftId: integer("gift_id")
+      .notNull()
+      .references(() => gifts.id, { onDelete: "cascade" }),
+    speciesId: integer("species_id")
+      .notNull()
+      .references(() => animalSpecies.id),
+  },
+  (t) => [primaryKey({ columns: [t.giftId, t.speciesId] })],
 );
 
 // ===== 로그인 시도 제한 (NF-10) =====
