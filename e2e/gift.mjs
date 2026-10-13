@@ -24,7 +24,8 @@ const memberErrors = collectErrors(member);
 await loginDev(member, memberId);
 const { rows: [m] } = await db.query("SELECT id FROM users WHERE username = $1", [memberId]);
 const other = await fakeMember(db, `gfo${tag}`);
-const { rows: giftItems } = await db.query("SELECT id, name FROM items WHERE NOT is_starter AND type IN ('avatar', 'furniture') ORDER BY id LIMIT 2");
+// 시작 머리(짧은 머리·긴 머리)는 주민이 이미 가지고 있어 선물에서 빠지므로 헤어는 고르지 않는다
+const { rows: giftItems } = await db.query("SELECT id, name FROM items WHERE NOT is_starter AND type IN ('avatar', 'furniture') AND slot IS DISTINCT FROM 'hair' ORDER BY id LIMIT 2");
 const coinsOf = async (userId) => (await db.query("SELECT COALESCE(SUM(coin_delta), 0)::int AS c FROM point_ledger WHERE user_id = $1", [userId])).rows[0].c;
 const before = await coinsOf(m.id);
 

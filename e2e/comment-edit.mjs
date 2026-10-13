@@ -22,7 +22,7 @@ const postUrl = `${BASE}/@tester1/${post.id}`;
 const ctxB = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const b = await ctxB.newPage();
 const errB = collectErrors(b);
-await loginDev(b, "tester2", "여자 주민");
+await loginDev(b, "tester2", "긴 머리");
 await b.goto(postUrl);
 await b.getByPlaceholder(/따뜻한 댓글/).fill("처음 쓴 댓글");
 await b.getByRole("button", { name: "댓글 등록" }).click();

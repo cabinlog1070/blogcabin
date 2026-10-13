@@ -18,7 +18,7 @@ const page = await ctx.newPage();
 const errors = collectErrors(page);
 
 try {
-  await loginDev(page, "shopsave01", "여자 주민");
+  await loginDev(page, "shopsave01", "긴 머리");
   const uid = (await one("SELECT id FROM users WHERE username = 'shopsave01'")).id;
   const coinsBefore = 500;
   await db.query("DELETE FROM point_ledger WHERE user_id = $1 AND reason <> 'signup'", [uid]);
