@@ -22,7 +22,7 @@ const page = await ctx.newPage();
 const errors = collectErrors(page);
 
 // ── GAME-01: 가입할 때 남자/여자 중 고른 캐릭터 하나만 받고 장착 ──
-await loginDev(page, "decide01", "여자 주민");
+await loginDev(page, "decide01", "긴 머리");
 await page.goto(`${BASE}/closet`);
 // 캐릭터가 1개뿐이면 꾸미기에 🐾 내 캐릭터 구역이 없다 (SHOP-04 변경, spec 006 FR-021)
 const owned01 = await db.query("SELECT i.code FROM user_items ui JOIN items i ON i.id = ui.item_id JOIN users u ON u.id = ui.user_id WHERE u.username = 'decide01' AND i.type = 'character'");
@@ -82,7 +82,7 @@ check("GAME-02 진행 막대 MAX", await page.getByText("MAX", { exact: true }).
 // ── TOWN-04 (2026-10-08 즐겨찾기 방식, batch D): 회원 광장에는 즐겨찾기한 이웃의 집만. 글이 없어도 집이 생긴다 ──
 const other = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const op = await other.newPage();
-await loginDev(op, "quiet01", "남자 주민");
+await loginDev(op, "quiet01", "짧은 머리");
 const houses = async () => {
   await page.goto(`${BASE}/town`);
   return (await page.locator("[data-neighbor-stages]").getAttribute("data-neighbor-stages")) ?? "";

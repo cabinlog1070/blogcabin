@@ -11,9 +11,9 @@ config({ path: ".env.local" });
 type NewItem = typeof items.$inferInsert;
 
 const ITEMS: NewItem[] = [
-  // 가입할 때 고르는 기본 캐릭터 (is_starter): 남자·여자 중 하나를 골라 받는다
-  { code: "char_boy", type: "character", name: "남자 주민", description: "마을에 막 이사 온 남자 주민", price: 0, requiredLevel: 1, isStarter: true, assetKey: "char.boy" },
-  { code: "char_girl", type: "character", name: "여자 주민", description: "마을에 막 이사 온 여자 주민", price: 0, requiredLevel: 1, isStarter: true, assetKey: "char.girl" },
+  // 가입할 때 고르는 기본 캐릭터 (is_starter): 짧은 머리·긴 머리 중 하나를 골라 받는다
+  { code: "char_boy", type: "character", name: "짧은 머리", description: "마을에 막 이사 온 짧은 머리 주민", price: 0, requiredLevel: 1, isStarter: true, assetKey: "char.boy" },
+  { code: "char_girl", type: "character", name: "긴 머리", description: "마을에 막 이사 온 긴 머리 주민", price: 0, requiredLevel: 1, isStarter: true, assetKey: "char.girl" },
 
   // 예전 상점 캐릭터: 2026-10-06 결정으로 상점에서 팔지 않는다 (SHOP-01). 행은 남겨서 이미 산 회원은 계속 갖고 장착한다.
   // 상점은 type = 'character'인 아이템을 보여주지도, 팔지도 않는다 (src/lib/shop.ts의 isForSale)

@@ -39,11 +39,12 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     versions: [
       {
         version: "1.18.1",
-        title: msg("간결해진 첫 화면"),
+        title: msg("간결해진 첫 화면과 시작 캐릭터"),
         changes: [
           { kind: "improved", text: msg("휴대폰 첫 화면이 간결해졌어요. 소개 글 없이 로그인이 맨 위에 있고, 두 주민 사이에 BlogCabin 로고가 있어요.") },
           { kind: "improved", text: msg("로그인 전 화면 위쪽의 [시작하기] 버튼을 없앴어요.") },
-          { kind: "fixed", text: msg("여자 주민 얼굴에 머리색이 비쳐 얼굴이 어둡게 보이던 문제를 고쳤어요.") },
+          { kind: "improved", text: msg("처음 고르는 캐릭터 이름이 남자·여자 주민에서 짧은 머리·긴 머리로 바뀌었어요.") },
+          { kind: "fixed", text: msg("긴 머리 주민 얼굴에 머리색이 비쳐 얼굴이 어둡게 보이던 문제를 고쳤어요.") },
         ],
       },
       {

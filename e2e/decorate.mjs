@@ -21,7 +21,7 @@ const TEMP_CODE = "e2e_temp_furniture";
 
 try {
   // ── TOWN-01: 환영 문구는 한 번만 ──
-  await loginDev(page, "decor01", "남자 주민");
+  await loginDev(page, "decor01", "짧은 머리");
   const welcomeShown = await page.locator("[data-welcome]:visible").first().isVisible().catch(() => false);
   check("TOWN-01 온보딩 직후 환영 문구가 보임", welcomeShown);
   await page.waitForFunction(() => !location.search.includes("welcome"));
@@ -46,7 +46,7 @@ try {
   check("SHOP-01 안내에 새 친구·캐릭터 언급 없음", !(await page.locator("main p").first().innerText()).match(/친구|캐릭터를/));
   check(
     "고정 안내 문구",
-    await page.getByText("캐릭터는 가입할 때 고른 남자·여자 주민으로 정해지고, 바꿀 수 없어요. 옷과 소품으로 꾸며 보세요.").isVisible(),
+    await page.getByText("캐릭터는 가입할 때 고른 주민으로 정해지고, 바꿀 수 없어요. 옷과 소품으로 꾸며 보세요.").isVisible(),
   );
   const counts = await Promise.all(
     ["shop-avatar", "shop-furniture", "shop-background"].map((id) => page.locator(`section[aria-labelledby="${id}"] article`).count()),

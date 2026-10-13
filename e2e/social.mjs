@@ -35,7 +35,7 @@ const preId = await userId("preonboard01");
 
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const errors = collectErrors(page);
-await loginDev(page, "tester2", "여자 주민");
+await loginDev(page, "tester2", "긴 머리");
 const me = await userId("tester2");
 const owner = await userId("tester1");
 await db.query("DELETE FROM follows WHERE follower_id = $1 AND followee_id = $2", [me, owner]);
