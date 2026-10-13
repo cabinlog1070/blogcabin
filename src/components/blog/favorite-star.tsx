@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { setFavorite } from "@/app/blog/actions";
 import { useT } from "@/components/i18n";
+import { useAutoClear } from "@/components/use-auto-clear";
 
 /**
  * 남의 블로그 헤더에서 이웃 버튼 왼쪽의 ☆ (TOWN-08). 이웃으로 추가한 블로그에만 보인다.
@@ -12,6 +13,7 @@ export function FavoriteStar({ followeeId, nickname, favorite }: { followeeId: s
   const t = useT();
   const [on, setOn] = useState(favorite);
   const [message, setMessage] = useState<string | null>(null);
+  useAutoClear(message, () => setMessage(null));
   const [pending, start] = useTransition();
 
   function toggle() {

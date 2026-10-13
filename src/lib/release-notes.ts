@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.29.1",
+        title: msg("알림 3초 뒤 사라짐"),
+        changes: [
+          { kind: "improved", text: msg("상점에서 산 뒤, 머리 색을 바꾼 뒤, 꾸미기·즐겨찾기·이웃 저장·초대 링크 복사 뒤에 뜨는 알림도 농장처럼 3초 뒤에 저절로 사라져요.") },
+        ],
+      },
+      {
         version: "1.29.0",
         title: msg("관리자 선물"),
         changes: [

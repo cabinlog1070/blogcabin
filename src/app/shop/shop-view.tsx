@@ -12,6 +12,7 @@ import { msg } from "@/lib/i18n";
 import { SORTS, sortItems, type ItemType, type SortKey } from "@/lib/shop";
 import { saveTriedLook, setHairColor } from "./actions";
 import { ShopGrid, type ShopItem } from "./shop-grid";
+import { useAutoClear } from "@/components/use-auto-clear";
 
 /** 옷 카테고리 탭 (2026-10-13): 전체 + 헤어·모자·상의·하의·신발. 한 벌로 된 옷(기모노)은 상의에 있다.
  *  헤어 탭 아래에는 머리 색 동그라미가 있다 */
@@ -103,6 +104,7 @@ function AvatarSection({
   const [error, setError] = useState<string | null>(null);
   const [hairColor, setHairColorState] = useState<string | null>(savedHairColor);
   const [hairSaved, setHairSaved] = useState(false);
+  useAutoClear(hairSaved, () => setHairSaved(false));
 
   const slotOf = (assetKey: string) => items.find((i) => i.assetKey === assetKey)?.slot;
   // 지금 입은 것에서 입어 본 부위만 바꾼다
