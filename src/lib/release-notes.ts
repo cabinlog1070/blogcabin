@@ -50,6 +50,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.32.3",
+        title: msg("저녁 광장 캐릭터 밝기"),
+        changes: [
+          { kind: "fixed", text: msg("저녁·밤에 광장에 들어가면 캐릭터와 이웃이 잠깐 낮처럼 밝다가 어두워지던 문제를 고쳤어요. 이제 처음부터 광장과 같은 밤빛이에요.") },
+        ],
+      },
+      {
         version: "1.32.2",
         title: msg("불꽃놀이 구경 자리"),
         changes: [
