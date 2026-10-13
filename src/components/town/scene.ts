@@ -203,7 +203,7 @@ export function townTextures(data: TownData, t: T) {
     for (const view of CHAR_VIEWS) {
       for (const frame of CHAR_FRAMES) list.set(residentWalkKey(r.look, view, frame), characterViewDataUri(r.look, view, frame, PLAYER_SIZE * 2));
     }
-    if (r.pet) list.set(residentPetKey(r.pet), toAnimalDataUri(animalSvg(r.pet.assetKey, r.pet.stage, RESIDENT_PET_SIZE * 2, r.pet.accessory, pet.color)));
+    if (r.pet) list.set(residentPetKey(r.pet), toAnimalDataUri(animalSvg(r.pet.assetKey, r.pet.stage, RESIDENT_PET_SIZE * 2, r.pet.accessory, r.pet.color)));
   }
   if (data.residents.length) {
     list.set(actPropKey("guitar"), toDataUri(guitarSvg()));
