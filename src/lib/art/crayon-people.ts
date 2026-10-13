@@ -15,8 +15,8 @@ export type Wear = {
   shoes?: ShoesWear;
   hat?: HatWear;
 };
-export type TopWear = { color: string; longSleeve?: boolean; deco?: (v: View) => string };
-export type BottomWear = { color: string; long?: boolean; skirt?: boolean };
+export type TopWear = { color: string; longSleeve?: boolean; sleeveless?: boolean; /** 기모노처럼 발목까지 내려오는 옷자락 */ robe?: boolean; deco?: (v: View) => string };
+export type BottomWear = { color: string; long?: boolean; skirt?: boolean; /** 한복 치마처럼 가슴께에서 발목까지 오는 긴 치마 */ longSkirt?: boolean; /** 꼬리처럼 몸 밖으로 나오는 장식. 앞·옆은 몸 뒤, 뒤는 몸 위에 그린다 */ tail?: (v: View) => string };
 export type ShoesWear = { color: string; boots?: boolean; deco?: (v: View) => string };
 export type HatWear = { draw: (v: View) => string };
 
@@ -81,13 +81,13 @@ const torso = (c: Ctx, d: string) => {
   const band = c.w.bottom?.skirt ? c.w.bottom.color : c.bot;
   return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, c.top)}<g clip-path="url(#${id})">${F(Rc(60, 198, 160, 30), band)}</g>${L(d, 5)}`;
 };
-const sleeveY = (c: Ctx, side: boolean) => (c.w.top?.longSleeve ? (side ? 198 : 196) : side ? 180 : 189);
+const sleeveY = (c: Ctx, side: boolean) => (c.w.top?.sleeveless ? 120 : c.w.top?.longSleeve ? (side ? 198 : 196) : side ? 180 : 189);
 
 // ── 앞·뒤 몸 (좌우 대칭) ──
 function bodyFB(c: Ctx, v: View): string {
   const f = c.frame, bob = f ? -3 : 0;
   const liftL = f === 1 ? -7 : 0, liftR = f === 2 ? -7 : 0, swing = f === 1 ? 6 : f === 2 ? -6 : 0;
-  let s = "";
+  let s = v === "front" ? (c.w.bottom?.tail?.(v) ?? "") : "";
   s += `<g transform="translate(0 ${liftL})">${leg(c, LEGL, "M114 256h26")}${bootF(c, 112)}</g>`;
   s += `<g transform="translate(0 ${liftR})">${leg(c, LEGR, "M148 256h26")}${bootF(c, 146)}</g>`;
   s += `<g transform="translate(0 ${bob})">`;
@@ -95,7 +95,10 @@ function bodyFB(c: Ctx, v: View): string {
   s += `<g transform="rotate(${swing} 119 162)">${armS(ARML, sy, c.top, c.skin)}</g>`;
   s += `<g transform="rotate(${-swing} 169 162)">${armS(ARMR, sy, c.top, c.skin)}</g>`;
   s += torso(c, TORSO);
-  if (c.w.bottom?.skirt) s += S("M115 200h58l10 34q-39 10 -78 0Z", c.w.bottom.color, 4.5) + L("M132 204l-6 28M156 204l6 28", 2.5);
+  if (v === "back") s += c.w.bottom?.tail?.(v) ?? "";
+  if (c.w.bottom?.longSkirt) s += S("M116 176h56l18 86q-46 10 -92 0Z", c.w.bottom.color, 4.5) + L("M134 182l-8 76M154 182l8 76", 2.5);
+  else if (c.w.bottom?.skirt) s += S("M115 200h58l10 34q-39 10 -78 0Z", c.w.bottom.color, 4.5) + L("M132 204l-6 28M156 204l6 28", 2.5);
+  if (c.w.top?.robe) s += S("M114 194h60l8 68q-38 9 -76 0Z", c.top, 4.5);
   s += c.w.top?.deco?.(v) ?? "";
   s += "</g>";
   return s + (c.w.shoes?.deco?.(v) ?? "");
@@ -143,11 +146,14 @@ function side(c: Ctx): string {
     const boot = c.w.shoes?.boots ? S(`M${x - 2} 238h28v26q0 6-6 6h-22Z`, c.shoe, 4) : "";
     return `<g transform="rotate(${rot} 144 206)">${leg(c, d, `M${x} 256h24`)}${boot}</g>`;
   };
+  o += c.w.bottom?.tail?.("side") ?? "";
   o += sideLeg(134, -sw) + sideLeg(136, sw);
   o += `<g transform="translate(0 -${c.frame ? 3 : 0})">`;
   const H = c.kind === "mannequin" ? null : HAIRS[c.kind];
   o += torso(c, SIDE_TORSO);
-  if (c.w.bottom?.skirt) o += S("M122 200h44l12 34q-34 10-68 0Z", c.w.bottom.color, 4.5) + L("M140 204l-4 28", 2.5);
+  if (c.w.bottom?.longSkirt) o += S("M122 176h44l16 86q-38 9-76 0Z", c.w.bottom.color, 4.5) + L("M142 182l-6 76", 2.5);
+  else if (c.w.bottom?.skirt) o += S("M122 200h44l12 34q-34 10-68 0Z", c.w.bottom.color, 4.5) + L("M140 204l-4 28", 2.5);
+  if (c.w.top?.robe) o += S("M122 194h44l8 68q-30 9-60 0Z", c.top, 4.5);
   o += c.w.top?.deco?.("side") ?? "";
   // 머리는 앞모습과 같은 동그란 두상을 몸 한가운데 위에 얹고, 머리카락이 뒤통수·정수리를 덮는다
   o += S(HEAD, c.skin, 5.5);
@@ -178,6 +184,26 @@ export function person(kind: Kind, view: View, frame: Frame, wear: Wear, size: n
 
 // ── 꾸미기 그림 ──
 const recolor = (s: string, c: string) => s.replace(/#262220|#7b5a44/g, c); // 검은 선·파스텔 갈색 선 둘 다
+const DINO = "#7cc46a", DINO_BELLY = "#f6efc8", DINO_SPIKE = "#f2a64a";
+/** 공룡 등의 뾰족한 가시 (가운데 x, 아래 y, 반폭, 높이) */
+const spike = (x: number, y: number, w: number, h: number) => S(`M${x - w} ${y}l${w} -${h}l${w} ${h}Z`, DINO_SPIKE, 3);
+/** 공룡 모자: 머리 위를 덮는 초록 후드, 앞쪽 가장자리에 하얀 이빨, 위에 동그란 눈과 등가시 */
+function dinoHood(v: View): string {
+  const edge = (x: number) => 84 - 22 * (1 - ((x - 144) / 64) ** 2); // 후드 가장자리 높이
+  let o = "";
+  if (v === "side") o += S("M104 22l-12-14l20 4Z", DINO_SPIKE, 3) + S("M88 38l-18-8l16 14Z", DINO_SPIKE, 3) + S("M80 60l-18-2l16 12Z", DINO_SPIKE, 3);
+  else o += spike(128, 16, 8, 16) + spike(144, 12, 8, 18) + spike(160, 16, 8, 16);
+  o += S("M80 84q-4-74 64-76q68 2 64 76q-64-22-128 0Z", DINO, 5);
+  if (v === "back") return o + spike(144, 44, 6, 12) + spike(144, 64, 6, 12);
+  const teeth = (v === "side" ? [168, 180, 192] : [100, 114, 128, 144, 160, 174, 188]).map((x) => `<path d="M${x - 5} ${edge(x) - 1}l5 9l5-9Z" fill="#fbf6ec"/>`).join("");
+  const eyes = v === "side" ? S(E(176, 36, 9, 10), "#fbf6ec", 3) + dot(178, 37, 4) : S(E(120, 36, 9, 10), "#fbf6ec", 3) + S(E(168, 36, 9, 10), "#fbf6ec", 3) + dot(121, 37, 4) + dot(167, 37, 4);
+  return o + teeth + eyes;
+}
+/** 작은 다섯 잎 꽃 (꽃신·기모노 무늬) */
+const flower = (x: number, y: number) =>
+  [0, 72, 144, 216, 288].map((a) => `<circle cx="${(x + 3.5 * Math.cos((a * Math.PI) / 180)).toFixed(1)}" cy="${(y + 3.5 * Math.sin((a * Math.PI) / 180)).toFixed(1)}" r="2.6" fill="#fbf6ec"/>`).join("") + `<circle cx="${x}" cy="${y}" r="1.8" fill="#f2c230"/>`;
+/** 금색 단추 */
+const button = (x: number, y: number) => `<circle cx="${x}" cy="${y}" r="3.5" fill="#f2c230"/>`;
 const star = (x: number, y: number) => `<path d="M${x} ${y}l3 5l5 1l-5 2l-1 5l-3-4l-5 0l4-4Z" fill="#fff"/>`;
 
 export const WEAR_PIECES = {
@@ -196,6 +222,117 @@ export const WEAR_PIECES = {
   "avatar.shoes.sneakers": { slot: "shoes", shoes: { color: "#ffffff", deco: (v: View) => (v === "side" ? "" : recolor(L("M116 264h22M150 264h22", 2.5), "#e8433a")) } },
   "avatar.shoes.boots": { slot: "shoes", shoes: { color: "#8a5a3a", boots: true } },
   "avatar.shoes.shiny": { slot: "shoes", shoes: { color: "#f28fa8", deco: (v: View) => (v === "side" ? star(146, 260) : star(126, 260) + star(160, 260)) } },
+  // 해적 옷 (2026-10-12): 바다 모험 느낌의 옷을 이 마을 그림체로 새로 그렸다
+  "avatar.top.vest": {
+    slot: "top",
+    top: {
+      color: "#e0483e", sleeveless: true,
+      deco: (v: View) => (v === "front" ? S("M134 148q10 3 20 0l-5 50h-10Z", SKIN, 3.5) + button(128, 172) + button(160, 172) : v === "side" ? S("M156 150h6l2 46h-7Z", SKIN, 3) : ""),
+    },
+  },
+  "avatar.top.coat": {
+    slot: "top",
+    top: {
+      color: "#7a3040", longSleeve: true,
+      deco: (v: View) =>
+        v === "front"
+          ? recolor(L("M124 150l20 24l20-24M144 174v24", 3), "#f2c230") + button(136, 184) + button(152, 184) + button(136, 196) + button(152, 196)
+          : v === "back" ? recolor(L("M118 196h52", 3), "#f2c230")
+          : recolor(L("M158 152l-4 44", 3), "#f2c230") + button(150, 172) + button(150, 188),
+    },
+  },
+  "avatar.bottom.sailor": { slot: "bottom", bottom: { color: "#efe4cc", long: true } },
+  "avatar.shoes.sandals": {
+    slot: "shoes",
+    shoes: { color: "#f6cfa8", deco: (v: View) => recolor(v === "side" ? L("M136 262h22M134 270h28", 3.5) : L("M116 262h22M150 262h22M114 270h26M148 270h26", 3.5), "#8a5a3a") },
+  },
+  "avatar.hat.pirate": {
+    slot: "hat",
+    hat: {
+      draw: (v: View) => {
+        const skull = v === "back" ? "" : S(E(144, 34, 9, 8), "#fbf6ec", 2.5) + dot(140, 34, 2.2) + dot(148, 34, 2.2) + recolor(L("M132 44l24 10M156 44l-24 10", 3.5), "#fbf6ec");
+        return S("M86 62q2-50 58-54q56 4 58 54q-58-12-116 0Z", "#3a3238", 5) + S("M68 66q76-30 152 0q-4 12-14 9q-62-16-124 0q-10 3-14-9Z", "#3a3238", 5) + recolor(L("M80 66q64-20 128 0", 3), "#f2c230") + skull;
+      },
+    },
+  },
+  "avatar.hat.bandana": {
+    slot: "hat",
+    hat: {
+      draw: (v: View) => {
+        const knot = v === "side" ? S("M92 74l-16 4l6 14Z", "#4f9d5a", 4) : v === "back" ? S(E(144, 72, 8, 6), "#4f9d5a", 4) + S("M140 76l-10 18l10-2Z", "#4f9d5a", 3.5) + S("M148 76l10 18l-10-2Z", "#4f9d5a", 3.5) : "";
+        return S("M80 80q-4-66 64-68q68 2 64 68q-64-20-128 0Z", "#4f9d5a", 5) + recolor(L("M100 46l6 6M126 32l6 6M160 34l6 6M184 50l6 6", 3), "#2f6e3d") + knot;
+      },
+    },
+  },
+  // 공룡 옷 (2026-10-12): 모자·상의·하의·신발을 다 입으면 초록 공룡 점프수트가 된다
+  "avatar.hat.dino": { slot: "hat", hat: { draw: (v: View) => dinoHood(v) } },
+  "avatar.top.dino": {
+    slot: "top",
+    top: {
+      color: DINO, longSleeve: true,
+      deco: (v: View) =>
+        v === "front"
+          ? S(E(144, 190, 20, 26), DINO_BELLY, 3.5) + recolor(L("M128 182h32M126 196h36", 2.5), "#d9c98a")
+          : v === "back" ? spike(144, 162, 7, 12) + spike(144, 182, 7, 12) + spike(144, 202, 7, 12)
+          : S("M156 160q12 30 0 58q-10-2-10-29q0-27 10-29Z", DINO_BELLY, 3.5) + S("M124 162l-11 6l11 7Z", DINO_SPIKE, 3) + S("M124 184l-11 6l11 7Z", DINO_SPIKE, 3),
+    },
+  },
+  "avatar.bottom.dino": {
+    slot: "bottom",
+    bottom: {
+      color: DINO, long: true,
+      tail: (v: View) =>
+        v === "front"
+          ? S("M166 204q38 4 50 38q-28 6-50-16Z", DINO, 4.5)
+          : v === "back"
+            ? S("M128 206q-8 36 16 60q24-24 16-60Z", DINO, 4.5) + spike(144, 222, 5, 9) + spike(144, 238, 4, 8)
+            : S("M130 196q-36 6-56 42q30 6 58-18Z", DINO, 4.5) + S("M104 208l-6-10l12 2Z", DINO_SPIKE, 3) + S("M90 220l-8-8l12 0Z", DINO_SPIKE, 3),
+    },
+  },
+  "avatar.shoes.dino": {
+    slot: "shoes",
+    shoes: {
+      color: DINO,
+      deco: (v: View) =>
+        (v === "side" ? [154, 161, 168] : [117, 125, 133, 155, 163, 171]).map((x) => `<path d="M${x - 3} 270l3-6l3 6Z" fill="#fbf6ec"/>`).join(""),
+    },
+  },
+  // 한복 (2026-10-12): 노란 저고리 + 분홍 긴 치마(또는 하늘색 바지) + 꽃신
+  "avatar.top.jeogori": {
+    slot: "top",
+    top: {
+      color: "#f6d36a", longSleeve: true,
+      deco: (v: View) =>
+        v === "front"
+          ? S("M128 148l16 22l16-22h-6l-10 14l-10-14Z", "#fbf6ec", 2.5) + S(E(152, 172, 6, 5), "#d9434f", 3) + S("M151 175l-6 24l7-3Z", "#d9434f", 2.5) + S("M154 175l4 22l4-4Z", "#d9434f", 2.5)
+          : v === "side" ? S("M154 150l8 0l-4 18Z", "#fbf6ec", 2.5) + S("M156 172l-2 22l6-3Z", "#d9434f", 2.5)
+          : "",
+    },
+  },
+  "avatar.bottom.hanbok-skirt": { slot: "bottom", bottom: { color: "#f28fa8", skirt: true, longSkirt: true } },
+  "avatar.bottom.hanbok-pants": { slot: "bottom", bottom: { color: "#a9cfe8", long: true } },
+  "avatar.shoes.kkotsin": {
+    slot: "shoes",
+    shoes: { color: "#e8574b", deco: (v: View) => (v === "side" ? flower(152, 264) : flower(127, 264) + flower(161, 264)) },
+  },
+  // 기모노 (2026-10-12): 발목까지 오는 하늘색 기모노에 빨간 허리띠, 나무 게타
+  "avatar.top.kimono": {
+    slot: "top",
+    top: {
+      color: "#8fb8e8", longSleeve: true, robe: true,
+      deco: (v: View) => {
+        const obi = v === "side" ? S("M122 186h44v16h-44Z", "#e8574b", 3.5) : S("M114 186h60v16h-60Z", "#e8574b", 3.5);
+        const petals = v === "back" ? flower(130, 222) + flower(158, 244) : v === "side" ? flower(140, 226) : flower(126, 224) + flower(160, 240);
+        if (v === "front") return S("M128 148l18 30l16-30h-6l-10 18l-12-18Z", "#fbf6ec", 2.5) + L("M150 202l-6 58", 2.5) + obi + petals;
+        if (v === "back") return obi + S("M126 182l18 10l18-10l-4 26l-14-8l-14 8Z", "#e8574b", 3.5) + petals;
+        return S("M154 150l8 0l-6 24Z", "#fbf6ec", 2.5) + obi + S("M118 180l10 10l-10 12Z", "#e8574b", 3) + petals;
+      },
+    },
+  },
+  "avatar.shoes.geta": {
+    slot: "shoes",
+    shoes: { color: "#c98d5a", deco: (v: View) => recolor(v === "side" ? L("M146 258l6 6l6-6", 3) : L("M120 258l6 6l6-6M154 258l6 6l6-6", 3), "#d9434f") },
+  },
   "avatar.hat.straw": {
     slot: "hat",
     hat: { draw: () => S(E(144, 46, 88, 16), "#f2d27a", 5) + S("M100 46q4-40 44-40q40 0 44 40Z", "#f2d27a", 5) + S("M100 36h88v10h-88Z", "#e8433a", 3.5) },

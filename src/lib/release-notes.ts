@@ -51,6 +51,15 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-12",
     versions: [
       {
+        version: "1.15.0",
+        title: msg("바다 모험 옷, 공룡 옷, 한복과 기모노"),
+        changes: [
+          { kind: "new", text: msg("상점에 바다 모험 옷 6가지가 들어왔어요. 모험 조끼, 선장 코트, 선원 바지, 샌들, 해적 모자, 반다나를 밀짚모자와 같이 입어 보세요.") },
+          { kind: "new", text: msg("공룡 모자, 공룡 옷, 공룡 바지, 공룡 발도 들어왔어요. 네 가지를 다 입으면 꼬리 달린 공룡 점프수트가 돼요.") },
+          { kind: "new", text: msg("한복 저고리, 한복 치마, 한복 바지, 꽃신과 기모노, 게타도 들어왔어요.") },
+        ],
+      },
+      {
         version: "1.14.0",
         title: msg("크레용으로 다시 그린 마을"),
         changes: [
