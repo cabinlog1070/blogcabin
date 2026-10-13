@@ -40,7 +40,7 @@ const SIDE_TORSO = "M132 148Q124 152 122 160L124 214Q126 222 144 222Q162 222 164
 const SIDE_ARM = "M137 156q2 8 4 20q2 16 3 26q2 8 9 6q6-2 4-8l-3-26q-1-14-4-20q-6-6-13 2Z";
 
 /** 머리 모양: c 색, front 앞모습(under면 얼굴 뒤에 깔고 face의 윗선이 앞머리가 된다), back 뒷모습, side 옆모습 */
-export type HairWear = { c: string; front: string; face: string; under?: boolean; back: string; side: string };
+export type HairWear = { c: string; front: string; face: string; under?: boolean; back: string; side: string; /** 머리 뒤에 숨겨 그리는 덩어리(똥머리 등). 머리카락 윗선이 그 위를 덮어 겹친 선이 보이지 않는다 */ behind?: string };
 type Hair = HairWear;
 const HAIRS: Record<"girl" | "boy" | "visitor", Hair> = {
   girl: {
@@ -67,6 +67,8 @@ const HAIRS: Record<"girl" | "boy" | "visitor", Hair> = {
   },
 };
 const LEAF = "M144 18q-2-14 10-18q4 10-10 18Z";
+/** 앞머리 덩어리. 뒤에 숨긴 덩어리(behind)가 있으면 파스텔 면이 반쯤 비쳐 겹친 자리가 짙어 보여서, 밑에 종이색을 먼저 깐다 */
+const hairFront = (H: Hair) => (H.behind ? `<path d="${H.front}" fill="${PAPER}"/>` : "") + S(H.front, H.c, 5);
 /** 입은 헤어, 없으면 캐릭터의 기본 머리 (마네킹은 머리 없음) */
 const hairOf = (c: Ctx): Hair | null => c.w.hair ?? (c.kind === "mannequin" ? null : HAIRS[c.kind]);
 
@@ -120,7 +122,7 @@ function headFront(c: Ctx): string {
   let s = H.under ? [E(85, 112, 10, 15), E(203, 112, 10, 15), H.face].map((d) => `<path d="${d}" fill="${PAPER}"/>`).join("") : "";
   s += S(E(85, 112, 10, 15), c.skin, 4.5) + S(E(203, 112, 10, 15), c.skin, 4.5) + S(H.face, c.skin, 5.5);
   if (c.kind !== "mannequin") s += dot(122, 100, 6) + dot(166, 100, 6) + blush(110, 116) + blush(178, 116) + L("M137 117q7 7 14 0", 3.5);
-  if (!H.under) s += S(H.front, H.c, 5);
+  if (!H.under) s += hairFront(H);
   if (c.kind === "visitor") s += S(LEAF, "#6fb34f", 3.5);
   return s;
 }
@@ -138,8 +140,9 @@ function front(c: Ctx, v: View): string {
   const bob = c.frame ? -3 : 0;
   let o = shadow(144, 270, 40, 6);
   const H = hairOf(c);
+  if (H?.behind) o += `<g transform="translate(0 ${bob})">${S(H.behind, H.c, 5)}</g>`;
   if (v === "front") {
-    if (H?.under) o += `<g transform="translate(0 ${bob})">${S(H.front, H.c, 5)}</g>`;
+    if (H?.under) o += `<g transform="translate(0 ${bob})">${hairFront(H)}</g>`;
     o += bodyFB(c, v) + `<g transform="translate(0 ${bob})">${headFront(c)}${c.w.hat?.draw(v) ?? ""}</g>`;
   } else {
     o += bodyFB(c, v) + `<g transform="translate(0 ${bob})">${headBack(c)}${c.w.hat?.draw(v) ?? ""}</g>`;
