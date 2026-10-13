@@ -846,8 +846,9 @@ export function createTownScene(
       };
       for (const p of LAMP_POSITIONS) {
         const l = lampLight(p);
-        addLight(l.x, l.y, 150, 0xffc964, "lamp", 0.75);
-        addLight(l.x, p.y - 6, 190, 0xffb347, "lamp", 0.35); // 가로등 아래 바닥에 비친 빛
+        // 연하게 (2026-10-13 정지원 님): 등불 0.75→0.45, 바닥에 비친 빛 0.35→0.2
+        addLight(l.x, l.y, 130, 0xffc964, "lamp", 0.45);
+        addLight(l.x, p.y - 6, 170, 0xffb347, "lamp", 0.2); // 가로등 아래 바닥에 비친 빛
       }
       for (const w of windows) addLight(w.x, w.y, w.r, 0xffb85c, "window", 0.35);
       const fire = addLight(CAMPFIRE_POS.x, CAMPFIRE_POS.y - 40, 420, 0xff9a3d, "fire", 1);
