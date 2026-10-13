@@ -6,6 +6,7 @@ import { addNeighbor, setFavorite } from "@/app/blog/actions";
 import { CharacterBadge } from "@/components/character";
 import { useT } from "@/components/i18n";
 import { MAX_FAVORITES } from "@/lib/game";
+import { useAutoClear } from "@/components/use-auto-clear";
 
 const PREVIEW_COUNT = 3;
 const OTHER_PREVIEW_COUNT = 5;
@@ -27,6 +28,7 @@ export function NeighborList({ neighbors, followers: initialFollowers }: { neigh
   const [list, setList] = useState(neighbors);
   const [followers, setFollowers] = useState(initialFollowers);
   const [message, setMessage] = useState<string | null>(null);
+  useAutoClear(message, () => setMessage(null));
   const [pending, start] = useTransition();
   const [expanded, setExpanded] = useState(false);
   const favCount = list.filter((n) => n.favorite).length;

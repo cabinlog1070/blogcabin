@@ -43,6 +43,9 @@ try {
   await page.getByRole("button", { name: "기본 색", exact: true }).click();
   await page.getByRole("status").filter({ hasText: "머리 색을 바꿨어요" }).waitFor();
   check("머리 색: 기본 색으로 되돌림", (await one("SELECT hair_color FROM profiles WHERE user_id = $1", [uid])).hair_color === null);
+  // 알림은 3초 뒤에 저절로 사라진다 (산 뒤 알림은 맨 끝에서 본다)
+  const gone = (text) => page.getByRole("status").filter({ hasText: text }).waitFor({ state: "detached", timeout: 4500 }).then(() => true, () => false);
+  check("머리 색 알림이 3초 뒤에 사라진다", await gone("머리 색을 바꿨어요"));
   await page.screenshot({ path: `${outDir}/shop-category-hair.png`, clip: { x: 0, y: 150, width: 1280, height: 600 } });
   await avatar.getByRole("tab", { name: /^전체/ }).click();
   check("머리 색 동그라미는 헤어 탭에서만", (await page.locator("[data-hair-colors]").count()) === 0);
@@ -90,6 +93,15 @@ try {
   await page.reload();
   await page.getByRole("button", { name: "왕관 입어 보기" }).click();
   check("코인이 모자라면 저장 꺼짐", (await save.isDisabled()) && (await page.locator("[data-try-on] [role=alert]").innerText()).includes("코인이"));
+
+  // 산 뒤 뜨는 알림도 3초 뒤에 사라진다 (다른 확인에 영향이 없게 맨 끝에서 코인을 채우고 산다)
+  await db.query("INSERT INTO point_ledger (user_id, reason, exp_delta, coin_delta) VALUES ($1, 'signup', 0, 1000)", [uid]);
+  await page.reload();
+  const buyable = page.locator("article").filter({ has: page.getByRole("button", { name: "사기", exact: true }) }).first();
+  const boughtName = await buyable.getByRole("heading").innerText();
+  await buyable.getByRole("button", { name: "사기", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "샀어요" }).waitFor();
+  check(`산 뒤 알림이 3초 뒤에 사라진다 (${boughtName})`, await gone("샀어요"));
 
   const phone = await browser.newContext({ viewport: { width: 375, height: 800 }, storageState: await ctx.storageState() });
   const pp = await phone.newPage();
