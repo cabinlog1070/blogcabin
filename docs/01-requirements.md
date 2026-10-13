@@ -621,7 +621,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 | 우선 / 상태 / 담당 | M / ✅ / jiwon934 |
 | 사용자 | 모두 (로그인하지 않아도 열린다) |
 | 선행 조건 | 없음 |
-| 관련 | 화면 `/@주소`, `/@주소/글ID`, `/onboarding`(주소 정함), `/settings/blog`(주소 표시) · `next.config.ts`(rewrites) · 화면 `src/app/blog/[slug]/` · 테이블 `blogs`(slug), `posts`(id) · AUTH-02(주소 규칙), AUTH-03(중복 불가), POST-02(비공개 글) |
+| 관련 | 화면 `/@주소`, `/@주소/글ID`, `/onboarding`(주소 정함), `/settings/blog`(주소 표시) · `src/proxy.ts`(rewrite) · 화면 `src/app/blog/[slug]/` · 테이블 `blogs`(slug), `posts`(id) · AUTH-02(주소 규칙), AUTH-03(중복 불가), POST-02(비공개 글) |
 
 **기본 흐름**
 1. 회원은 온보딩(AUTH-02)에서 블로그 주소를 정한다. 정한 뒤에는 바꿀 수 없다.
@@ -659,7 +659,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 | 항목 | 내용 |
 |---|---|
 | 화면 | 실제 페이지는 `/blog/[slug]`, `/blog/[slug]/[postId]` (서버 컴포넌트): `src/app/blog/[slug]/page.tsx`(`BlogHomePage`), `src/app/blog/[slug]/[postId]/page.tsx`(`PostPage`). 로그인 검사 없이 `getViewer()`로 주인인지만 본다. 없으면 `notFound()` → `src/app/not-found.tsx`(사이트 공통 404) |
-| 처리 | Next.js에서 `@`로 시작하는 폴더는 parallel route라는 특수 기능이라 주소로 쓸 수 없다. 그래서 `next.config.ts`의 **rewrite**로 `/@:slug` → `/blog/:slug`, `/@:slug/:postId` → `/blog/:slug/:postId`로 바꿔 보여준다. 주소창에는 `/@slug`가 그대로 남는다 |
+| 처리 | Next.js에서 `@`로 시작하는 폴더는 parallel route라는 특수 기능이라 주소로 쓸 수 없다. 그래서 `src/proxy.ts`의 **rewrite**로 `/@:slug` → `/blog/:slug`, `/@:slug/:postId` → `/blog/:slug/:postId`로 바꿔 보여준다. 주소창에는 `/@slug`가 그대로 남는다. `next.config.ts`의 rewrites는 쿼리(`?category=`)를 브라우저에 잘못 알려 줘서 카테고리를 눌러도 목록이 안 바뀌어 쓰지 않는다 |
 | 조회 | `getBlogBySlug(slug)` (`src/server/blog.ts`): `WHERE blogs.slug = slug`, 들어온 주소를 **그대로** 비교한다 (소문자로 바꾸지 않음). 글은 `load()` (`src/app/blog/[slug]/[postId]/page.tsx`): `parseId(postId)`(`src/lib/ids.ts`)로 숫자만 적힌 1\~2147483647 정수인지 확인 → `getBlogBySlug` → `getPost(blog.id, id)`: `WHERE posts.id = id AND posts.blog_id = blog.id`. 이어서 `PostPage`가 비공개 글이고 주인이 아니면 `notFound()` |
 | 데이터 | `blogs.slug` (UNIQUE, CHECK `^[a-z0-9_]{3,20}$`) · `posts.id` (`integer`, 서비스 전체 일련번호) |
 | 무결성 | 주소는 블로그를 만들 때(BLOG-01)만 저장하고, 이 기능은 주소로 찾기만 한다 (글 화면의 조회수 쓰기는 POST-06). 주소가 서비스 전체에서 하나뿐인 것은 DB UNIQUE `blogs_slug_unique`가, 글 ID가 하나뿐인 것은 `posts.id` 기본 키가 보장한다. 주소를 바꾸지 못하게 막는 DB 제약은 없다 (아래 변경 불가) |
@@ -1620,7 +1620,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 
 | 항목 | 내용 |
 |---|---|
-| 화면 | 서버 컴포넌트 `src/app/blog/[slug]/page.tsx`(블로그 홈. `/@주소`는 `next.config.ts`의 rewrite로 이 파일에 연결), `src/app/feed/page.tsx`, `src/app/feed/following/page.tsx`, `src/app/tags/[name]/page.tsx`. 카드 `PostCard`(`src/components/blog/post-card.tsx`, `showAuthor`면 작성자 줄), 마을 소식·이웃 새 글·태그별 글의 틀 `FeedView`(`src/components/blog/feed-view.tsx`), 페이지 번호 `Pagination`·`parsePage`(`src/components/pagination.tsx`) |
+| 화면 | 서버 컴포넌트 `src/app/blog/[slug]/page.tsx`(블로그 홈. `/@주소`는 `src/proxy.ts`의 rewrite로 이 파일에 연결), `src/app/feed/page.tsx`, `src/app/feed/following/page.tsx`, `src/app/tags/[name]/page.tsx`. 카드 `PostCard`(`src/components/blog/post-card.tsx`, `showAuthor`면 작성자 줄), 마을 소식·이웃 새 글·태그별 글의 틀 `FeedView`(`src/components/blog/feed-view.tsx`), 페이지 번호 `Pagination`·`parsePage`(`src/components/pagination.tsx`) |
 | 처리 | 읽기만 한다 (Server Action 없음). 페이지 번호는 `<Link>`로 주소만 바꾼다 |
 | 데이터 | `listBlogPosts`, `listFeed` (`src/server/blog.ts`): 전체 개수 `COUNT(*)` 1번 + `LIMIT 8 OFFSET (페이지-1)×8` 1번. 공감·댓글 수는 하위 쿼리. 둘 다 `paged()`·`baseList()`를 함께 쓰고 정렬은 `ORDER BY created_at DESC, id DESC`. 작성자(`blogs`, `profiles`, 캐릭터 `items`)는 JOIN, 카테고리는 LEFT JOIN. 페이지 수 = `max(1, ceil(전체 ÷ 8))` |
 | 조건 | 블로그 홈: `blog_id` + (주인이 아니면) `visibility = 'public'` + (골랐으면) `category_id` / 마을 소식: `visibility = 'public'` / 이웃 새 글: + `blogs.owner_id IN (내 follows.followee_id)` / 태그별 글: + `posts.id IN (그 태그의 post_tags)` |
@@ -1700,7 +1700,7 @@ BlogCabin은 **블로그 활동을 게임 보상과 연결**해서, 글을 쓸�
 
 | 항목 | 내용 |
 |---|---|
-| 화면 | `src/app/blog/[slug]/[postId]/page.tsx` (서버 컴포넌트. `/@주소/글ID`는 `next.config.ts` rewrite로 이 화면을 연다) · 목록 카드 `src/components/blog/post-card.tsx` |
+| 화면 | `src/app/blog/[slug]/[postId]/page.tsx` (서버 컴포넌트. `/@주소/글ID`는 `src/proxy.ts` rewrite로 이 화면을 연다) · 목록 카드 `src/components/blog/post-card.tsx` |
 | 처리 | 글 상세 화면(서버)에서 `incrementViewCount`: `UPDATE posts SET view_count = view_count + 1`. 순서: `load()` [글 번호 확인 → `getBlogBySlug` → `getPost(blog.id, id)`] → `getViewer()` → `isOwner = viewerId === blog.ownerId` (`viewerId`는 온보딩을 마친 회원만, 아니면 `null`) → 남의 비공개 글이면 `notFound()` → 주인이 아니면 `incrementViewCount(post.id)` (`src/server/blog.ts`) |
 | 데이터 | 조회수가 바뀌어도 글의 `updated_at`(수정 시각)은 바뀌지 않게 한다 (`` updatedAt: sql`${posts.updatedAt}` ``로 원래 값을 다시 넣어 `$onUpdate` 자동 갱신을 막는다). 읽기는 목록 `listColumns.viewCount`, 상세 `getPost` |
 | 무결성 | DB CHECK `view_count >= 0` (`posts_view_count_check`), `NOT NULL DEFAULT 0`. 한 줄 `UPDATE`로 더하므로 여러 사람이 동시에 열어도 빠지는 수가 없다 |
