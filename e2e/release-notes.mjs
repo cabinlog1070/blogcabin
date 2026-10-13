@@ -36,6 +36,19 @@ await second.locator("summary").click();
 check("날짜를 누르면 그날 버전이 펼쳐진다", (await second.evaluate((e) => e.open)) && (await second.locator("[data-version]").first().isVisible()));
 await page.screenshot({ path: `${outDir}/release-notes-desktop.png`, fullPage: false });
 
+// 화면 사진이 붙은 항목이 있으면: 사진이 불러와지고, 누르면 크게 열리고, Esc로 닫힌다
+const shots = page.locator("details[data-release][open] [data-release-image]");
+if ((await shots.count()) > 0) {
+  const img = shots.first().locator("> button img").first();
+  await img.scrollIntoViewIfNeeded();
+  check("화면 사진이 불러와진다", await img.evaluate((el) => el.complete && el.naturalWidth > 0));
+  await shots.first().locator("> button").click();
+  check("사진을 누르면 크게 열린다", (await page.locator("dialog[open][aria-label] img").count()) > 0);
+  await page.screenshot({ path: `${outDir}/release-notes-image.png` });
+  await page.keyboard.press("Escape");
+  check("Esc로 닫힌다", (await page.locator("dialog[open]").count()) === 0);
+}
+
 const phone = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2 });
 const p2 = await phone.newPage();
 await p2.goto(`${BASE}/release-notes`);

@@ -120,7 +120,7 @@ export default async function TownPage(props: PageProps<"/town">) {
         })}
       </p>
       <p className="pointer-events-none absolute bottom-3 right-3 z-[5] hidden max-w-[55%] rounded-2xl bg-white/85 px-3 py-1.5 text-xs text-ink-soft shadow-sm pointer-coarse:block">
-        {t("탭해서 이동 · 건물을 탭해서 들어가기")}
+        {t("탭하거나 끌어서 이동 · 건물을 탭해서 들어가기")}
       </p>
     </div>
   );

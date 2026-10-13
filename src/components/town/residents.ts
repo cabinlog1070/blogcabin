@@ -1,19 +1,20 @@
 // 광장을 돌아다니는 이웃 주민 (TOWN-12).
 // 즐겨찾기한 이웃의 캐릭터가 데리고 다니는 펫과 함께 광장을 걷고, 가끔 아래 동작 중 하나를 고른다.
 //   이리저리 걷기 · 캠프파이어 의자에 앉기 · 의자에서 기타 치기 · 기타 치는 이웃 옆에서 노래하기(음표)
-//   펫 쓰다듬기(하트) · 광장 둘레 꽃에 물 주기 · 캠프파이어에서 마시멜로 구워 먹기
+//   펫 쓰다듬기(하트) · 광장 둘레 꽃에 물 주기 · 캠프파이어에서 마시멜로 구워 먹기(한 번에 두 명까지)
+//   아래 물가에서 앞을 보고 낚시하기(가끔) · 저녁 불꽃놀이 때 하늘 쪽으로 가서 구경하기(한두 명)
 // 내 캐릭터가 가까이 가면 상태 메시지가 머리 위 말풍선으로 떠오른다.
 // 주민은 부딪힘 계산(물리)을 하지 않고 길찾기 칸(WalkGrid)으로 나무·건물을 비켜 걷는다. 내 캐릭터와는 겹쳐 지나갈 수 있다.
 import type * as PhaserNS from "phaser";
 import { CHAR_FOOT_Y, characterViewKey, lookHasViews, WALK_FRAMES, type CharView, type WalkFrame } from "@/lib/art/character-views";
-import { ACT_PROP_SIZE, NOTE_KINDS, type ActProp } from "@/lib/art/plaza-acts";
+import { ACT_PROP_SIZE, NOTE_KINDS, ROD_GRIP, ROD_TIP, type ActProp } from "@/lib/art/plaza-acts";
 import { findPath, type Point, type WalkGrid } from "./pathfinding";
 import type { TownResident } from "./types";
 
 type PhaserLib = typeof PhaserNS;
 type TextStyle = PhaserNS.Types.GameObjects.Text.TextStyle;
 
-export type ResidentAct = "wander" | "sit" | "guitar" | "sing" | "pet" | "water" | "marshmallow";
+export type ResidentAct = "wander" | "sit" | "guitar" | "sing" | "pet" | "water" | "marshmallow" | "fish" | "fireworks";
 
 /** 주민 걷는 그림 키: 내 캐릭터와 같은 이름 공간("walk")이라 같은 모습이면 그림을 같이 쓴다 */
 export const residentWalkKey = (look: string, view: CharView, frame: WalkFrame) => characterViewKey(look, view, frame, "walk");
@@ -25,6 +26,10 @@ const WALK_STEP_MS = 170;
 const BUBBLE_DISTANCE = 120; // 이만큼 가까이 가면 상태 메시지 말풍선
 const PET_BEHIND = 40;
 const SEAT_DX = 20; // 의자 하나에 두 자리 (가운데에서 왼쪽·오른쪽)
+const MARSHMALLOW_MAX = 2; // 캠프파이어 왼쪽·오른쪽 한 명씩
+const FISH_MAX = 2;
+const FIREWORKS_MAX = 2;
+const BOBBER_DY = 50; // 찌는 발보다 이만큼 아래 (물가 모래 너머 물 위)
 
 export type ResidentWorld = {
   grid: WalkGrid;
@@ -32,6 +37,12 @@ export type ResidentWorld = {
   benches: Point[];
   /** 광장 둘레 꽃 (물 주기) */
   flowers: Point[];
+  /** 아래 물가에서 낚시할 자리 (발 위치) */
+  fishSpots: Point[];
+  /** 불꽃놀이를 구경할 자리 (광장 위쪽, 하늘 가까이) */
+  skySpots: Point[];
+  /** 지금 불꽃놀이가 터지는가 (저녁·밤) */
+  fireworks: () => boolean;
   /** 캠프파이어 그림 아랫변 가운데와 부딪히는 폭·높이 */
   campfire: Point & { w: number; h: number };
   /** 걸어갈 만한 아무 곳 */
@@ -72,6 +83,10 @@ type Walker = {
   partner: Walker | null;
   /** 이 동작에서 다음 음표·하트·물방울을 띄울 시각 */
   nextFx: number;
+  /** 동작 자리 (마시멜로: 캠프파이어 -1 왼쪽 / 1 오른쪽, 낚시: 낚시 자리 번호) */
+  spot: number | null;
+  /** 낚싯줄 */
+  line: PhaserNS.GameObjects.Graphics | null;
   stuck: { x: number; y: number; since: number };
 };
 
@@ -100,7 +115,7 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
     walkers.push({
       r, x: end.x, y: end.y, img, tag, pet, petPos: { x: end.x - PET_BEHIND, y: end.y + 4 }, bubble: null, views,
       act: null, phase: "rest", path: [], until: scene.time.now + rng.between(300, 2500), seat: null, props: [],
-      facing: 1, view: "front", walk: { step: 0, clock: 0 }, sitting: false, lookAt: null, partner: null, nextFx: 0,
+      facing: 1, view: "front", walk: { step: 0, clock: 0 }, sitting: false, lookAt: null, partner: null, nextFx: 0, spot: null, line: null,
       stuck: { x: end.x, y: end.y, since: 0 },
     });
   }
@@ -114,8 +129,17 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
     return near ? free[0] : rng.pick(free);
   };
 
-  /** 다음 동작을 무작위로 (기타 치는 이웃이 있으면 노래하러 가기도 한다) */
+  const doing = (act: ResidentAct, but: Walker) => walkers.filter((o) => o !== but && o.act === act);
+  const freeFishSpot = (w: Walker) => {
+    const taken = new Set(doing("fish", w).map((o) => o.spot));
+    const free = world.fishSpots.map((_, i) => i).filter((i) => !taken.has(i));
+    return free.length ? rng.pick(free) : null;
+  };
+
+  /** 다음 동작을 무작위로 (기타 치는 이웃이 있으면 노래하러 가기도 한다, 불꽃놀이가 터지면 한두 명이 구경하러 간다) */
   function chooseAct(w: Walker): ResidentAct {
+    const watching = doing("fireworks", w).length;
+    if (world.fireworks() && world.skySpots.length && watching < FIREWORKS_MAX && rng.frac() < (watching ? 0.25 : 0.6)) return "fireworks";
     const guitarist = walkers.find((o) => o !== w && o.act === "guitar" && o.phase === "do" && !walkers.some((s) => s.partner === o));
     const bag: [ResidentAct, number][] = [
       ["wander", 4],
@@ -124,7 +148,8 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
       ["sing", guitarist ? 5 : 0],
       ["pet", w.pet ? 2 : 0],
       ["water", world.flowers.length ? 2 : 0],
-      ["marshmallow", 2],
+      ["marshmallow", doing("marshmallow", w).length < MARSHMALLOW_MAX ? 2 : 0],
+      ["fish", world.fishSpots.length && doing("fish", w).length < FISH_MAX ? 1.2 : 0],
     ];
     let n = rng.frac() * bag.reduce((s, [, k]) => s + k, 0);
     for (const [act, k] of bag) if ((n -= k) < 0) return act;
@@ -145,6 +170,7 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
     w.act = act;
     w.lookAt = null;
     w.partner = null;
+    w.spot = null;
     let ok = false;
     if (act === "wander") ok = goTo(w, world.roam(rng));
     else if (act === "sit" || act === "guitar") {
@@ -172,15 +198,36 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
       ok = goTo(w, { x: f.x + side * 30, y: f.y });
       w.lookAt = f;
     } else if (act === "marshmallow") {
-      // 캠프파이어 왼쪽·오른쪽 앞에 서서 불 쪽으로 꼬치를 내민다
-      const side = rng.pick([-1, 1] as const);
+      // 캠프파이어 왼쪽·오른쪽 앞에 서서 불 쪽으로 꼬치를 내민다 (한쪽에 한 명, 그래서 두 명까지)
+      const taken = doing("marshmallow", w).map((o) => o.spot);
+      const side = rng.pick(([-1, 1] as const).filter((s) => !taken.includes(s)));
       const c = world.campfire;
-      ok = goTo(w, { x: c.x + side * (c.w / 2 + 34), y: c.y - 12 });
-      w.lookAt = { x: c.x, y: c.y - 12 };
+      if (side) {
+        w.spot = side;
+        ok = goTo(w, { x: c.x + side * (c.w / 2 + 34), y: c.y - 12 });
+        w.lookAt = { x: c.x, y: c.y - 12 };
+      }
+    } else if (act === "fish") {
+      // 아래 물가에 서서 앞(호수 쪽)을 보고 낚싯대를 드리운다
+      const i = freeFishSpot(w);
+      if (i !== null) {
+        w.spot = i;
+        ok = goTo(w, world.fishSpots[i]);
+      }
+    } else if (act === "fireworks") {
+      // 광장 위쪽, 하늘 가까이 가서 뒤돌아(하늘 쪽) 구경한다
+      const taken = doing("fireworks", w).map((o) => o.spot);
+      const free = world.skySpots.map((_, i) => i).filter((i) => !taken.includes(i));
+      if (free.length) {
+        const i = rng.pick(free);
+        w.spot = i;
+        ok = goTo(w, world.skySpots[i]);
+      }
     }
     if (!ok) {
       releaseSeat(w);
       w.act = null;
+      w.spot = null;
       w.phase = "rest";
       w.until = scene.time.now + rng.between(800, 2000);
     }
@@ -226,13 +273,27 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
         w.until = now + rng.between(6000, 9000);
         w.props.push(addProp("marshmallow"));
         break;
+      case "fish":
+        w.until = now + rng.between(12000, 20000);
+        w.view = "front";
+        w.props.push(addProp("rod"), addProp("bobber"));
+        w.line = scene.add.graphics();
+        break;
+      case "fireworks":
+        w.until = now + rng.between(15000, 25000);
+        w.view = "back";
+        w.nextFx = now + rng.between(1500, 3000);
+        break;
     }
   }
 
   function endDo(w: Walker) {
     const now = scene.time.now;
+    if (w.act === "fish" && rng.frac() < 0.6) catchFish(w); // 가끔은 놓친다
     for (const p of w.props) p.destroy();
     w.props = [];
+    w.line?.destroy();
+    w.line = null;
     if (w.act === "marshmallow") floatUp(w.x, w.y - world.size * 0.8, "heart", 1); // 다 구워서 냠
     if (w.sitting && w.seat) {
       // 의자 앞으로 내려선다
@@ -243,8 +304,36 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
     w.act = null;
     w.partner = null;
     w.lookAt = null;
+    w.spot = null;
     w.phase = "rest";
     w.until = now + rng.between(1500, 5000);
+  }
+
+  /** 낚시 끝: 찌 자리에서 물고기가 튀어 올라 주인 손으로 오고 하트 */
+  function catchFish(w: Walker) {
+    const bob = w.props[1];
+    if (!bob) return;
+    const { width, height } = ACT_PROP_SIZE.fish;
+    const fish = scene.add.image(bob.x, bob.y, actPropKey("fish")).setDisplaySize(width, height).setDepth(w.y + 10);
+    const to = { x: w.x + 14, y: w.y - world.size * 0.5 };
+    const done = () => {
+      fish.destroy();
+      floatUp(w.x, w.y - world.size * 0.85, "heart");
+    };
+    if (reduced) {
+      fish.setPosition(to.x, to.y);
+      scene.time.delayedCall(700, done);
+      return;
+    }
+    const from = { x: bob.x, y: bob.y };
+    scene.tweens.addCounter({
+      from: 0, to: 1, duration: 650, ease: "Sine.easeInOut",
+      onUpdate: (tw) => {
+        const k = tw.getValue() ?? 0;
+        fish.setPosition(from.x + (to.x - from.x) * k, from.y + (to.y - from.y) * k - Math.sin(k * Math.PI) * 40).setRotation(-0.8 + k * 1.2);
+      },
+      onComplete: () => scene.tweens.add({ targets: fish, alpha: 0, delay: 500, duration: 300, onComplete: done }),
+    });
   }
 
   const addProp = (k: ActProp) => {
@@ -318,6 +407,8 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
   function doAct(w: Walker, now: number) {
     const head = w.y - world.size * 0.92;
     if (w.lookAt) face(w, w.lookAt.x - w.x, w.act === "sing" || w.act === "marshmallow" || w.act === "water" ? 0 : w.lookAt.y - w.y);
+    if (w.act === "fish") w.view = "front";
+    if (w.act === "fireworks") w.view = "back";
     if (w.sitting) {
       w.view = "front";
     }
@@ -369,6 +460,33 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
         m?.setPosition(w.x + w.facing * 30, w.y - world.size * 0.4).setFlipX(w.facing < 0).setDepth(w.y + 9);
         break;
       }
+      case "fish": {
+        // 낚싯대 손잡이는 배 앞, 대 끝은 오른쪽 위. 줄은 대 끝에서 물 위의 찌까지
+        const [rod, bob] = w.props;
+        if (!rod || !bob) break;
+        const { width: rw, height: rh } = ACT_PROP_SIZE.rod;
+        // 손잡이가 캐릭터 앞모습의 오른손(보는 사람 기준 오른쪽, 허리 높이)에 오게
+        const hand = { x: w.x + world.size * 0.16, y: w.y - world.size * 0.29 };
+        const rx = hand.x - ROD_GRIP.x * rw + rw / 2, ry = hand.y - ROD_GRIP.y * rh + rh / 2;
+        rod.setPosition(rx, ry).setDepth(w.y + 9);
+        const tip = { x: rx - rw / 2 + ROD_TIP.x * rw, y: ry - rh / 2 + ROD_TIP.y * rh };
+        // 찌는 물결 따라 살랑, 가끔 쏙 들어갔다 나온다 (입질)
+        const nibble = !reduced && Math.sin(now / 900) > 0.93 ? 4 : 0;
+        const by = w.y + BOBBER_DY + (reduced ? 0 : Math.sin(now / 420) * 1.5) + nibble;
+        const bx = tip.x + 3;
+        bob.setPosition(bx, by).setDepth(w.y + 8.5);
+        w.line?.clear().lineStyle(1.2, 0xfffbef, 0.95).beginPath().moveTo(tip.x, tip.y).lineTo(bx, by - ACT_PROP_SIZE.bobber.height / 2).strokePath().setDepth(w.y + 8.6);
+        break;
+      }
+      case "fireworks":
+        // 하늘을 올려다보며 가끔 반짝 별 (와!)
+        if (fx) {
+          floatUp(w.x + rng.between(-10, 10), head - 6, "star");
+          w.nextFx = now + rng.between(2200, 4000);
+        }
+        // 불꽃놀이가 끝나면(아침) 그만둔다
+        if (!world.fireworks()) w.until = Math.min(w.until, now);
+        break;
     }
   }
 
