@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { avatarEquips, blogs, items, profiles, roomFurniture, userAnimals, userItems } from "@/db/schema";
-import { isFurnitureColor } from "@/lib/art/furniture";
+import { fitRoomSpot, isFurnitureColor } from "@/lib/art/furniture";
 import { isRoofColor } from "@/lib/art/town";
 import { clampCharacterSpot, clampPct, clampPetSpot } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
@@ -16,7 +16,7 @@ export type ActionResult = { ok: boolean; error?: string };
 /** 내가 가진 아이템인지와 종류·부위·필요 레벨 */
 async function ownedItem(userId: string, itemId: number) {
   const [owned] = await db
-    .select({ type: items.type, slot: items.slot, requiredLevel: items.requiredLevel })
+    .select({ type: items.type, slot: items.slot, requiredLevel: items.requiredLevel, assetKey: items.assetKey })
     .from(userItems)
     .innerJoin(items, eq(items.id, userItems.itemId))
     .where(and(eq(userItems.userId, userId), eq(userItems.itemId, itemId)));
@@ -79,10 +79,12 @@ export async function placeFurniture(itemId: number, x: number, y: number): Prom
   if (owned.type !== "furniture") return { ok: false, error: t("가구만 미니룸에 놓을 수 있어요") };
 
   // 가진 가구는 몇 개든 놓을 수 있다 (2026-10-13 5개 제한 없앰). 이미 놓인 가구면 위치만 옮긴다 (기본 키: 회원, 아이템)
+  // 벽 장식은 벽 안, 창문·액자를 가리지 않는 자리로 맞춘다
+  const at = fitRoomSpot(owned.assetKey, clampPct(x), clampPct(y));
   await db
     .insert(roomFurniture)
-    .values({ userId: viewer.userId, itemId, x: clampPct(x), y: clampPct(y) })
-    .onConflictDoUpdate({ target: [roomFurniture.userId, roomFurniture.itemId], set: { x: clampPct(x), y: clampPct(y) } });
+    .values({ userId: viewer.userId, itemId, x: at.x, y: at.y })
+    .onConflictDoUpdate({ target: [roomFurniture.userId, roomFurniture.itemId], set: { x: at.x, y: at.y } });
   revalidatePath("/", "layout");
   return { ok: true };
 }

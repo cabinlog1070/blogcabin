@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from "react";
 import { PetArt } from "@/components/pet-art";
 import { faceFrame } from "@/lib/art/characters";
-import { backgroundDataUri, characterDataUri, furnitureDataUri, furnitureInfo, parseFurnitureKey } from "@/lib/assets";
+import { backgroundDataUri, characterDataUri, furnitureDataUri, fitRoomSpot, furnitureInfo, parseFurnitureKey } from "@/lib/assets";
 import type { AnimalStage, PetAccessory, PetColor } from "@/lib/farm";
 import { makeT, type Locale } from "@/lib/i18n";
 import { ROOM_CHARACTER_SPOT, roomDepth, type RoomSpot } from "@/lib/shop";
@@ -103,6 +103,7 @@ export function MiniRoom({
     >
       {furniture.map((f) => {
         const info = furnitureInfo(f.assetKey);
+        const at = fitRoomSpot(f.assetKey, f.x, f.y); // 벽 장식은 창문·액자를 가리지 않는 자리로 (예전에 놓은 자리도)
         return (
           <div
             key={f.id}
@@ -111,11 +112,11 @@ export function MiniRoom({
             {...furnitureProps?.(f)}
             className={`absolute -translate-x-1/2 -translate-y-1/2 drop-shadow ${furnitureProps ? "cursor-grab touch-none select-none" : ""} ${hiddenFurnitureId === f.id ? "opacity-0" : ""}`}
             style={{
-              left: `${f.x}%`,
-              top: `${f.y}%`,
+              left: `${at.x}%`,
+              top: `${at.y}%`,
               height: `${info.heightPct}%`,
               aspectRatio: String(info.aspect),
-              zIndex: info.flat ? 0 : roomDepth("furniture", f.y),
+              zIndex: info.flat ? 0 : roomDepth("furniture", at.y),
             }}
           >
             <FurnitureArt assetKey={f.assetKey} className="pointer-events-none h-full w-full" />

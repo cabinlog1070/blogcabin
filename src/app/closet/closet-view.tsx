@@ -11,6 +11,7 @@ import {
   composeLook,
   FURNITURE_COLOR_KEYS,
   FURNITURE_COLORS,
+  fitRoomSpot,
   furnitureInfo,
   isFurnitureColor,
   MANNEQUIN,
@@ -198,7 +199,9 @@ export function ClosetView({
   function place(item: OwnedItem, x: number, y: number) {
     const before = placed;
     const already = placed.some((f) => f.id === item.id);
-    const spot = { id: item.id, assetKey: painted(item), x: clampPct(x), y: clampPct(y) };
+    // 벽 장식은 벽 안, 창문·액자를 가리지 않는 가장 가까운 자리로 맞춘다
+    const at = fitRoomSpot(item.assetKey, clampPct(x), clampPct(y));
+    const spot = { id: item.id, assetKey: painted(item), x: at.x, y: at.y };
     setPlaced(already ? placed.map((f) => (f.id === item.id ? spot : f)) : [...placed, spot]);
     save(() => setPlaced(before), () => placeFurniture(item.id, spot.x, spot.y), t("{name} 배치를 저장했어요 ✓", { name: t(item.name) }), FAIL_PLACE);
   }
