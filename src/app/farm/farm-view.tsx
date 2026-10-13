@@ -41,6 +41,7 @@ import {
   givePotion,
 } from "./actions";
 import { FarmField, type FieldPet } from "./farm-field";
+import { useAutoClear } from "@/components/use-auto-clear";
 
 type FreeEgg = { kind: "starter"; label: string } | { kind: "level"; level: number; label: string };
 type Pet = FarmAnimal & { name: string; assetKey: string; growExp: number; maxLevel: number };
@@ -111,11 +112,7 @@ export function FarmView({
   const run = (fn: () => Promise<FarmResult>) => start(async () => setMessage(await fn()));
 
   // 결과 문구는 3초 뒤에 저절로 사라진다 (새 문구가 오면 다시 3초)
-  useEffect(() => {
-    if (!message) return;
-    const timer = setTimeout(() => setMessage(null), 3000);
-    return () => clearTimeout(timer);
-  }, [message]);
+  useAutoClear(message, () => setMessage(null));
 
   const eggs = active.filter((a) => a.status === "egg");
   const growing = active.filter(isPet);

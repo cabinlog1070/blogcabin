@@ -8,6 +8,7 @@ import { ItemArt } from "@/components/item-art";
 import { SLOT_LABEL, type AvatarSlot } from "@/lib/assets";
 import type { ItemType } from "@/lib/shop";
 import { buyItem } from "./actions";
+import { useAutoClear } from "@/components/use-auto-clear";
 
 export type ShopItem = {
   id: number;
@@ -40,6 +41,7 @@ export function ShopGrid({
   const t = useT();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  useAutoClear(message, () => setMessage(null)); // 산 뒤 뜨는 알림은 3초 뒤에 사라진다
 
   return (
     <>

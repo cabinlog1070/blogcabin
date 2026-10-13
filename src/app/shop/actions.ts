@@ -4,7 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { avatarEquips, items, pointLedger, profiles, userItems } from "@/db/schema";
-import { isHairColor } from "@/lib/art/avatar";
+import { isHairColor, SLOT_ORDER } from "@/lib/art/avatar";
 import { isForSale } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
@@ -54,18 +54,26 @@ export async function buyItem(itemId: number): Promise<BuyResult> {
 export type SaveLookResult = { ok: true; bought: number } | { ok: false; error: string };
 
 /**
- * 미리 입어 본 옷을 그대로 입기 (SHOP-06, 2026-10-13): 부위마다 하나씩 받아서,
+ * 미리 입어 본 모습을 저장하기 (SHOP-06, 2026-10-13): 부위마다 하나씩 받아서,
  * 아직 없는 옷은 한꺼번에 사고(코인 차감) 모두 입는다. 하나라도 안 되면 아무것도 바꾸지 않는다.
+ * 머리 색도 여기서 같이 저장한다 (undefined면 그대로, null이면 기본 색).
+ * 상점에서 입어 보고 [저장하기]를 누르지 않고 나가면 아무것도 남지 않는다 (2026-10-13 사용자 결정)
  */
-export async function saveTriedLook(itemIds: number[]): Promise<SaveLookResult> {
+export async function saveTriedLook(itemIds: number[], hairColor?: string | null): Promise<SaveLookResult> {
   const viewer = await requireMember();
   const t = await getT();
   const ids = [...new Set(itemIds)].filter(Number.isInteger);
-  if (!ids.length || ids.length > 4) return { ok: false, error: t("입어 본 옷이 없어요") };
+  if (ids.length > SLOT_ORDER.length || (!ids.length && hairColor === undefined)) return { ok: false, error: t("입어 본 옷이 없어요") };
+  if (hairColor != null && !isHairColor(hairColor)) return { ok: false, error: t("고를 수 없는 색이에요") };
 
   try {
     const result = await db.transaction(async (tx): Promise<SaveLookResult> => {
       await lockUser(tx, viewer.userId);
+      // 머리 색은 옷 확인이 모두 끝난 뒤에 저장한다 (중간에 실패로 돌아가면 아무것도 바뀌지 않게). DB CHECK profiles_hair_color_check가 한 번 더 막는다
+      const saveHairColor = async () => {
+        if (hairColor !== undefined) await tx.update(profiles).set({ hairColor }).where(eq(profiles.userId, viewer.userId));
+      };
+      if (!ids.length) return (await saveHairColor(), { ok: true, bought: 0 });
       const rows = await tx.select().from(items).where(inArray(items.id, ids));
       if (rows.length !== ids.length || rows.some((i) => i.type !== "avatar" || !i.slot)) return { ok: false, error: t("입을 수 없는 아이템이 있어요") };
       if (new Set(rows.map((i) => i.slot)).size !== rows.length) return { ok: false, error: t("한 부위에는 옷 하나만 입을 수 있어요") };
@@ -86,6 +94,7 @@ export async function saveTriedLook(itemIds: number[]): Promise<SaveLookResult> 
       const cost = toBuy.reduce((sum, i) => sum + i.price, 0);
       if (wallet.coins < cost) return { ok: false, error: t("코인이 {n}개 부족해요", { n: cost - wallet.coins }) };
 
+      await saveHairColor();
       for (const item of toBuy) {
         await tx.insert(userItems).values({ userId: viewer.userId, itemId: item.id });
         await tx.insert(pointLedger).values({ userId: viewer.userId, reason: "purchase", coinDelta: -item.price, refId: String(item.id) });
@@ -105,15 +114,4 @@ export async function saveTriedLook(itemIds: number[]): Promise<SaveLookResult> 
     if (uniqueViolation(err) !== null) return { ok: false, error: t("이미 가지고 있는 아이템이에요") };
     throw err;
   }
-}
-
-/** 머리 색 바꾸기 (2026-10-13): 무료, 언제든. null이면 헤어를 그린 그대로의 색. 입은 헤어 모두에 같은 색을 쓴다 */
-export async function setHairColor(color: string | null): Promise<{ ok: boolean; error?: string }> {
-  const viewer = await requireMember();
-  const t = await getT();
-  if (color !== null && !isHairColor(color)) return { ok: false, error: t("고를 수 없는 색이에요") };
-  // DB CHECK profiles_hair_color_check가 한 번 더 막는다
-  await db.update(profiles).set({ hairColor: color }).where(eq(profiles.userId, viewer.userId));
-  revalidatePath("/", "layout");
-  return { ok: true };
 }

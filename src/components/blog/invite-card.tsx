@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useT } from "@/components/i18n";
 import { INVITE_REWARD_COINS, inviteLink } from "@/lib/invite";
+import { useAutoClear } from "@/components/use-auto-clear";
 
 /** 🎁 친구 초대 카드 (GAME-09): 내 블로그 홈에서 주인에게만. 코드와 [초대 링크 복사] */
 export function InviteCard({ code }: { code: string }) {
   const t = useT();
   const [copied, setCopied] = useState<"ok" | "fail" | null>(null);
 
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(null), 2000);
-    return () => clearTimeout(timer);
-  }, [copied]);
+  useAutoClear(copied, () => setCopied(null));
 
   async function copy() {
     const link = inviteLink(window.location.origin, code);

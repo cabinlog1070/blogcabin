@@ -49,7 +49,7 @@ try {
   check("SHOP-01 안내에 새 친구·캐릭터 언급 없음", !(await page.locator("main p").first().innerText()).match(/친구|캐릭터를/));
   check(
     "고정 안내 문구",
-    await page.getByText("캐릭터는 가입할 때 고른 주민으로 정해지고, 바꿀 수 없어요. 옷과 소품으로 꾸며 보세요.").isVisible(),
+    await page.getByText("헤어와 옷, 소품을 입어 보고 [저장하기]를 누르면 내 캐릭터가 그 모습이 돼요.").isVisible(),
   );
   const counts = await Promise.all(
     ["shop-avatar", "shop-furniture", "shop-background"].map((id) => page.locator(`section[aria-labelledby="${id}"] article`).count()),
