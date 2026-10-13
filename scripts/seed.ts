@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { animalSpecies, items } from "../src/db/schema";
+import { giveStarterHair } from "../src/db/starter-hair";
 
 config({ path: ".env.local" });
 
@@ -28,6 +29,17 @@ const ITEMS: NewItem[] = [
   { code: "char_unicorn", type: "character", name: "유니콘", description: "꾸준함의 상징", price: 1200, requiredLevel: 8, isStarter: false, assetKey: "char.unicorn" },
 
   // 아바타 꾸미기 (SHOP-06): 상의·하의·모자·신발 각 3개. 레벨이 오르면 하나씩 풀린다 (Lv.1·2·3·5)
+  // 헤어 (2026-10-13): 처음 고른 주민의 머리. 자기 머리는 처음부터 갖고(src/db/starter-hair.ts), 다른 머리는 0코인에 받는다
+  { code: "av_hair_short", type: "avatar", slot: "hair", name: "짧은 머리", description: "깔끔하게 다듬은 짧은 머리", price: 0, requiredLevel: 1, isStarter: false, assetKey: "avatar.hair.short" },
+  { code: "av_hair_long", type: "avatar", slot: "hair", name: "긴 머리", description: "어깨 아래까지 내려오는 긴 머리", price: 0, requiredLevel: 1, isStarter: false, assetKey: "avatar.hair.long" },
+  { code: "av_hair_buzz", type: "avatar", slot: "hair", name: "스포츠 머리", description: "짧고 단정하게 깎은 머리", price: 40, requiredLevel: 1, isStarter: false, assetKey: "avatar.hair.buzz" },
+  { code: "av_hair_bowl", type: "avatar", slot: "hair", name: "바가지 머리", description: "앞머리를 동그랗게 자른 머리", price: 40, requiredLevel: 1, isStarter: false, assetKey: "avatar.hair.bowl" },
+  { code: "av_hair_spiky", type: "avatar", slot: "hair", name: "삐죽 머리", description: "하늘로 뾰족뾰족 세운 머리", price: 80, requiredLevel: 2, isStarter: false, assetKey: "avatar.hair.spiky" },
+  { code: "av_hair_curly", type: "avatar", slot: "hair", name: "곱슬 머리", description: "보글보글 동그란 곱슬머리", price: 100, requiredLevel: 3, isStarter: false, assetKey: "avatar.hair.curly" },
+  { code: "av_hair_bob", type: "avatar", slot: "hair", name: "단발", description: "턱선에서 찰랑이는 단발", price: 40, requiredLevel: 1, isStarter: false, assetKey: "avatar.hair.bob" },
+  { code: "av_hair_pigtails", type: "avatar", slot: "hair", name: "양갈래", description: "양쪽으로 묶은 귀여운 양갈래", price: 80, requiredLevel: 2, isStarter: false, assetKey: "avatar.hair.pigtails" },
+  { code: "av_hair_ponytail", type: "avatar", slot: "hair", name: "포니테일", description: "뒤로 높이 묶은 포니테일", price: 80, requiredLevel: 2, isStarter: false, assetKey: "avatar.hair.ponytail" },
+  { code: "av_hair_buns", type: "avatar", slot: "hair", name: "양쪽 똥머리", description: "머리 위에 동그랗게 말아 올린 똥머리", price: 100, requiredLevel: 3, isStarter: false, assetKey: "avatar.hair.buns" },
   { code: "av_top_stripe", type: "avatar", slot: "top", name: "줄무늬 티셔츠", description: "어디에나 잘 어울리는 기본 티셔츠", price: 40, requiredLevel: 1, isStarter: false, assetKey: "avatar.top.stripe" },
   { code: "av_top_hoodie", type: "avatar", slot: "top", name: "후드티", description: "글 쓸 때 입기 좋은 포근한 후드티", price: 100, requiredLevel: 2, isStarter: false, assetKey: "avatar.top.hoodie" },
   { code: "av_top_knit", type: "avatar", slot: "top", name: "니트 스웨터", description: "하트 무늬가 들어간 따뜻한 스웨터", price: 160, requiredLevel: 5, isStarter: false, assetKey: "avatar.top.knit" },
@@ -150,6 +162,8 @@ async function main() {
           },
         });
     }
+    // 헤어가 생기기 전에 가입한 주민에게도 자기 머리를 준다 (여러 번 해도 안전)
+    await giveStarterHair(db);
     const rows = await db.execute(sql`SELECT type, COUNT(*)::int AS n FROM items GROUP BY type ORDER BY type`);
     console.log("✔ 아이템 시드 완료", rows.rows, `동물 ${SPECIES.length}종`);
   } finally {

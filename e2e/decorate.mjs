@@ -37,6 +37,9 @@ try {
   check("TOWN-01 다른 화면에 갔다가 뒤로 와도 없음", (await page.locator("[data-welcome]").count()) === 0, page.url());
 
   const uid = (await one("SELECT id FROM users WHERE username = 'decor01'")).id;
+  // 헤어 (2026-10-13): 짧은 머리 주민은 "짧은 머리"를 갖고 입은 채로 시작한다
+  const hairs = await db.query("SELECT i.code, ae.item_id IS NOT NULL AS worn FROM user_items ui JOIN items i ON i.id = ui.item_id LEFT JOIN avatar_equips ae ON ae.user_id = ui.user_id AND ae.item_id = ui.item_id WHERE ui.user_id = $1 AND i.slot = 'hair'", [uid]);
+  check("헤어: 가입하면 자기 머리(짧은 머리)를 갖고 입고 있음", hairs.rows.length === 1 && hairs.rows[0].code === "av_hair_short" && hairs.rows[0].worn, JSON.stringify(hairs.rows));
 
   // ── SHOP-01: 판매 목록과 정렬 (Lv.1, 🪙 100) ──
   await page.goto(`${BASE}/shop`);
@@ -51,7 +54,7 @@ try {
   const counts = await Promise.all(
     ["shop-avatar", "shop-furniture", "shop-background"].map((id) => page.locator(`section[aria-labelledby="${id}"] article`).count()),
   );
-  check("SHOP-01 꾸미기 28 · 가구 14 · 배경 5", JSON.stringify(counts) === "[28,14,5]", counts.join(","));
+  check("SHOP-01 꾸미기 38 · 가구 14 · 배경 5", JSON.stringify(counts) === "[38,14,5]", counts.join(","));
   const furnNames = async () => page.locator('section[aria-labelledby="shop-furniture"] article h3').allInnerTexts();
   check("SHOP-01 기본 정렬은 레벨순", (await furnNames()).join(",") === "꽃바구니,화분,의자,곰인형,러그,램프,책장,책상,티비,게임기,침대,구름,무지개,우주선", (await furnNames()).join(","));
   await page.getByLabel("정렬").selectOption({ label: "비싼 순" });
@@ -80,6 +83,12 @@ try {
   check("미리 입어 보기: [원래대로]로 돌아옴", (await previewSrc()) === plain);
   check("미리 입어 보기는 코인을 쓰지 않음", (await one("SELECT COUNT(*)::int n FROM point_ledger WHERE user_id = $1 AND reason = 'purchase'", [uid])).n === 0);
 
+  // 다른 머리는 0코인에 받는다
+  const longHair = page.locator("article", { has: page.getByRole("heading", { name: "긴 머리", exact: true }) });
+  await longHair.getByRole("button", { name: "사기" }).click();
+  await page.getByRole("status").filter({ hasText: "긴 머리을(를) 샀어요" }).waitFor();
+  check("헤어: 긴 머리를 0코인에 받음 (코인 그대로)", (await one("SELECT COUNT(*)::int n FROM point_ledger WHERE user_id = $1 AND reason = 'purchase'", [uid])).n === 0 && (await one("SELECT COUNT(*)::int n FROM user_items ui JOIN items i ON i.id = ui.item_id WHERE ui.user_id = $1 AND i.slot = 'hair'", [uid])).n === 2);
+
   // ── 레벨·코인 올리기 (Lv.5, 코인 넉넉히) ──
   await db.query("INSERT INTO point_ledger (user_id, reason, exp_delta, coin_delta) VALUES ($1, 'signup', 1000, 2000)", [uid]);
   await page.reload();
@@ -89,7 +98,7 @@ try {
     await page.getByRole("status").filter({ hasText: `${name}을(를) 샀어요` }).waitFor();
   };
   for (const name of ["밀짚모자", "털모자", "후드티", "청바지", "운동화", "화분", "의자", "램프", "책상", "침대"]) await buy(name);
-  check("구매: 꾸미기 5개·가구 5개 보유", (await one("SELECT COUNT(*)::int n FROM user_items ui JOIN items i ON i.id = ui.item_id WHERE ui.user_id = $1 AND i.type IN ('avatar','furniture')", [uid])).n === 10);
+  check("구매: 꾸미기 5개·가구 5개 보유 (헤어 빼고)", (await one("SELECT COUNT(*)::int n FROM user_items ui JOIN items i ON i.id = ui.item_id WHERE ui.user_id = $1 AND i.type IN ('avatar','furniture') AND i.slot IS DISTINCT FROM 'hair'", [uid])).n === 10);
   await page.reload();
   await page.getByLabel("정렬").selectOption({ label: "보유순" });
   const ownedFirst = await furnNames();
@@ -117,7 +126,7 @@ try {
   await wearTab("hat");
   await btn("밀짚모자").click();
   check("SHOP-06 누르면 미니룸 캐릭터가 바로 밀짚모자를 씀", (await roomChar()).includes("%23f4d78a"));
-  check("저장하기 전에는 DB에 그대로", (await one("SELECT COUNT(*)::int n FROM avatar_equips WHERE user_id = $1", [uid])).n === 0 && (await page.locator("[data-save-bar]").getAttribute("data-save-bar")) === "dirty");
+  check("저장하기 전에는 DB에 그대로", (await one("SELECT COUNT(*)::int n FROM avatar_equips WHERE user_id = $1 AND slot <> 'hair'", [uid])).n === 0 && (await page.locator("[data-save-bar]").getAttribute("data-save-bar")) === "dirty");
   await btn("되돌리기").click();
   check("되돌리기: 저장한 모습으로 돌아옴", !(await roomChar()).includes("%23f4d78a") && (await saveBtn.isDisabled()));
   await btn("밀짚모자").click();
@@ -133,13 +142,22 @@ try {
   check("SHOP-06 저장하면 털모자 하나만", hats.rows.length === 1 && hats.rows[0].name === "털모자");
   await btn("털모자").click();
   await saveNow();
-  check("SHOP-06 입은 것을 다시 누르고 저장하면 벗음", (await one("SELECT COUNT(*)::int n FROM avatar_equips WHERE user_id = $1", [uid])).n === 0);
+  check("SHOP-06 입은 것을 다시 누르고 저장하면 벗음 (헤어 빼고)", (await one("SELECT COUNT(*)::int n FROM avatar_equips WHERE user_id = $1 AND slot <> 'hair'", [uid])).n === 0);
   for (const [slot, name] of [["hat", "밀짚모자"], ["top", "후드티"], ["bottom", "청바지"], ["shoes", "운동화"]]) {
     await wearTab(slot);
     await btn(name).click();
   }
   await saveNow();
-  check("SHOP-06 부위별로 4개 입고 한 번에 저장", (await one("SELECT COUNT(*)::int n FROM avatar_equips WHERE user_id = $1", [uid])).n === 4);
+  check("SHOP-06 부위별로 4개 입고 한 번에 저장 (헤어 빼고)", (await one("SELECT COUNT(*)::int n FROM avatar_equips WHERE user_id = $1 AND slot <> 'hair'", [uid])).n === 4);
+  // 헤어 바꾸기: 긴 머리를 입으면 짧은 머리 자리를 바꾼다
+  await wearTab("hair");
+  await btn("긴 머리").click();
+  await saveNow();
+  const hairNow = await one("SELECT i.code FROM avatar_equips ae JOIN items i ON i.id = ae.item_id WHERE ae.user_id = $1 AND ae.slot = 'hair'", [uid]);
+  check("헤어: 짧은 머리 주민도 긴 머리로 바꿔 입음", hairNow?.code === "av_hair_long", hairNow?.code);
+  await page.screenshot({ path: `${outDir}/a3-closet-long-hair.png`, fullPage: true });
+  await btn("짧은 머리").click();
+  await saveNow();
 
   // DB가 직접 막는다: 가지지 않은 아이템, 부위가 다른 자리
   const notOwned = await db

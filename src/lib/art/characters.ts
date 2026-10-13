@@ -264,6 +264,7 @@ export function playerSvg(look: string, view: CharView, frame: WalkFrame, size: 
       if (p.slot === "top") wear.top = p.top;
       else if (p.slot === "bottom") wear.bottom = p.bottom;
       else if (p.slot === "shoes") wear.shoes = p.shoes;
+      else if (p.slot === "hair") wear.hair = p.hair;
       else wear.hat = p.hat;
     }
   return person(kind, view, frame, wear, size);

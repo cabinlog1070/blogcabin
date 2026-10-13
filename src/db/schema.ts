@@ -47,7 +47,7 @@ export const ITEM_TYPES = [
 ] as const;
 export const itemType = enumText(ITEM_TYPES);
 // 아바타 꾸미기 부위 (SHOP-06): 상의·하의·모자·신발. 그리는 순서는 몸 → 하의 → 상의 → 신발 → 모자 (src/lib/art/avatar.ts)
-export const AVATAR_SLOTS = ["top", "bottom", "hat", "shoes"] as const;
+export const AVATAR_SLOTS = ["hair", "top", "bottom", "hat", "shoes"] as const;
 export const avatarSlot = enumText(AVATAR_SLOTS);
 export const VISIBILITIES = ["public", "private"] as const;
 export const visibility = enumText(VISIBILITIES);
@@ -91,6 +91,8 @@ export const animalGender = enumText(ANIMAL_GENDERS);
 export const PET_ACCESSORIES = ["none", "ribbon", "flower", "scarf"] as const;
 export const petAccessory = enumText(PET_ACCESSORIES);
 // 펫 색 (무료, 2026-10-12): default = 동물마다 정해진 색. 그림은 src/lib/art/crayon-animals.ts
+/** 머리 색 (src/lib/art/avatar.ts의 HAIR_COLORS와 같은 목록) */
+export const HAIR_COLORS = ["black", "brown", "caramel", "blonde", "red", "pink", "blue", "purple", "mint"] as const;
 export const PET_COLORS = ["default", "brown", "yellow", "red", "black", "white", "pink", "orange", "mint", "sky", "purple", "gray", "green"] as const;
 export const petColor = enumText(PET_COLORS);
 export const FARM_ITEM_KINDS = ["potion"] as const;
@@ -313,6 +315,8 @@ export const profiles = pgTable(
     inviteRewardedAt: timestamp("invite_rewarded_at", { withTimezone: true }),
     // 상태 메시지 (TOWN-12): 즐겨찾기한 이웃의 광장에서 내 캐릭터에 가까이 오면 머리 위 말풍선으로 보인다. 비우면 NULL
     statusMessage: text("status_message"),
+    // 머리 색 (2026-10-13, 무료). NULL = 입은 헤어를 그린 그대로의 색
+    hairColor: text("hair_color"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -320,6 +324,7 @@ export const profiles = pgTable(
       "profiles_status_message_check",
       sql`char_length(${t.statusMessage}) BETWEEN 1 AND 30`,
     ),
+    check("profiles_hair_color_check", oneOf(t.hairColor, HAIR_COLORS)),
     check(
       "profiles_nickname_check",
       sql`char_length(${t.nickname}) BETWEEN 2 AND 12`,

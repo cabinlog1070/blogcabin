@@ -1,0 +1,2 @@
+ALTER TABLE "profiles" ADD COLUMN "hair_color" text;--> statement-breakpoint
+ALTER TABLE "profiles" ADD CONSTRAINT "profiles_hair_color_check" CHECK ("profiles"."hair_color" IN ('black', 'brown', 'caramel', 'blonde', 'red', 'pink', 'blue', 'purple', 'mint'));

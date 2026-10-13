@@ -11,6 +11,7 @@ import { and, eq, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { accounts, blogs, categories, follows, items, profiles, sessions, userItems, users } from "../src/db/schema";
+import { giveStarterHair } from "../src/db/starter-hair";
 import { generateInviteCode } from "../src/lib/invite";
 import { ADMIN_BLOG_TITLE } from "../src/lib/nickname";
 
@@ -83,6 +84,7 @@ async function main() {
           .onConflictDoNothing();
         // 초대 코드(GAME-09)도 일반 회원처럼 하나 만든다 (32^6가지라 겹칠 일은 거의 없고, 겹치면 다시 실행하면 된다)
         await tx.insert(profiles).values({ userId: user.id, nickname: "관리자", characterItemId: character.id, inviteCode: generateInviteCode() });
+        await giveStarterHair(tx, user.id);
         const [blog] = await tx
           .insert(blogs)
           .values({ ownerId: user.id, slug: NOTICE_SLUG, title: ADMIN_BLOG_TITLE, description: "마을 소식과 업데이트를 알려드려요", backgroundItemId: background.id })
