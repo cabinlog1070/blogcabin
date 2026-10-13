@@ -50,6 +50,17 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.32.5",
+        title: msg("갤럭시에서 어두워지던 화면"),
+        changes: [
+          {
+            kind: "fixed",
+            text: msg("갤럭시 휴대폰 등에서 브라우저가 화면을 멋대로 어둡게 바꿔 색이 이상하게 보이던 문제를 고쳤어요. 이제 원래 밝은 색으로 보여요."),
+            images: [{ src: "/release-notes/1.32.5/pet-light-after.webp", alt: msg("밝은 색으로 보이는 농장 펫 상태창"), before: "/release-notes/1.32.5/pet-light-before.webp" }],
+          },
+        ],
+      },
+      {
         version: "1.32.4",
         title: msg("선물 받은 알에서 농장으로"),
         changes: [
