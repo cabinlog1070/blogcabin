@@ -77,7 +77,8 @@ export function WanderingPet({
       data-room-pet={pet.name}
       data-room-pet-placed
       data-walking={walking || undefined}
-      className={`absolute -translate-x-1/2 -translate-y-full drop-shadow ${className}`}
+      // w-max: 오른쪽 끝으로 가도 크기가 줄지 않게 (남은 폭에 맞춰 img가 줄어드는 것 막기)
+      className={`absolute w-max -translate-x-1/2 -translate-y-full drop-shadow ${className}`}
       style={{
         left: `${at.x}%`,
         top: `${at.y}%`,
