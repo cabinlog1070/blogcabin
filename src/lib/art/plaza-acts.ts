@@ -1,4 +1,4 @@
-// 광장 이웃 주민의 동작 소품 (TOWN-12): 기타, 마시멜로 꼬치, 물뿌리개, 물방울, 음표, 하트.
+// 광장 이웃 주민의 동작 소품 (TOWN-12): 기타, 마시멜로 꼬치, 물뿌리개, 물방울, 음표, 하트, 낚싯대·찌·물고기, 반짝 별.
 // 파스텔 크레용 그림체(pastel). 좌표는 다른 광장 그림처럼 화면 크기의 2배로 그린다.
 import { E, F, L, S, SKIN, make, pastel } from "./crayon";
 
@@ -11,11 +11,15 @@ export const ACT_PROP_SIZE = {
   drop: { width: 7, height: 10 },
   note: { width: 19, height: 25 },
   heart: { width: 16, height: 14 },
+  rod: { width: 46, height: 52 },
+  bobber: { width: 9, height: 12 },
+  fish: { width: 26, height: 15 },
+  star: { width: 14, height: 14 },
 } as const;
 export type ActProp = keyof typeof ACT_PROP_SIZE;
 
 /** 그린 좌표 크기 (viewBox). 내보내는 크기(ACT_PROP_SIZE의 2배)로 늘려 그린다 */
-const BOX: Record<ActProp, readonly [number, number]> = { guitar: [120, 60], hand: [20, 20], marshmallow: [104, 36], can: [60, 44], drop: [12, 18], note: [30, 40], heart: [32, 28] };
+const BOX: Record<ActProp, readonly [number, number]> = { guitar: [120, 60], hand: [20, 20], marshmallow: [104, 36], can: [60, 44], drop: [12, 18], note: [30, 40], heart: [32, 28], rod: [100, 112], bobber: [18, 24], fish: [52, 30], star: [28, 28] };
 const draw = (k: ActProp, body: () => string) => {
   const [w, h] = BOX[k];
   return pastel(() => make(w, h, body, { dw: ACT_PROP_SIZE[k].width * 2, dh: ACT_PROP_SIZE[k].height * 2 }));
@@ -92,4 +96,51 @@ export function noteSvg(color: NoteColor): string {
 /** 작은 하트 (펫을 쓰다듬을 때) */
 export function heartSvg(): string {
   return draw("heart", () => S("M16 26C6 18 2 12 4 7C6 2 13 2 16 8C19 2 26 2 28 7C30 12 26 18 16 26Z", "#f58aa8", 3));
+}
+
+/** 낚싯대: 앞(호수 쪽)을 본 캐릭터가 오른손으로 손잡이(ROD_GRIP)를 잡고, 대는 오른쪽 아래 물 쪽으로 뻗는다 (끝 = ROD_TIP).
+ *  손은 캐릭터 그림의 손을 그대로 쓴다 (소품에 손을 그리면 손이 넷이 된다). 낚싯줄은 장면에서 대 끝부터 찌까지 선으로 긋는다 */
+export const ROD_TIP = { x: 97 / 100, y: 108 / 112 };
+export const ROD_GRIP = { x: 16 / 100, y: 18 / 112 };
+export function rodSvg(): string {
+  return draw("rod", () => {
+    let o = "";
+    // 대: 손잡이 쪽은 굵고 끝으로 갈수록 가늘게
+    o += L("M22 24L60 68", 7, "#7a4a28");
+    o += L("M58 66L97 108", 4.2, "#9a6236");
+    // 손잡이 코르크와 릴
+    o += L("M8 8L26 28", 10, "#e2b77a");
+    o += S(E(36, 30, 8, 8), "#9ccbf0", 3);
+    o += F(E(36, 30, 2.6), "#4f7fb0");
+    // 줄 고리
+    o += L("M70 82L74 78M84 96L88 92", 2.4, "#5a3a24");
+    return o;
+  });
+}
+
+/** 찌: 위는 흰색, 아래는 빨간색 동그라미 + 꼭지 */
+export function bobberSvg(): string {
+  return draw("bobber", () => {
+    let o = L("M9 2L9 8", 2.5, "#6b4226");
+    o += S("M2 14A7 7 0 0 1 16 14Z", "#fff8ee", 2.5);
+    o += S("M2 14A7 7 0 0 0 16 14Z", "#f07272", 2.5);
+    return o;
+  });
+}
+
+/** 낚은 물고기 (머리가 오른쪽) */
+export function fishSvg(): string {
+  return draw("fish", () => {
+    let o = S("M4 6L14 15L4 24Q2 15 4 6Z", "#f3a65a", 3);
+    o += S("M12 15C18 4 38 2 48 15C38 28 18 26 12 15Z", "#f6c06e", 3.5);
+    o += F("M18 17C26 24 38 24 46 16C38 26 22 26 18 17Z", "#e89a4c");
+    o += L("M26 8Q30 15 26 22", 2, "#e89a4c");
+    o += F(E(39, 13, 2.4), "#3e2b20");
+    return o;
+  });
+}
+
+/** 반짝 별 (불꽃놀이 구경하며 "와!") */
+export function starSvg(): string {
+  return draw("star", () => S("M14 2L17 10L26 11L19 17L21 26L14 21L7 26L9 17L2 11L11 10Z", "#ffe08a", 2.5));
 }

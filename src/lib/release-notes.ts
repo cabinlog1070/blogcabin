@@ -50,6 +50,15 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.31.0",
+        title: msg("물가에서 낚시하는 이웃"),
+        changes: [
+          { kind: "new", text: msg("광장을 돌아다니는 이웃이 가끔 아래 물가에 서서 낚시를 해요. 운이 좋으면 물고기를 낚아요.") },
+          { kind: "new", text: msg("저녁에 불꽃놀이가 터지면 이웃 한두 명이 광장 위쪽으로 가서 하늘을 올려다보며 구경해요.") },
+          { kind: "improved", text: msg("캠프파이어에서 마시멜로를 굽는 이웃은 한 번에 두 명까지예요.") },
+        ],
+      },
+      {
         version: "1.30.0",
         title: msg("휴대폰 조이스틱"),
         changes: [

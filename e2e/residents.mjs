@@ -1,5 +1,6 @@
 // TOWN-12 광장 이웃 주민: 즐겨찾기한 이웃이 펫과 함께 광장을 돌아다니고, 가까이 가면 상태 메시지 말풍선이 뜬다.
-// 무작위 동작(걷기·의자에 앉기·기타·노래·펫 쓰다듬기·꽃에 물 주기·마시멜로)이 하나씩 나오는지 지켜본다.
+// 무작위 동작(걷기·의자에 앉기·기타·노래·펫 쓰다듬기·꽃에 물 주기·마시멜로·낚시)이 하나씩 나오는지 지켜본다.
+// 마시멜로는 한 번에 두 명까지, 저녁(?hour=21) 불꽃놀이 때는 한두 명이 하늘 쪽으로 구경하러 간다.
 // 블로그 관리에서 상태 메시지를 저장할 수 있다 (30자까지, 이모티콘은 안 됨, 비우면 지워진다).
 // 사용: 개발 서버를 띄운 상태에서 node e2e/residents.mjs <스크린샷 폴더> (실행마다 새 회원)
 import { mkdirSync } from "node:fs";
@@ -59,6 +60,7 @@ check("즐겨찾기하지 않은 이웃은 돌아다니지 않는다", !resident
 // ── 무작위 동작: 지켜보면서 나온 동작을 모은다 ──
 const seen = new Set();
 const shot = new Set();
+let maxMarshmallow = 0;
 const deadline = Date.now() + Number(process.env.WATCH_MS ?? 90000);
 const positions = async () =>
   Object.fromEntries(
@@ -71,6 +73,7 @@ const positions = async () =>
 while (Date.now() < deadline) {
   await page.waitForTimeout(700);
   const acts = ((await canvas.getAttribute("data-resident-acts")) ?? "").split(",").map((s) => s.split(":")[1]);
+  maxMarshmallow = Math.max(maxMarshmallow, acts.filter((a) => a === "marshmallow" || a === "go-marshmallow").length);
   for (const a of acts) {
     if (!a || a === "rest" || a.startsWith("go-")) continue;
     seen.add(a);
@@ -79,10 +82,11 @@ while (Date.now() < deadline) {
       await page.screenshot({ path: `${outDir}/residents-${a}.png` });
     }
   }
-  if (["sit", "guitar", "pet", "water", "marshmallow"].every((a) => seen.has(a)) && seen.has("sing")) break;
+  if (["sit", "guitar", "pet", "water", "marshmallow", "fish"].every((a) => seen.has(a)) && seen.has("sing")) break;
 }
 check("주민이 걷다 멈춰 무작위 동작을 한다", seen.size >= 3, [...seen].join(","));
-for (const a of ["sit", "guitar", "pet", "water", "marshmallow", "sing"]) {
+check("마시멜로는 한 번에 두 명까지", maxMarshmallow <= 2, `가장 많을 때 ${maxMarshmallow}명`);
+for (const a of ["sit", "guitar", "pet", "water", "marshmallow", "sing", "fish"]) {
   if (!seen.has(a)) results.push(`ℹ️ 지켜보는 동안 '${a}' 동작은 나오지 않음 (무작위)`);
 }
 
@@ -108,6 +112,20 @@ check("상태 메시지가 있는 이웃에게 다가가면 말풍선이 뜬다"
 const bubbleText = (await canvas.getAttribute("data-bubble-text")) ?? "";
 check("말풍선에서 이모티콘이 빠진다", bubble !== target || bubbleText === "오늘은 캠프파이어 앞에서 기타 연습", bubbleText);
 await page.screenshot({ path: `${outDir}/residents-bubble.png` });
+
+// ── 저녁 불꽃놀이: 한두 명이 하늘 쪽으로 구경하러 간다 ──
+await page.goto(`${BASE}/town?hour=21`);
+await page.waitForFunction(() => document.querySelector("canvas")?.dataset.residentActs !== undefined, null, { timeout: 60000 });
+let watchers = 0, maxWatchers = 0;
+for (let i = 0; i < 60 && !watchers; i++) {
+  await page.waitForTimeout(1000);
+  const acts = ((await canvas.getAttribute("data-resident-acts")) ?? "").split(",").map((s) => s.split(":")[1]);
+  const n = acts.filter((a) => a === "fireworks" || a === "go-fireworks").length;
+  maxWatchers = Math.max(maxWatchers, n);
+  watchers = acts.filter((a) => a === "fireworks").length;
+}
+check("저녁 불꽃놀이 때 이웃이 하늘 쪽으로 구경하러 간다", watchers > 0 && maxWatchers <= 2, `구경 ${watchers}명, 가장 많을 때 ${maxWatchers}명`);
+await page.screenshot({ path: `${outDir}/residents-fireworks.png` });
 
 // ── 블로그 관리: 상태 메시지 저장 ──
 await page.goto(`${BASE}/settings/blog`);
