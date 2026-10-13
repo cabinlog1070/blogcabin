@@ -150,6 +150,9 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
         type: Phaser.AUTO,
         parent: el,
         backgroundColor: "#8aba5c",
+        // 안드로이드(갤럭시 등): 한 번에 여러 그림 장을 섞어 그리면 일부 그래픽 칩에서 움직이는 주민이 깜빡이고
+        // 집이 사라졌다(2026-10-13 제보). 한 번에 한 장씩 그리게 해 그 문제를 피한다 (그리는 횟수는 조금 늘어난다)
+        render: /Android/i.test(navigator.userAgent) ? { maxTextures: 1 } : undefined,
         physics: { default: "arcade", arcade: { debug: false } },
         scale: { mode: Phaser.Scale.NONE, width: w, height: h, zoom: 1 / dpr, autoRound: false },
         scene: createTownScene(Phaser, data, images, onEnter, t, getComputedStyle(document.body).fontFamily, dpr),

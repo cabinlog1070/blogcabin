@@ -52,7 +52,10 @@ export const RELEASE_NOTES: ReleaseDay[] = [
       {
         version: "1.32.6",
         title: msg("삼성 인터넷 광장 색"),
-        changes: [{ kind: "fixed", text: msg("삼성 인터넷에서 광장 그림이 뿌옇고 흐리게 보이던 문제를 고쳤어요.") }],
+        changes: [
+          { kind: "fixed", text: msg("삼성 인터넷에서 광장 그림이 뿌옇고 흐리게 보이던 문제를 고쳤어요.") },
+          { kind: "fixed", text: msg("일부 안드로이드 휴대폰에서 광장의 주민이 깜빡이거나 이웃 집이 사라지던 문제를 고쳤어요.") },
+        ],
       },
       {
         version: "1.32.5",
