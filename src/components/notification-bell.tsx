@@ -11,21 +11,33 @@ import {
   readAllNotifications,
   readNotification,
   refreshNotificationState,
+  seeGift,
   seeLevelUps,
 } from "@/app/notifications/actions";
 import { useLocale, useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 import { ItemArt } from "@/components/item-art";
 import { timeAgo } from "@/lib/game";
+import type { GiftView } from "@/server/gifts";
 import type { LevelUpPopup, NotificationView } from "@/server/notifications";
 
 type PanelRow = Omit<NotificationView, "createdAt"> & { createdAt: string };
 
-export function NotificationBell({ unread: initialUnread, popup: initialPopup }: { unread: number; popup: LevelUpPopup | null }) {
+export function NotificationBell({
+  unread: initialUnread,
+  popup: initialPopup,
+  gifts: initialGifts,
+}: {
+  unread: number;
+  popup: LevelUpPopup | null;
+  gifts: GiftView[];
+}) {
   const t = useT();
   const locale = useLocale();
   const [unread, setUnread] = useState(initialUnread);
   const [popup, setPopup] = useState(initialPopup);
+  // 아직 안 본 관리자 선물: 하나씩 팝업으로 (레벨업 팝업을 먼저 닫은 뒤)
+  const [gifts, setGifts] = useState(initialGifts);
   // 쪽지 바로 아래, 화면 양옆 12px 안에 들어오게 (휴대폰에서 왼쪽으로 잘리던 문제)
   const { open, box, setAnchor, setPanel, toggle: togglePanel, close } = useHeaderPopover(352); // 22rem
   const [rows, setRows] = useState<PanelRow[] | null>(null);
@@ -36,11 +48,12 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
   const firstPath = useRef(pathname);
 
   // 서버가 헤더를 다시 그리면(revalidatePath) 그 값으로 맞춘다 (렌더 중에 이전 값과 비교)
-  const [prevProps, setPrevProps] = useState({ initialUnread, initialPopup });
-  if (prevProps.initialUnread !== initialUnread || prevProps.initialPopup !== initialPopup) {
-    setPrevProps({ initialUnread, initialPopup });
+  const [prevProps, setPrevProps] = useState({ initialUnread, initialPopup, initialGifts });
+  if (prevProps.initialUnread !== initialUnread || prevProps.initialPopup !== initialPopup || prevProps.initialGifts !== initialGifts) {
+    setPrevProps({ initialUnread, initialPopup, initialGifts });
     setUnread(initialUnread);
     setPopup(initialPopup);
+    setGifts(initialGifts);
   }
   // 화면을 옮길 때마다 개수·레벨업 팝업을 새로 읽는다 (남이 공감해서 오른 레벨도 다음 화면에서 뜨게)
   useEffect(() => {
@@ -50,6 +63,7 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
       .then((s) => {
         setUnread(s.unread);
         setPopup(s.popup);
+        setGifts(s.gifts);
       })
       .catch(() => {});
   }, [pathname]);
@@ -158,7 +172,20 @@ export function NotificationBell({ unread: initialUnread, popup: initialPopup }:
         {pending && <span className="sr-only">{t("처리 중")}</span>}
       </PopoverPanel>
 
-      {popup && <LevelUpModal popup={popup} onClose={() => setPopup(null)} />}
+      {popup ? (
+        <LevelUpModal popup={popup} onClose={() => setPopup(null)} />
+      ) : (
+        gifts[0] && (
+          <GiftModal
+            key={gifts[0].id}
+            gift={gifts[0]}
+            onClose={() => {
+              setGifts((list) => list.slice(1));
+              setUnread((n) => Math.max(0, n - 1));
+            }}
+          />
+        )
+      )}
     </>
   );
 }
@@ -210,6 +237,64 @@ function LevelUpModal({ popup, onClose }: { popup: LevelUpPopup; onClose: () => 
         <div className="mt-6 flex justify-center gap-2">
           <button type="button" onClick={() => close(true)} className="btn bg-sun text-ink">
             {t("상점 가기")}
+          </button>
+          <button ref={okRef} type="button" onClick={() => close(false)} className="btn bg-ink text-cream">
+            {t("확인")}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** 관리자 선물 팝업: 보낸 사람, 함께 보낸 말, 받은 코인·아이템. 닫으면 그 선물 알림을 읽음으로 */
+function GiftModal({ gift, onClose }: { gift: GiftView; onClose: () => void }) {
+  const t = useT();
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const okRef = useRef<HTMLButtonElement>(null);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- 브라우저에서만 포털을 만든다
+  useEffect(() => setMounted(true), []);
+  useEffect(() => okRef.current?.focus(), [mounted]);
+
+  const close = (goList: boolean) => {
+    onClose();
+    if (gift.notificationId) void seeGift(gift.notificationId);
+    if (goList) router.push("/gifts");
+  };
+
+  if (!mounted) return null;
+  const shown = gift.items.slice(0, 4);
+  return createPortal(
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" data-gift-modal>
+      <div role="dialog" aria-modal="true" aria-labelledby="gift-title" className="card w-full max-w-sm p-6 text-center">
+        <Icon name="gift" size={64} className="mx-auto block" />
+        <h2 id="gift-title" className="mt-2 font-display text-2xl">
+          {t("{who}님이 선물을 보냈어요!", { who: gift.senderName ?? t("관리자") })}
+        </h2>
+        <p className="mt-3 whitespace-pre-line break-words rounded-xl bg-honey px-4 py-3 text-left" data-gift-message>
+          {gift.message}
+        </p>
+        {gift.coins > 0 && (
+          <p className="mt-3 font-bold" data-gift-coins>
+            <Icon name="coin" size={22} /> {t("{n}코인", { n: gift.coins.toLocaleString() })}
+          </p>
+        )}
+        {shown.length > 0 && (
+          <ul className="mt-3 flex flex-wrap justify-center gap-2" data-gift-items>
+            {shown.map((it) => (
+              <li key={it.id} className="w-20">
+                <ItemArt type={it.type} assetKey={it.assetKey} className="h-16" characterSize={60} />
+                <span className="mt-1 block truncate text-xs font-bold">{t(it.name)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {gift.items.length > shown.length && <p className="mt-1 text-xs text-ink-soft">{t("외 {n}개", { n: gift.items.length - shown.length })}</p>}
+        <div className="mt-6 flex justify-center gap-2">
+          <button type="button" onClick={() => close(true)} className="btn bg-sun text-ink">
+            {t("받은 선물 보기")}
           </button>
           <button ref={okRef} type="button" onClick={() => close(false)} className="btn bg-ink text-cream">
             {t("확인")}
