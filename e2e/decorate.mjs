@@ -253,7 +253,7 @@ try {
   await fp.getByLabel("비밀번호 확인").fill("test-password-1234");
   await fp.getByRole("button", { name: "회원가입", exact: true }).click();
   await fp.locator('input[name="nickname"]').waitFor({ timeout: 20000 });
-  check("온보딩: 캐릭터 고르는 곳에 '한 번 고르면 바꿀 수 없어요'", await fp.getByText("한 번 고르면 바꿀 수 없어요").isVisible());
+  check("온보딩: 캐릭터 고르는 곳에 '나중에 다시 정할 수 있어요'", await fp.getByText("나중에 다시 정할 수 있어요").isVisible());
   await fresh.close();
 } finally {
   await db.query("DELETE FROM items WHERE code = $1", [TEMP_CODE]).catch(() => {});

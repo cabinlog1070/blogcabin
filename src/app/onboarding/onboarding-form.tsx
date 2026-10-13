@@ -62,7 +62,7 @@ export function OnboardingForm({
       <fieldset>
         <legend className="mb-1 font-bold">{t("내 캐릭터")}</legend>
         <p className="mb-2 text-sm text-ink-soft">{t("시작할 캐릭터를 골라 주세요. 동물 농장에서 동물을 키우며 레벨을 올려 보세요.")}</p>
-        <p className="mb-2 text-sm font-bold text-berry">{t("⚠️ 한 번 고르면 바꿀 수 없어요")}</p>
+        <p className="mb-2 text-sm font-bold text-leaf-dark">{t("나중에 다시 정할 수 있어요")}</p>
         <div className="grid grid-cols-2 gap-3">
           {starters.map((c, i) => (
             <label key={c.id} className="cursor-pointer">
