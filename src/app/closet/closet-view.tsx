@@ -510,8 +510,8 @@ export function ClosetView({
           </h2>
           <p className="mb-3 text-sm text-ink-soft">{t("방 테마에 맞춰 가구 색을 골라요. 무료이고 언제든 바꿀 수 있어요.")}</p>
           <div className="card flex flex-wrap items-center gap-4 p-4">
-            <div className="grid h-32 w-32 shrink-0 place-items-center rounded-xl bg-cream p-2" data-furniture-color-preview={colors[paintItem.id] ?? "default"}>
-              <FurnitureArt assetKey={painted(paintItem)} className="max-h-full max-w-full object-contain" />
+            <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-xl bg-cream p-3" data-furniture-color-preview={colors[paintItem.id] ?? "default"}>
+              <FurnitureArt assetKey={painted(paintItem)} className="h-full w-full object-contain" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("색을 바꿀 가구")}>
