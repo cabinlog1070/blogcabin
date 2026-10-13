@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.18.1",
+        title: msg("광장으로 돌아오면 있던 자리에"),
+        changes: [
+          { kind: "improved", text: msg("광장에서 건물에 들어갔다가 뒤로 가기나 [광장으로 나가기]로 돌아오면, 캐릭터가 떠나기 전 자리에 그대로 서 있어요. 사이트를 새로 열면 처음처럼 캠프파이어 앞에서 시작해요.") },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [

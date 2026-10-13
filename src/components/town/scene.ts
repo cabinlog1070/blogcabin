@@ -138,6 +138,32 @@ const CAMPFIRE_SOLID = { w: 150, h: 70 };
 const BENCH_SPOTS = [[-150, 20], [150, 20], [-100, -95], [100, -95]].map(([dx, dy]) => ({ x: CENTER.x + dx, y: CENTER.y + dy }));
 const PLAYER_START = { x: CENTER.x, y: CENTER.y + 160 };
 
+// ===== 광장을 떠난 자리 (2026-10-13 정지원 님) =====
+// 같은 탭에서 다른 화면에 갔다가 광장으로 돌아오면(뒤로가기·링크 모두) 떠나기 전 자리·모습으로 선다.
+// 탭을 새로 열거나 닫았다 오면 sessionStorage가 비어서 원래 시작 자리(PLAYER_START)에서 시작한다
+type SavedSpot = { x: number; y: number; view: CharView; flip: boolean; facing: 1 | -1 };
+const spotKey = (data: TownData) => `blogcabin:town-spot:${data.myHouse?.slug ?? (data.player ? "member" : "visitor")}`;
+function loadSpot(data: TownData): SavedSpot | null {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(spotKey(data)) ?? "null") as SavedSpot | null;
+    if (!s || !Number.isFinite(s.x) || !Number.isFinite(s.y)) return null;
+    return {
+      x: s.x,
+      y: s.y,
+      view: s.view === "back" || s.view === "side" ? s.view : "front",
+      flip: s.flip === true,
+      facing: s.facing === -1 ? -1 : 1,
+    };
+  } catch {
+    return null;
+  }
+}
+function saveSpot(data: TownData, spot: SavedSpot) {
+  try {
+    sessionStorage.setItem(spotKey(data), JSON.stringify({ ...spot, x: Math.round(spot.x), y: Math.round(spot.y) }));
+  } catch {}
+}
+
 // ===== 꾸밈 소품 (2026-10-08 디자인 시안 지도 느낌). 건물 자리·길·광장 입구는 그대로 두고 빈 풀밭에만 놓는다 =====
 const PROP_ART = {
   mailbox: { draw: mailboxSvg, size: MAILBOX_SIZE },
@@ -454,21 +480,22 @@ export function createTownScene(
         });
       }
 
-      // 플레이어: 발 상자(물리) + 그림
-      this.feet = this.add.zone(PLAYER_START.x, PLAYER_START.y, 28, 16);
+      // 플레이어: 발 상자(물리) + 그림. 이 탭에서 광장을 떠난 적이 있으면 그 자리에서 시작한다
+      const spawn = this.restoreSpot();
+      this.feet = this.add.zone(spawn.x, spawn.y, 28, 16);
       this.physics.add.existing(this.feet);
       this.playerBody = this.feet.body as PhaserNS.Physics.Arcade.Body;
       this.playerBody.setCollideWorldBounds(true);
       this.physics.add.collider(this.feet, walls);
       this.player = this.add
-        .image(0, 0, walkKey(this.look, "front", 0))
+        .image(spawn.x, spawn.y + 8, walkKey(this.look, "front", 0))
         .setDisplaySize(PLAYER_SIZE, PLAYER_SIZE)
         .setOrigin(0.5, 0.94);
       this.game.canvas.dataset.playerView = "front"; // 지금 보는 모습 (e2e 확인용)
 
       // 데리고 다니는 펫: 캐릭터 뒤쪽에서 시작해 부드럽게 따라온다
       if (data.player?.pet && this.textures.exists("pet")) {
-        this.pet = this.add.image(this.feet.x - PET_BEHIND, this.feet.y + 6, "pet").setDisplaySize(PET_SIZE, PET_SIZE).setOrigin(0.5, 0.92);
+        this.pet = this.add.image(this.feet.x - this.facing * PET_BEHIND, this.feet.y + 6, "pet").setDisplaySize(PET_SIZE, PET_SIZE).setOrigin(0.5, 0.92);
         this.game.canvas.dataset.followPet = data.player.pet.name;
       }
 
@@ -498,6 +525,12 @@ export function createTownScene(
       // 카메라는 둘레 숲까지 비춘다 (걷는 곳은 그대로 WORLD 안)
       this.cameras.main.setBounds(-FOREST, -FOREST, WORLD.width + FOREST * 2, WORLD.height + FOREST * 2);
       this.cameras.main.startFollow(this.feet, true, 0.12, 0.12, 0, 20);
+      // 돌아온 자리에서 카메라가 시작 자리부터 미끄러져 오지 않게 바로 맞춘다
+      this.cameras.main.centerOn(this.feet.x, this.feet.y + 20);
+      this.game.canvas.dataset.spawn = `${Math.round(spawn.x)},${Math.round(spawn.y)}`; // 시작한 자리 (e2e)
+      // 떠나는 순간(건물에 들어가기, 헤더 링크, 뒤로가기)을 놓치지 않게 화면이 닫힐 때도 남긴다
+      this.events.once("destroy", () => this.rememberSpot(true));
+      this.events.once("shutdown", () => this.rememberSpot(true));
       this.cameras.main.setBackgroundColor("#8aba5c");
 
       // 입력: 방향키, WASD, Space/Enter, 클릭·터치
@@ -536,7 +569,10 @@ export function createTownScene(
         const hit = this.entranceAt(pointer.worldX, pointer.worldY);
         if (hit) {
           // 가까우면 바로 들어가고, 멀면 그 입구 앞까지 걸어간다
-          if (this.distanceTo(hit) <= INTERACT_DISTANCE) return onEnter(hit.target);
+          if (this.distanceTo(hit) <= INTERACT_DISTANCE) {
+            this.rememberSpot(true);
+            return onEnter(hit.target);
+          }
           return this.walkTo(hit.x, hit.y);
         }
         this.walkTo(pointer.worldX, pointer.worldY);
@@ -646,6 +682,37 @@ export function createTownScene(
       this.residents?.update(this.game.loop.delta / 1000);
 
       this.updatePrompt();
+      this.rememberSpot(false, moving);
+    }
+
+    /** 이 탭에서 남긴 자리. 그 사이 집이 늘어 막힌 곳이 됐으면 가장 가까운 빈 칸, 없으면 시작 자리 */
+    private restoreSpot(): Point {
+      const saved = loadSpot(data);
+      if (!saved) return PLAYER_START;
+      const b = this.physics.world.bounds;
+      const x = Phaser.Math.Clamp(saved.x, b.x + 14, b.right - 14), y = Phaser.Math.Clamp(saved.y, b.y + 8, b.bottom - 8);
+      const cell = this.grid.cellOf({ x, y });
+      const free = this.grid.nearestFree(cell.cx, cell.cy);
+      if (!free) return PLAYER_START;
+      const spot = free.cx === cell.cx && free.cy === cell.cy ? { x, y } : this.grid.center(free.cx, free.cy);
+      // 시작 자리에서 갈 수 없는 곳(울타리 안 등)이면 시작 자리로
+      if (!findPath(this.grid, PLAYER_START, spot)) return PLAYER_START;
+      this.view = saved.view;
+      this.flip = saved.flip;
+      this.facing = saved.facing;
+      if (!this.views) this.flip = this.facing === 1;
+      return spot;
+    }
+
+    /** 지금 자리·모습을 남긴다. 걷는 동안은 0.3초에 한 번만, 멈추면 바로 */
+    private lastSaved = { x: NaN, y: NaN, at: 0 };
+    private rememberSpot(now = false, moving = false) {
+      if (!this.feet) return;
+      const { x, y } = this.feet;
+      const same = Math.abs(x - this.lastSaved.x) < 1 && Math.abs(y - this.lastSaved.y) < 1;
+      if (!now && (same || (moving && this.time.now - this.lastSaved.at < 300))) return;
+      this.lastSaved = { x, y, at: this.time.now };
+      saveSpot(data, { x, y, view: this.view, flip: this.flip, facing: this.facing });
     }
 
     /** 탭·클릭한 곳까지 나무·건물을 비켜 가는 길을 찾아 걷기 시작한다 */
@@ -761,7 +828,10 @@ export function createTownScene(
             : login ? t("{emoji} {label} · Space 로그인하고 이용하기", vars) : t("{emoji} {label} · Space 들어가기", vars),
         );
         this.prompt.setPosition(closest.x, closest.promptY).setVisible(true);
-        if (this.actionKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))) onEnter(closest.target);
+        if (this.actionKeys.some((k) => Phaser.Input.Keyboard.JustDown(k))) {
+          this.rememberSpot(true);
+          onEnter(closest.target);
+        }
       } else {
         this.prompt.setVisible(false);
       }
