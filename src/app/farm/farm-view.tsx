@@ -155,10 +155,11 @@ export function FarmView({
 
       <div className="mx-auto grid max-w-5xl gap-4 px-4 py-6 md:grid-cols-2">
         {/* 알 받기 */}
-        <section className="card p-4">
-          <h2 className="font-display text-xl">
+        <section className="card relative p-4">
+          <h2 className="pr-10 font-display text-xl">
             <Icon name="egg" size={26} className="-mt-1" /> {t("알 받기")}
           </h2>
+          <HatchOdds species={species} />
           <p className="mt-1 text-xs text-ink-soft">
             {nestLeft <= 0
               ? t("알 둥지가 꽉 찼어요. 부화시킨 뒤에 받을 수 있어요")
@@ -563,6 +564,70 @@ function PetStatus({
           <Icon name="achievement" size={18} />
           {displayed ? t("프로필에 전시 중 · 내리기") : t("프로필에 전시하기")}
         </button>
+      )}
+    </div>
+  );
+}
+
+/** 알 받기 카드 오른쪽 위 ⓘ: 누르면 알에서 나올 수 있는 펫과 확률 (부화 비중 그대로). 밖을 누르거나 Esc로 닫는다 */
+function HatchOdds({ species }: { species: SpeciesCard[] }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!boxRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const total = species.reduce((sum, s) => sum + s.hatchWeight, 0);
+  const rows = [...species].sort((a, b) => b.hatchWeight - a.hatchWeight);
+  const percent = (w: number) => {
+    const p = total ? (w / total) * 100 : 0;
+    return `${p < 10 ? p.toFixed(1) : Math.round(p)}%`;
+  };
+  return (
+    <div ref={boxRef} className="absolute right-3 top-3 z-[5]">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label={t("알에서 나오는 펫 확률 보기")}
+        data-hatch-odds-button
+        className="grid h-8 w-8 place-items-center rounded-full border-2 border-bark/50 bg-paper font-serif text-base font-bold italic text-bark hover:bg-cream"
+      >
+        i
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          aria-label={t("알에서 나오는 펫 확률")}
+          data-hatch-odds
+          className="absolute right-0 top-10 w-[min(18rem,calc(100vw-3rem))] rounded-2xl border-2 border-bark/40 bg-paper p-3 text-sm shadow-xl"
+        >
+          <h3 className="font-display text-lg">{t("알에서 나오는 펫 확률")}</h3>
+          <p className="text-xs text-ink-soft">{t("알을 부화시키면 아래 확률로 펫 한 마리가 나와요. 무료 알과 산 알 모두 같아요.")}</p>
+          <ul className="mt-2 max-h-72 space-y-0.5 overflow-y-auto pr-1">
+            {rows.map((s) => (
+              <li key={s.id} className="flex items-center gap-2" data-odds-species={s.assetKey}>
+                <PetArt assetKey={s.assetKey} stage="adult" size={28} />
+                <span className="flex-1 font-bold">{t(s.name)}</span>
+                <span className="tabular-nums" data-odds-percent>
+                  {percent(s.hatchWeight)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

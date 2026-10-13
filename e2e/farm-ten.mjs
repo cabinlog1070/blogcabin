@@ -34,6 +34,22 @@ check("동물 종류 19종 (새 동물 14종)", species.length === 19 && added.e
 // ── 알 둥지 10개 ──
 await go("/farm");
 check("카드 도감 칸 19개", (await page.locator("[data-species-slot]").count()) === 19);
+
+// ── 알 받기 ⓘ: 펫 확률 (부화 비중 그대로) ──
+await page.locator("[data-hatch-odds-button]").click();
+const odds = page.locator("[data-hatch-odds]");
+await odds.waitFor();
+const pcts = (await odds.locator("[data-odds-percent]").allInnerTexts()).map((x) => parseFloat(x));
+const weights = (await db.query("SELECT asset_key, hatch_weight FROM animal_species")).rows;
+const totalW = weights.reduce((s, r) => s + r.hatch_weight, 0);
+const dragonPct = parseFloat(await odds.locator('[data-odds-species="animal.dragon"] [data-odds-percent]').innerText());
+check("확률 안내: 19종, 합계 약 100%", pcts.length === 19 && Math.abs(pcts.reduce((s, x) => s + x, 0) - 100) < 2, pcts.join(" "));
+check("확률 안내: DB 비중 그대로 (드래곤)", Math.abs(dragonPct - (weights.find((r) => r.asset_key === "animal.dragon").hatch_weight / totalW) * 100) < 0.1, dragonPct);
+await odds.scrollIntoViewIfNeeded();
+await page.screenshot({ path: `${outDir}/f0-hatch-odds.png` });
+await page.mouse.click(5, 400);
+await odds.waitFor({ state: "detached" });
+check("확률 안내: 밖을 누르면 닫힌다", true);
 await page.getByRole("button", { name: /농장 첫 알/ }).click();
 await page.getByRole("status").getByText("알을 받았어요").waitFor();
 for (let i = 0; i < 9; i++) await db.query("INSERT INTO user_animals (user_id, source) VALUES ($1, 'shop')", [uid]);
