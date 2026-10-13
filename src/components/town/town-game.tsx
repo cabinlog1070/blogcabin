@@ -11,7 +11,10 @@ import type { TownData, TownTarget } from "./types";
 // 그림 주소(SVG 내용)가 같으면 같은 그림이라, 그림이 바뀌면 키도 바뀐다.
 const rasterCache = new Map<string, HTMLCanvasElement>();
 const RASTER_CACHE_MAX = 150;
-const STORE = "town-raster-v1";
+// v2 (2026-10-13): 삼성 인터넷에서 다크 모드 등으로 뿌옇게 바뀐 그림이 v1에 남아, 광장이 계속 흐리게 보였다.
+// 이름을 바꿔 예전 저장분을 모두 버리고 새로 그린다
+const STORE = "town-raster-v2";
+const OLD_STORES = ["town-raster-v1"];
 const STORE_MAX = 400;
 
 /** 문자열 → 짧은 해시 (FNV-1a 두 벌) */
@@ -28,6 +31,13 @@ function hashOf(text: string): string {
 async function openStore(): Promise<Cache | null> {
   try {
     if (typeof caches === "undefined") return null;
+    for (const old of OLD_STORES) void caches.delete(old).catch(() => {});
+    // 삼성 인터넷은 그린 그림을 PNG로 저장할 때 색이 바뀌어(다크 모드·추적 방지) 다음 방문부터 광장이 뿌옇게 보였다.
+    // 그래서 삼성 인터넷에서는 저장하지 않고 매번 새로 그린다 (크롬 등은 그대로 저장)
+    if (/SamsungBrowser/i.test(navigator.userAgent)) {
+      void caches.delete(STORE).catch(() => {});
+      return null;
+    }
     return await caches.open(STORE);
   } catch {
     return null;
@@ -140,6 +150,9 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
         type: Phaser.AUTO,
         parent: el,
         backgroundColor: "#8aba5c",
+        // 안드로이드(갤럭시 등): 한 번에 여러 그림 장을 섞어 그리면 일부 그래픽 칩에서 움직이는 주민이 깜빡이고
+        // 집이 사라졌다(2026-10-13 제보). 한 번에 한 장씩 그리게 해 그 문제를 피한다 (그리는 횟수는 조금 늘어난다)
+        render: /Android/i.test(navigator.userAgent) ? { maxTextures: 1 } : undefined,
         physics: { default: "arcade", arcade: { debug: false } },
         scale: { mode: Phaser.Scale.NONE, width: w, height: h, zoom: 1 / dpr, autoRound: false },
         scene: createTownScene(Phaser, data, images, onEnter, t, getComputedStyle(document.body).fontFamily, dpr),
