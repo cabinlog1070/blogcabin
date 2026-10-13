@@ -1,4 +1,4 @@
-// 휴대폰 화면 확인: 광장(게임)만, 아래 바로가기·조이스틱 없음 (2026-10-08 결정), 헤더 겹침·블로그 홈 버튼 줄바꿈 (이슈 #5)
+// 휴대폰 화면 확인: 광장(게임)만, 아래 바로가기 없음 (2026-10-08 결정), 누르면 나타나는 조이스틱 (2026-10-13), 헤더 겹침·블로그 홈 버튼 줄바꿈 (이슈 #5)
 // 사용: 개발 서버를 띄운 상태에서 node e2e/mobile.mjs <스크린샷 폴더>
 import { chromium } from "@playwright/test";
 import { BASE, collectErrors, loginDev } from "./helpers.mjs";
@@ -9,7 +9,7 @@ const check = (name, ok, extra = "") => results.push(`${ok ? "✅" : "❌"} ${na
 const browser = await chromium.launch();
 const phoneSize = { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true };
 
-// ── 휴대폰(375px): 광장만 (조이스틱·아래 바로가기 없음) ──
+// ── 휴대폰(375px): 광장만 (아래 바로가기 없음, 조이스틱은 누를 때만) ──
 const phone = await browser.newContext(phoneSize);
 const p = await phone.newPage();
 const errors = collectErrors(p);
@@ -19,7 +19,7 @@ const canvas = p.locator("canvas");
 await canvas.waitFor({ timeout: 20000 });
 await p.waitForFunction(() => document.querySelector("canvas")?.dataset.joystick);
 check("휴대폰: 광장(게임)이 보임", await canvas.isVisible());
-check("휴대폰: 조이스틱 없음", (await canvas.getAttribute("data-joystick")) === "off");
+check("휴대폰: 조이스틱 켜짐 (누르기 전엔 안 보임)", (await canvas.getAttribute("data-joystick")) === "on" && (await canvas.getAttribute("data-joystick-shown")) === "0");
 check("휴대폰: 아래 바로가기 메뉴 없음", (await p.locator("[data-town-menu]").count()) === 0);
 const fill = await p.evaluate(() => document.querySelector("canvas").getBoundingClientRect().bottom - window.innerHeight);
 check("휴대폰: 광장이 화면 아래까지", Math.abs(fill) <= 2, `${Math.round(fill)}px`);
