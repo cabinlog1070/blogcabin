@@ -18,7 +18,7 @@ export default async function BlogSettingsPage() {
   const t = await getT();
   const blog = await getBlogByOwner(viewer.userId);
   if (!blog) return null;
-  const cats = await getCategories(blog.id, true);
+  const cats = await getCategories(blog.id, true, true);
   // 아이디로 가입한 회원은 탈퇴할 때 비밀번호를 다시 입력한다 (AUTH-06)
   const [credential] = await db
     .select({ id: accounts.id })

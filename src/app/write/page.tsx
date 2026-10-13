@@ -25,6 +25,7 @@ export default async function WritePage() {
         categories={cats}
         initial={{ title: "", contentHtml: "", categoryId: null, tags: [], visibility: "public" }}
         draftKey={draftStorageKey(viewer.userId)} // 새 글만 임시 저장 (POST-08). 글 수정 화면은 넘기지 않는다
+        isAdmin={viewer.user.role === "admin"} // 관리자 글은 광장 게시판에 걸어 둘 시간을 고른다
       />
     </div>
   );

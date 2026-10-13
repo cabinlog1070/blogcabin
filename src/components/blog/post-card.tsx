@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CharacterBadge } from "@/components/character";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { getLocale, getT } from "@/server/i18n";
 import { categoryLabel } from "@/lib/i18n";
 
@@ -18,6 +18,8 @@ export type PostCardData = {
   blogTitle: string;
   nickname: string;
   characterAsset: string;
+  /** 아직 올라가지 않은 예약 글 (주인의 블로그 홈에만 나온다, POST-11) */
+  scheduled?: boolean;
   /** 관리자(공지사항 블로그)가 쓴 글 */
   isNotice?: boolean;
 };
@@ -55,6 +57,11 @@ export async function PostCard({
           {notice && <span className="rounded-full bg-sun px-2 py-0.5 text-ink">{t("📢 공지")}</span>}
           {post.categoryName && <span className="rounded-full bg-honey px-2 py-0.5 text-sun-dark">{categoryLabel(t, post.categoryName)}</span>}
           {post.visibility === "private" && <span className="rounded-full bg-ink/10 px-2 py-0.5 text-ink-soft">{t("🔒 서로 이웃 공개")}</span>}
+          {post.scheduled && (
+            <span className="rounded-full bg-leaf/15 px-2 py-0.5 text-leaf-dark">
+              {t("⏰ {time} 예약", { time: formatDateTime(post.createdAt, locale) })}
+            </span>
+          )}
         </div>
         <h3 className={`font-display leading-snug ${notice ? "text-white" : ""} ${compact ? "line-clamp-2 text-lg" : "text-xl"}`}>{post.title}</h3>
         <p className={`mt-1.5 text-sm ${compact ? "line-clamp-3" : "line-clamp-2"} leading-relaxed ${soft}`}>{post.excerpt}</p>

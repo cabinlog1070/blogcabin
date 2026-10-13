@@ -1,7 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
+- 버전: 1.3 (2026-10-13, 글 예약 발행(POST-11): 예약 글은 `posts.created_at`에 올라갈 미래 시각을 적고, 그 시각 전에는 주인에게만 보인다(칸을 따로 두지 않음: 시각이 되면 바꾸는 작업 없이 `created_at <= now()` 조건으로 목록·광장·검색에 나타나고 날짜·순서도 그대로 맞는다). 관리자 글 광장 게시판 게시 시간 `posts.pin_hours`(0~720, 0 = 걸지 않음, 회원 글은 0, 기존 관리자 글은 168). 마이그레이션 `0020_post_schedule_pin`)
+- 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
 - 1.1 (2026-10-12, 광장 이웃 주민(TOWN-12): 상태 메시지 `profiles.status_message`(1~30자, 비우면 NULL). 마이그레이션 `0018_profile_status_message`)
 - 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
 - 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
@@ -156,7 +157,8 @@ erDiagram
         text content_text "검색·요약용"
         visibility visibility "public / private"
         int view_count "0 이상"
-        timestamptz created_at
+        int pin_hours "0~720, 관리자 글 게시 시간"
+        timestamptz created_at "올라가는 시각 (예약 글은 미래)"
         timestamptz updated_at
     }
     tags {

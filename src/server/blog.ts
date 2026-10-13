@@ -24,6 +24,12 @@ const backgroundItem = alias(items, "background_item");
 
 export const PAGE_SIZE = 8;
 
+/**
+ * 올라간 글: 올라갈 시각(created_at)이 지났다. 예약 글(POST-11)은 그 시각 전까지 주인에게만 보이고,
+ * 시각이 되면 따로 바꾸는 일 없이 이 조건으로 목록·광장·검색에 나타난다
+ */
+export const isPublished = sql<boolean>`${posts.createdAt} <= now()`;
+
 // ===== 블로그 =====
 export async function getBlogBySlug(slug: string) {
   const [row] = await db
@@ -38,7 +44,7 @@ export async function getBlogBySlug(slug: string) {
       characterAsset: lookSql(characterItem.assetKey, profiles.userId),
       backgroundAsset: backgroundItem.assetKey,
       followerCount: sql<number>`(SELECT COUNT(*)::int FROM ${follows} WHERE ${follows.followeeId} = ${blogs.ownerId})`,
-      postCount: sql<number>`(SELECT COUNT(*)::int FROM ${posts} WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public')`,
+      postCount: sql<number>`(SELECT COUNT(*)::int FROM ${posts} WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public' AND ${isPublished})`,
     })
     .from(blogs)
     .innerJoin(profiles, eq(profiles.userId, blogs.ownerId))
@@ -55,7 +61,7 @@ export async function getBlogByOwner(ownerId: string) {
 
 // 조인 없는 select에서는 drizzle이 칸 이름 앞에 표 이름을 붙이지 않아서 ${categories.id}가 "id"(안쪽 posts.id)로 읽혔다.
 // 그래서 카테고리 글 수가 늘 0이었다. 바깥 표 칸은 표 이름을 직접 붙인다
-export async function getCategories(blogId: number, includePrivate: boolean) {
+export async function getCategories(blogId: number, includePrivate: boolean, includeScheduled = false) {
   return db
     .select({
       id: categories.id,
@@ -65,6 +71,7 @@ export async function getCategories(blogId: number, includePrivate: boolean) {
         SELECT COUNT(*)::int FROM ${posts}
         WHERE ${posts.categoryId} = "categories"."id"
         ${includePrivate ? sql`` : sql`AND ${posts.visibility} = 'public'`}
+        ${includeScheduled ? sql`` : sql`AND ${isPublished}`}
       )`,
     })
     .from(categories)
@@ -112,6 +119,7 @@ const listColumns = {
   visibility: posts.visibility,
   viewCount: posts.viewCount,
   createdAt: posts.createdAt,
+  scheduled: sql<boolean>`${posts.createdAt} > now()`,
   categoryName: categories.name,
   likeCount: sql<number>`(SELECT COUNT(*)::int FROM ${postLikes} WHERE ${postLikes.postId} = ${posts.id})`,
   commentCount: sql<number>`(SELECT COUNT(*)::int FROM ${comments} WHERE ${comments.postId} = ${posts.id} AND ${comments.deletedAt} IS NULL)`,
@@ -163,18 +171,24 @@ const SORT_ORDER: Record<PostSort, SQL[]> = {
   popular: [desc(listColumns.likeCount), desc(posts.viewCount), desc(posts.createdAt), desc(posts.id)], // 좋아요 → 조회수 → 최신
 };
 
-/** 블로그 홈 글 목록. 주인이나 서로 이웃이 보면 비공개 글도 보인다 */
-export async function listBlogPosts(opts: { blogId: number; includePrivate: boolean; categoryId?: number; page: number; sort?: PostSort }) {
+/** 블로그 홈 글 목록. 주인이나 서로 이웃이 보면 비공개 글도 보인다. 예약 글은 주인에게만 (includeScheduled) */
+export async function listBlogPosts(opts: {
+  blogId: number;
+  includePrivate: boolean;
+  includeScheduled?: boolean;
+  categoryId?: number;
+  page: number;
+  sort?: PostSort;
+}) {
   const where = and(
     eq(posts.blogId, opts.blogId),
     opts.includePrivate ? undefined : eq(posts.visibility, "public"),
+    opts.includeScheduled ? undefined : isPublished,
     opts.categoryId ? eq(posts.categoryId, opts.categoryId) : undefined,
   );
   return paged(where, opts.page, (q) => q.limit(PAGE_SIZE).offset((opts.page - 1) * PAGE_SIZE), undefined, SORT_ORDER[opts.sort ?? "latest"]);
 }
 
-/** 관리자 글을 마을 소식 맨 위에 두는 기간 (일) */
-export const ADMIN_PIN_DAYS = 7;
 
 /** 마을 소식 목록의 조건과 정렬 (마을 전체·💛 이웃 새 글·태그). 목록과 그 목록 순서의 이전·다음 글이 같이 쓴다 */
 export type FeedFilter = { followerId?: string; tag?: string };
@@ -182,6 +196,7 @@ export type FeedFilter = { followerId?: string; tag?: string };
 function feedQuery(opts: FeedFilter) {
   const where = and(
     eq(posts.visibility, "public"),
+    isPublished,
     opts.followerId
       ? inArray(blogs.ownerId, db.select({ id: follows.followeeId }).from(follows).where(eq(follows.followerId, opts.followerId)))
       : undefined,
@@ -192,10 +207,10 @@ function feedQuery(opts: FeedFilter) {
         )
       : undefined,
   );
-  // 관리자(공지사항) 글은 쓴 뒤 ADMIN_PIN_DAYS일 동안 마을 전체·이웃 새 글 맨 위에 둔다 (태그 목록은 그대로 최신순)
+  // 관리자(공지사항) 글은 올라간 뒤 글마다 정한 시간(pin_hours) 동안 마을 전체·이웃 새 글 맨 위에 둔다 (태그 목록은 그대로 최신순)
   const adminPinned = opts.tag
     ? null
-    : sql`(${posts.createdAt} > now() - make_interval(days => ${ADMIN_PIN_DAYS}) AND EXISTS (SELECT 1 FROM ${users} WHERE ${users.id} = ${blogs.ownerId} AND ${users.role} = 'admin'))`;
+    : sql`(${posts.pinHours} > 0 AND ${posts.createdAt} > now() - make_interval(hours => ${posts.pinHours}) AND EXISTS (SELECT 1 FROM ${users} WHERE ${users.id} = ${blogs.ownerId} AND ${users.role} = 'admin'))`;
   // 💛 이웃 새 글: 즐겨찾기한 이웃의 글을 맨 위에, 그 아래 나머지 이웃의 글 (TOWN-08, 각각 최신순)
   const favoriteFirst = opts.followerId
     ? sql`EXISTS (SELECT 1 FROM ${follows} WHERE ${follows.followerId} = ${opts.followerId} AND ${follows.followeeId} = ${blogs.ownerId} AND ${follows.isFavorite})`
@@ -256,6 +271,8 @@ export async function getPost(blogId: number, postId: number) {
       contentText: posts.contentText,
       visibility: posts.visibility,
       viewCount: posts.viewCount,
+      pinHours: posts.pinHours,
+      scheduled: sql<boolean>`${posts.createdAt} > now()`,
       categoryId: posts.categoryId,
       categoryName: categories.name,
       createdAt: posts.createdAt,
@@ -326,9 +343,14 @@ export async function getComments(postId: number) {
   });
 }
 
-/** 같은 블로그 안에서 바로 이전 / 다음 글 */
-export async function getAdjacentPosts(blogId: number, post: { id: number; createdAt: Date }, includePrivate: boolean) {
-  const visible = includePrivate ? undefined : eq(posts.visibility, "public");
+/** 같은 블로그 안에서 바로 이전 / 다음 글. 예약 글은 주인에게만 (includeScheduled) */
+export async function getAdjacentPosts(
+  blogId: number,
+  post: { id: number; createdAt: Date },
+  includePrivate: boolean,
+  includeScheduled = false,
+) {
+  const visible = and(includePrivate ? undefined : eq(posts.visibility, "public"), includeScheduled ? undefined : isPublished);
   // 시각은 DB 값 그대로 비교한다. DB는 마이크로초까지, JS Date는 밀리초까지라 post.createdAt을 넘기면
   // 지금 글이 자기보다 "나중 글"로 잡혀 [다음 글]이 지금 화면을 가리켰다
   const current = sql`(SELECT ${posts.createdAt}, ${posts.id} FROM ${posts} WHERE ${posts.id} = ${post.id})`;
@@ -354,7 +376,7 @@ export async function getAllTags(limit = 30) {
     .select({ name: tags.name, count: sql<number>`COUNT(*)::int` })
     .from(tags)
     .innerJoin(postTags, eq(postTags.tagId, tags.id))
-    .innerJoin(posts, and(eq(posts.id, postTags.postId), eq(posts.visibility, "public")))
+    .innerJoin(posts, and(eq(posts.id, postTags.postId), eq(posts.visibility, "public"), isPublished))
     .groupBy(tags.id)
     .orderBy(desc(sql`COUNT(*)`), asc(tags.name))
     .limit(limit);
@@ -363,7 +385,7 @@ export async function getAllTags(limit = 30) {
 // ===== 내 이웃 목록 (TOWN-08) · 초대 코드 (GAME-09) =====
 /** 내가 이웃 추가한 블로그 (내 블로그 홈, 주인에게만). 즐겨찾기 먼저, 그다음 최근 공개 글 순. mutual: 그 사람도 나를 이웃 추가했다(서로 이웃) */
 export async function listMyNeighbors(userId: string) {
-  const lastPublicPostAt = sql`(SELECT MAX(${posts.createdAt}) FROM ${posts} WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public')`;
+  const lastPublicPostAt = sql`(SELECT MAX(${posts.createdAt}) FROM ${posts} WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public' AND ${isPublished})`;
   return db
     .select({
       ownerId: blogs.ownerId,
@@ -410,7 +432,7 @@ export async function getInviteCode(userId: string) {
 /** 블로그 이름·닉네임·주소에 검색어가 든 블로그 최대 5개. 최근 공개 글 순, 공개 글이 없는 블로그는 맨 뒤 */
 export async function searchBlogs(q: string) {
   const pattern = likePattern(q);
-  const lastPublicPostAt = sql`(SELECT MAX(${posts.createdAt}) FROM ${posts} WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public')`;
+  const lastPublicPostAt = sql`(SELECT MAX(${posts.createdAt}) FROM ${posts} WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public' AND ${isPublished})`;
   return db
     .select({
       slug: blogs.slug,
@@ -431,6 +453,7 @@ export async function searchPosts(q: string, page: number) {
   const pattern = likePattern(q);
   const where = and(
     eq(posts.visibility, "public"),
+    isPublished,
     or(
       ilike(posts.title, pattern),
       ilike(posts.contentText, pattern),

@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.19.0",
+        title: msg("글 예약 발행"),
+        changes: [
+          { kind: "new", text: msg("글쓰기에서 [⏰ 예약하기]를 누르고 날짜와 시간(한국 시간)을 정하면, 그 시간에 글이 올라가요. 올라가기 전까지는 내 블로그에서 나만 볼 수 있고, 시간을 바꾸거나 바로 올릴 수도 있어요.") },
+          { kind: "new", text: msg("공지 글을 올릴 때 광장 게시판 맨 위에 몇 시간 걸어 둘지 고를 수 있어요. 걸지 않기부터 7일까지 고를 수 있어요."), admin: true },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [

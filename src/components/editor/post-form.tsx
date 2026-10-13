@@ -5,6 +5,7 @@ import { savePost, type SavePostState } from "@/app/write/actions";
 import { useLocale, useT } from "@/components/i18n";
 import { POST_REWARD_MIN_LENGTH, REWARD_RULES } from "@/lib/game";
 import { categoryLabel, type Locale, LOCALE_TAGS } from "@/lib/i18n";
+import { DEFAULT_PIN_HOURS, PIN_HOUR_OPTIONS, toKstInput } from "@/lib/schedule";
 import { postTextLength } from "@/lib/text-length";
 import { RichEditor } from "./rich-editor";
 
@@ -17,6 +18,10 @@ export type PostFormValues = {
   categoryId: number | null;
   tags: string[];
   visibility: "public" | "private";
+  /** 아직 안 올라간 예약 글이면 올라갈 시각 (한국 시간 "YYYY-MM-DDTHH:mm", POST-11) */
+  publishAt?: string;
+  /** 관리자 글을 광장 게시판 맨 위에 걸어 두는 시간 */
+  pinHours?: number;
 };
 
 // ===== 임시 저장 (POST-08, spec 003 FR-063~068) =====
@@ -50,7 +55,17 @@ const hhmm = (iso: string, locale: Locale) =>
  * 글쓰기 폼. draftKey가 있으면(새 글) 처음 열 때 임시 글을 불러올지 한 번 묻고,
  * 불러오면 그 값으로 폼을 새로 그린다 (에디터·입력칸이 처음 값을 만들 때만 쓰기 때문에 key로 다시 만든다)
  */
-export function PostForm({ categories, initial, draftKey }: { categories: Category[]; initial: PostFormValues; draftKey?: string }) {
+export function PostForm({
+  categories,
+  initial,
+  draftKey,
+  isAdmin = false,
+}: {
+  categories: Category[];
+  initial: PostFormValues;
+  draftKey?: string;
+  isAdmin?: boolean;
+}) {
   const t = useT();
   const [seed, setSeed] = useState({ values: initial, key: "initial" });
   const asked = useRef(false);
@@ -77,10 +92,27 @@ export function PostForm({ categories, initial, draftKey }: { categories: Catego
     });
   }, [draftKey, categories, t]);
 
-  return <PostFormFields key={seed.key} categories={categories} initial={seed.values} draftKey={draftKey} />;
+  return <PostFormFields key={seed.key} categories={categories} initial={seed.values} draftKey={draftKey} isAdmin={isAdmin} />;
 }
 
-function PostFormFields({ categories, initial, draftKey }: { categories: Category[]; initial: PostFormValues; draftKey?: string }) {
+/** 게시 시간 고르기 이름: 1시간 · 하루 (24시간) · 7일 (168시간) */
+function pinLabel(t: ReturnType<typeof useT>, hours: number) {
+  if (hours === 0) return t("걸지 않기");
+  if (hours % 24 === 0) return t("{d}일 ({h}시간)", { d: hours / 24, h: hours });
+  return t("{h}시간", { h: hours });
+}
+
+function PostFormFields({
+  categories,
+  initial,
+  draftKey,
+  isAdmin,
+}: {
+  categories: Category[];
+  initial: PostFormValues;
+  draftKey?: string;
+  isAdmin: boolean;
+}) {
   const t = useT();
   const locale = useLocale();
   const [state, action, pending] = useActionState<SavePostState, FormData>(savePost, {});
@@ -89,6 +121,15 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
   const [visibility, setVisibility] = useState(initial.visibility);
   const [uploading, setUploading] = useState(false); // 첨부를 올리는 중에는 발행하지 않는다 (POST-07)
   const isNew = !initial.postId;
+  // 예약 발행 (POST-11): 새 글이나 아직 안 올라간 예약 글만 올리는 때를 고른다
+  const canSchedule = isNew || Boolean(initial.publishAt);
+  const [publishMode, setPublishMode] = useState<"now" | "schedule">(initial.publishAt ? "schedule" : "now");
+  const [publishAt, setPublishAt] = useState(initial.publishAt ?? "");
+  const [pinHours, setPinHours] = useState(initial.pinHours ?? (isNew ? DEFAULT_PIN_HOURS : 0));
+  const pinOptions: number[] = PIN_HOUR_OPTIONS.includes(pinHours as (typeof PIN_HOUR_OPTIONS)[number])
+    ? [...PIN_HOUR_OPTIONS]
+    : [...PIN_HOUR_OPTIONS, pinHours].sort((a, b) => a - b);
+  const scheduling = canSchedule && publishMode === "schedule";
   // 오류로 돌아오면 서버가 돌려준 입력값을, 아니면 처음 값을 쓴다
   const v = state.values;
   const rewardable = isNew && visibility === "public" && length >= POST_REWARD_MIN_LENGTH;
@@ -129,6 +170,8 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
       {initial.postId && <input type="hidden" name="postId" value={initial.postId} />}
       <input type="hidden" name="contentHtml" value={html} />
       <input type="hidden" name="visibility" value={visibility} />
+      <input type="hidden" name="publishMode" value={scheduling ? "schedule" : "now"} />
+      {isAdmin && <input type="hidden" name="pinHours" value={pinHours} />}
 
       <input
         name="title"
@@ -203,6 +246,71 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
         maxLength={300}
       />
 
+      {(canSchedule || isAdmin) && (
+        <div className="card flex flex-wrap items-center gap-x-6 gap-y-3 p-4 text-sm">
+          {canSchedule && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-bold">{t("올리는 때")}</span>
+              <div className="flex rounded-xl border-2 border-line bg-paper p-0.5" role="radiogroup" aria-label={t("올리는 때")}>
+                {(["now", "schedule"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={publishMode === m}
+                    onClick={() => {
+                      setPublishMode(m);
+                      // 처음 예약을 누르면 다음 정각 한 시간 뒤를 넣어 둔다
+                      if (m === "schedule" && !publishAt) {
+                        const next = new Date();
+                        next.setMinutes(0, 0, 0);
+                        next.setHours(next.getHours() + 2);
+                        setPublishAt(toKstInput(next));
+                      }
+                    }}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-bold ${publishMode === m ? "bg-ink text-cream" : "text-ink-soft"}`}
+                  >
+                    {m === "now" ? t("지금 올리기") : t("⏰ 예약하기")}
+                  </button>
+                ))}
+              </div>
+              {scheduling && (
+                <label className="flex items-center gap-2">
+                  <input
+                    type="datetime-local"
+                    name="publishAt"
+                    value={publishAt}
+                    onChange={(e) => setPublishAt(e.currentTarget.value)}
+                    required
+                    className="rounded-xl border-2 border-line bg-paper px-3 py-1.5"
+                    aria-label={t("올라갈 날짜와 시간")}
+                  />
+                  <span className="text-xs text-ink-soft">{t("한국 시간")}</span>
+                </label>
+              )}
+            </div>
+          )}
+          {isAdmin && (
+            <label className="flex flex-wrap items-center gap-2">
+              <span className="font-bold">{t("📌 광장 게시판 맨 위에 걸어 두기")}</span>
+              <select
+                value={pinHours}
+                onChange={(e) => setPinHours(Number(e.currentTarget.value))}
+                className="rounded-xl border-2 border-line bg-paper px-3 py-1.5"
+              >
+                {pinOptions.map((h) => (
+                  <option key={h} value={h}>
+                    {pinLabel(t, h)}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-ink-soft">{t("올라간 때부터 세요")}</span>
+            </label>
+          )}
+          {scheduling && <p className="basis-full text-xs text-ink-soft">{t("예약한 글은 그 시간이 될 때까지 나만 볼 수 있어요.")}</p>}
+        </div>
+      )}
+
       <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
         <p className="text-sm text-ink-soft">
           {t("{n}자", { n: length.toLocaleString(LOCALE_TAGS[locale]) })} ·{" "}
@@ -232,7 +340,7 @@ function PostFormFields({ categories, initial, draftKey }: { categories: Categor
         <div className="flex items-center gap-3">
           {state.error && <span className="text-sm font-bold text-berry">{state.error}</span>}
           <button type="submit" disabled={pending || uploading} className="btn bg-leaf text-white">
-            {uploading ? t("첨부를 올리는 중...") : pending ? t("저장하는 중...") : isNew ? t("발행하기") : t("수정 완료")}
+            {uploading ? t("첨부를 올리는 중...") : pending ? t("저장하는 중...") : isNew ? (scheduling ? t("예약하기") : t("발행하기")) : t("수정 완료")}
           </button>
         </div>
       </div>

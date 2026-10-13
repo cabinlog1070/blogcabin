@@ -19,7 +19,7 @@ const ownerExp = sql<number>`(
  *  조인 없는 select(방문자 광장 후보)에서는 drizzle이 ${blogs.id}를 표 이름 없이 "id"로 써서 안쪽 posts.id로 읽히므로 표 이름을 직접 붙인다 */
 const lastPublicPostAt = sql<Date | null>`(
   SELECT MAX(${posts.createdAt}) FROM ${posts}
-  WHERE ${posts.blogId} = "blogs"."id" AND ${posts.visibility} = 'public'
+  WHERE ${posts.blogId} = "blogs"."id" AND ${posts.visibility} = 'public' AND ${posts.createdAt} <= now()
 )`;
 const houseColumns = {
   slug: blogs.slug,

@@ -8,21 +8,22 @@ import { blogs, comments, follows, pointLedger, postLikes, posts } from "@/db/sc
 import { MAX_FAVORITES } from "@/lib/game";
 import { msg } from "@/lib/i18n";
 import { MAX_DB_INT, parseId } from "@/lib/ids";
-import { canSeePrivatePosts } from "@/server/blog";
+import { canSeePrivatePosts, isPublished } from "@/server/blog";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
 import { hasLikeNotification, notifySocial } from "@/server/notifications";
 import { grantReward, lockUser } from "@/server/points";
 import { addBlogVisit, addPostView, currentViewerKey, getBlogVisitStats } from "@/server/visits";
 
-/** 글과 그 글의 블로그 주인 (공개 글이거나, 내 글이거나, 서로 이웃의 비공개 글일 때만) */
+/** 글과 그 글의 블로그 주인 (공개 글이거나, 내 글이거나, 서로 이웃의 비공개 글일 때만. 아직 안 올라간 예약 글은 주인만) */
 async function findVisiblePost(postId: number, viewerId: string) {
   const [row] = await db
-    .select({ id: posts.id, visibility: posts.visibility, ownerId: blogs.ownerId })
+    .select({ id: posts.id, visibility: posts.visibility, ownerId: blogs.ownerId, published: isPublished })
     .from(posts)
     .innerJoin(blogs, eq(blogs.id, posts.blogId))
     .where(eq(posts.id, postId));
   if (!row) return null;
+  if (!row.published && row.ownerId !== viewerId) return null;
   if (row.visibility === "private" && !(await canSeePrivatePosts(viewerId, row.ownerId))) return null;
   return row;
 }
@@ -226,7 +227,7 @@ export async function recordBlogVisit(blogId: number): Promise<{ today: number; 
 export async function recordPostView(postId: number): Promise<number | null> {
   if (parseId(postId) === null) return null;
   const [post] = await db
-    .select({ visibility: posts.visibility, viewCount: posts.viewCount, ownerId: blogs.ownerId })
+    .select({ visibility: posts.visibility, viewCount: posts.viewCount, ownerId: blogs.ownerId, published: isPublished })
     .from(posts)
     .innerJoin(blogs, eq(blogs.id, posts.blogId))
     .where(eq(posts.id, postId));
@@ -236,5 +237,6 @@ export async function recordPostView(postId: number): Promise<number | null> {
   // 볼 수 없는 비공개 글은 404 화면이라 세지 않는다 (주인과 서로 이웃만 본다)
   if (post.visibility === "private" && !(await canSeePrivatePosts(memberId, post.ownerId))) return null;
   if (isOwner) return post.viewCount;
+  if (!post.published) return null; // 아직 안 올라간 예약 글은 주인만 본다 (POST-11)
   return addPostView(postId, key);
 }

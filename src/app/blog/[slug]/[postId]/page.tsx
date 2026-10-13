@@ -40,7 +40,7 @@ async function load(props: PageProps<"/blog/[slug]/[postId]">) {
 
 export async function generateMetadata(props: PageProps<"/blog/[slug]/[postId]">) {
   const data = await load(props);
-  if (!data || data.post.visibility === "private") {
+  if (!data || data.post.visibility === "private" || data.post.scheduled) {
     const t = await getT();
     return { title: t("글") };
   }
@@ -59,6 +59,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
   const isOwner = viewerId === blog.ownerId;
   const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인, 서로 이웃, 관리자만
   if (post.visibility === "private" && !includePrivate) notFound();
+  if (post.scheduled && !isOwner) notFound(); // 아직 안 올라간 예약 글은 주인만 본다 (POST-11)
 
   // 마을 소식에서 열었으면 이전·다음 글도 그 목록(마을 전체·💛 이웃 새 글·태그) 순서로 넘긴다.
   // 💛 이웃 새 글은 회원만 볼 수 있는 목록이라 비회원이면 블로그 안의 이전·다음 글로 둔다
@@ -74,7 +75,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
   // 지금 글이 그 목록에 없으면(비공개 글 등) 블로그 안의 이전·다음 글
   const adjacent = feedAdjacent
     ? { ...feedAdjacent, query: `?${feedFrom(source!)}` }
-    : { ...(await getAdjacentPosts(blog.id, post, includePrivate)), query: "" };
+    : { ...(await getAdjacentPosts(blog.id, post, includePrivate, isOwner)), query: "" };
   const hrefOf = (p: { id: number; blogSlug?: string }) => `/@${p.blogSlug ?? blog.slug}/${p.id}${adjacent.query}`;
 
   return (
@@ -84,7 +85,11 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
       {sp.new && (
         <div className="card mb-6 border-sun bg-honey p-4 text-center">
           {/* 첫 줄은 발행 알림, 다음 줄에 보상 결과 */}
-          <p className="font-bold">{t("🎉 글을 발행했어요!")}</p>
+          <p className="font-bold">
+            {post.scheduled
+              ? t("⏰ 글을 예약했어요! {time}에 올라가요", { time: formatDateTime(post.createdAt, locale) })
+              : t("🎉 글을 발행했어요!")}
+          </p>
           {sp.new === "reward" ? (
             <b className="mt-1 block">
               {t("✨ 경험치 {exp} · 🪙 {coins} 코인을 받았어요", { exp: REWARD_RULES.post.exp, coins: REWARD_RULES.post.coins })}
@@ -103,6 +108,13 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
             </span>
           )}
         </div>
+      )}
+
+      {/* 예약 글: 올라가기 전까지 주인만 보고 있다는 것을 알린다 (POST-11). 방금 예약한 화면은 위 안내가 대신한다 */}
+      {post.scheduled && !sp.new && (
+        <p className="card mb-6 border-leaf bg-leaf/10 p-4 text-center text-sm font-bold">
+          {t("⏰ {time}에 올라가는 예약 글이에요. 그때까지는 나만 볼 수 있어요.", { time: formatDateTime(post.createdAt, locale) })}
+        </p>
       )}
 
       <Link href={`/@${blog.slug}`} className="mb-4 inline-flex items-center gap-2 text-sm text-ink-soft hover:text-ink">
