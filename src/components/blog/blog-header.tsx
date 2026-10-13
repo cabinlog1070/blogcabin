@@ -115,7 +115,7 @@ export async function BlogHeader({
         {/* 미니룸 가구 배치는 꾸미기 화면 위쪽 미니룸에서 한다 */}
         {isOwner && (
           <Link
-            href="/closet"
+            href="/closet?tab=room"
             className="btn absolute right-3 top-3 z-30 bg-paper/90 px-3 py-1 text-sm text-ink backdrop-blur-sm md:bottom-6 md:right-6 md:top-auto"
             data-miniroom-edit
           >

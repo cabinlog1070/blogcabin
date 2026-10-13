@@ -60,6 +60,7 @@ export function MiniRoom({
   className = "",
   furnitureProps,
   hiddenFurnitureId,
+  selectedFurnitureId,
   pet,
   characterSpot,
   petSpot,
@@ -75,6 +76,8 @@ export function MiniRoom({
   className?: string;
   furnitureProps?: (f: RoomFurniture) => HTMLAttributes<HTMLDivElement>;
   hiddenFurnitureId?: number | null;
+  /** 꾸미기 화면에서 색을 고르려고 누른 가구 (점선으로 표시) */
+  selectedFurnitureId?: number | null;
   pet?: RoomPet | null;
   /** 캐릭터 발 자리 (미니룸 기준 %). 없으면 가운데 아래 (SHOP-05, 2026-10-13) */
   characterSpot?: RoomSpot | null;
@@ -109,8 +112,9 @@ export function MiniRoom({
             key={f.id}
             data-furniture={parseFurnitureKey(f.assetKey).assetKey}
             data-furniture-color={parseFurnitureKey(f.assetKey).color ?? undefined}
+            data-selected={selectedFurnitureId === f.id || undefined}
             {...furnitureProps?.(f)}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 drop-shadow ${furnitureProps ? "cursor-grab touch-none select-none" : ""} ${hiddenFurnitureId === f.id ? "opacity-0" : ""}`}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 drop-shadow ${furnitureProps ? "cursor-grab touch-none select-none" : ""} ${hiddenFurnitureId === f.id ? "opacity-0" : ""} ${selectedFurnitureId === f.id ? "rounded-lg outline-[3px] outline-offset-2 outline-ember outline-dashed" : ""}`}
             style={{
               left: `${at.x}%`,
               top: `${at.y}%`,

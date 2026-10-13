@@ -38,6 +38,16 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.20.0",
+        title: msg("새로워진 꾸미기 화면"),
+        changes: [
+          { kind: "new", text: msg("꾸미기 화면이 캐릭터 꾸미기, 미니룸 꾸미기, 집 테마 세 칸으로 나뉘었어요. 컴퓨터에서는 왼쪽에 미니룸을 보면서 오른쪽에서 골라요.") },
+          { kind: "new", text: msg("캐릭터 꾸미기는 상점처럼 헤어·모자·상의·하의·신발로 나뉘어 있어요.") },
+          { kind: "new", text: msg("미니룸에서 가구를 누르면 바로 그 가구의 색을 바꿀 수 있어요. 가구는 바닥 가구와 벽 장식으로 나뉘어 있어요.") },
+          { kind: "improved", text: msg("이것저것 골라 입어 보고 꾸며 본 뒤, 저장하기를 눌러야 저장돼요. 마음에 안 들면 되돌리기를 누르세요.") },
+        ],
+      },
+      {
         version: "1.19.0",
         title: msg("내 마음대로 꾸미는 미니룸"),
         changes: [
