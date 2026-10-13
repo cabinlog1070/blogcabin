@@ -1,7 +1,8 @@
 # BlogCabin ERD (데이터베이스 설계)
 
 - DB: PostgreSQL
-- 버전: 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
+- 버전: 1.3 (2026-10-13, 펫 색 6가지 더함: `orange`·`mint`·`sky`·`purple`·`gray`·`green`, 마이그레이션 `0020_more_pet_colors`)
+- 이전 버전: 1.2 (2026-10-13, 펫 색 `user_animals.color`(`pet_color`, 기본 `default`). 마이그레이션 `0019_pet_color`. 3.3-4)
 - 1.1 (2026-10-12, 광장 이웃 주민(TOWN-12): 상태 메시지 `profiles.status_message`(1~30자, 비우면 NULL). 마이그레이션 `0018_profile_status_message`)
 - 1.0 (2026-10-11, 소셜 로그인 연동 보상: 원장 사유 `social_link`(ref_id = `kakao:회원번호`, 마이그레이션 `0012_social_link_reward`)와, 탈퇴해도 남는 준 기록 `social_link_rewards`(마이그레이션 `0013_social_link_rewards`). 3.3-6)
 - 0.9 (2026-10-08, 원장 사유 `admin_grant` 추가: 관리자 화면의 코인·경험치 지급, ref_id = 준 관리자. 마이그레이션 `0011_admin_grant`)
@@ -234,7 +235,7 @@ erDiagram
         text name "펫 이름 1~10자 (알이면 NULL)"
         animal_gender gender "male / female (알이면 NULL)"
         pet_accessory accessory "none / ribbon / flower / scarf"
-        pet_color color "default / brown / yellow / red / black / white / pink (0019)"
+        pet_color color "default / brown / yellow / red / black / white / pink (0019) / orange / mint / sky / purple / gray / green (0020)"
         boolean carried "데리고 다니기 (회원당 1)"
         timestamptz hatched_at "만난 날"
         timestamptz grown_at
@@ -479,7 +480,7 @@ COMMIT
 | `care_action` | `feed`, `pet`, `water`(옛 물 주기 기록, 새로 쓰지 않음) |
 | `animal_gender` | `male`, `female` (0008) |
 | `pet_accessory` | `none`, `ribbon`, `flower`, `scarf` (0008) |
-| `pet_color` | `default`, `brown`, `yellow`, `red`, `black`, `white`, `pink` (0019) |
+| `pet_color` | `default`, `brown`, `yellow`, `red`, `black`, `white`, `pink` (0019), `orange`, `mint`, `sky`, `purple`, `gray`, `green` (0020) |
 | `farm_item_kind` | `potion` (0008) |
 
 정해진 값만 들어가도록 PostgreSQL ENUM 타입을 쓴다. 어제 SQLite 블로그에서 `post_types` 코드 테이블로 했던 일을 DB 타입으로 처리하는 방법이다.
