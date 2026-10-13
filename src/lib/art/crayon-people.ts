@@ -40,7 +40,7 @@ const SIDE_TORSO = "M132 148Q124 152 122 160L124 214Q126 222 144 222Q162 222 164
 const SIDE_ARM = "M137 156q2 8 4 20q2 16 3 26q2 8 9 6q6-2 4-8l-3-26q-1-14-4-20q-6-6-13 2Z";
 
 /** 머리 모양: c 색, front 앞모습(under면 얼굴 뒤에 깔고 face의 윗선이 앞머리가 된다), back 뒷모습, side 옆모습 */
-export type HairWear = { c: string; front: string; face: string; under?: boolean; back: string; side: string; /** 머리 뒤에 숨겨 그리는 덩어리(똥머리 등). 머리카락 윗선이 그 위를 덮어 겹친 선이 보이지 않는다 */ behind?: string };
+export type HairWear = { c: string; front: string; face: string; under?: boolean; back: string; side: string; /** 머리 뒤에 숨겨 그리는 덩어리(똥머리 등, 앞·뒤 모습). 머리카락 윗선이 그 위를 덮어 겹친 선이 보이지 않는다 */ behind?: string; /** 옆모습에서 머리 뒤에 숨기는 덩어리 */ sideBehind?: string; /** 뒷모습만 behind 대신 쓴다 (""이면 없음) */ backBehind?: string };
 type Hair = HairWear;
 const HAIRS: Record<"girl" | "boy" | "visitor", Hair> = {
   girl: {
@@ -140,7 +140,8 @@ function front(c: Ctx, v: View): string {
   const bob = c.frame ? -3 : 0;
   let o = shadow(144, 270, 40, 6);
   const H = hairOf(c);
-  if (H?.behind) o += `<g transform="translate(0 ${bob})">${S(H.behind, H.c, 5)}</g>`;
+  const behind = v === "back" ? (H?.backBehind ?? H?.behind) : H?.behind;
+  if (H && behind) o += `<g transform="translate(0 ${bob})">${S(behind, H.c, 5)}</g>`;
   if (v === "front") {
     if (H?.under) o += `<g transform="translate(0 ${bob})">${hairFront(H)}</g>`;
     o += bodyFB(c, v) + `<g transform="translate(0 ${bob})">${headFront(c)}${c.w.hat?.draw(v) ?? ""}</g>`;
@@ -163,6 +164,7 @@ function side(c: Ctx): string {
   o += sideLeg(134, -sw) + sideLeg(136, sw);
   o += `<g transform="translate(0 -${c.frame ? 3 : 0})">`;
   const H = hairOf(c);
+  if (H?.sideBehind) o += S(H.sideBehind, H.c, 5);
   o += torso(c, SIDE_TORSO);
   if (c.w.bottom?.longSkirt) o += S("M122 176h44l16 86q-38 9-76 0Z", c.w.bottom.color, 4.5) + L("M142 182l-6 76", 2.5);
   else if (c.w.bottom?.skirt) o += S("M122 200h44l12 34q-34 10-68 0Z", c.w.bottom.color, 4.5) + L("M140 204l-4 28", 2.5);
@@ -219,23 +221,78 @@ const flower = (x: number, y: number) =>
 const button = (x: number, y: number) => `<circle cx="${x}" cy="${y}" r="3.5" fill="#f2c230"/>`;
 const star = (x: number, y: number) => `<path d="M${x} ${y}l3 5l5 1l-5 2l-1 5l-3-4l-5 0l4-4Z" fill="#fff"/>`;
 
-// 새 머리 스타일 (시안, 2026-10-13): 앞모습만 새로 그렸고 뒤·옆은 짧은 머리·긴 머리를 빌려 쓴다
+// 새 머리 스타일 (2026-10-13). 짧은 머리 계열은 앞머리를 얼굴 위에, 긴 머리 계열(under)은 얼굴 뒤에 깐다.
+// 묶은 머리(양갈래·포니테일·똥머리)는 behind(앞·뒤)·sideBehind(옆)로 머리 뒤에 숨겨 그려서 겹친 선이 보이지 않게 한다
 const circ = (x: number, y: number, r: number) => `M${x - r} ${y}a${r} ${r} 0 1 1 ${2 * r} 0a${r} ${r} 0 1 1 ${-2 * r} 0Z`;
+/** 머리를 덮는 짧은 머리 덩어리 (짧은 머리의 뒷모습과 같다) */
 const CAP = "M80 104C72 42 104 16 144 16C184 16 216 42 208 104Q200 124 186 126Q144 120 102 126Q88 124 80 104Z";
+/** 긴 머리 계열의 짧은 옆모습 (앞머리는 긴 머리와 같고 뒤는 귀 아래에서 끝난다) */
+const GIRL_SHORT_SIDE = "M144 16C188 16 212 44 208 98Q196 84 184 70Q162 90 140 86Q134 100 136 122Q126 134 110 134Q88 126 82 104C76 50 104 16 144 16Z";
 const TAIL = "M86 92Q46 104 48 156Q50 196 70 210Q78 172 96 124Z";
-let CURLY = "M84 96q-8-78 60-78q68 0 60 78q-24-16-60-16q-36 0-60 16Z";
-for (let t = 180; t <= 360; t += 22.5) CURLY += circ(Math.round(144 + 64 * Math.cos((t * Math.PI) / 180)), Math.round(74 + 56 * Math.sin((t * Math.PI) / 180)), 19);
-for (const x of [112, 144, 176]) CURLY += circ(x, 66, 16);
+/** 곱슬: 머리 윗부분을 둥근 털뭉치로 덮는다 (cx, 위로 벌어진 정도) */
+const curls = (cx: number, rx: number) => {
+  let d = "";
+  for (let t = 180; t <= 360; t += 22.5) d += circ(Math.round(cx + rx * Math.cos((t * Math.PI) / 180)), Math.round(74 + 56 * Math.sin((t * Math.PI) / 180)), 19);
+  return d;
+};
 const B = HAIRS.boy, G = HAIRS.girl;
 const MORE_HAIRS = {
-  "avatar.hair.buzz": { slot: "hair", hair: { ...B, front: "M82 96q-8-78 62-78q70 0 62 78q-20-20-62-20q-42 0-62 20Z" } },
-  "avatar.hair.bowl": { slot: "hair", hair: { ...B, front: "M76 106C70 30 110 12 144 12C178 12 218 30 212 106L196 106L194 82L94 82L92 106Z" } },
-  "avatar.hair.spiky": { slot: "hair", hair: { ...B, front: "M80 100Q72 50 96 34L90 12L114 26L122 4L140 22L156 2L168 24L190 10L190 36Q216 56 208 100Q198 86 192 72Q170 84 146 78Q120 84 98 74Q92 88 80 100Z" } },
-  "avatar.hair.curly": { slot: "hair", hair: { ...B, front: CURLY } },
-  "avatar.hair.bob": { slot: "hair", hair: { ...G, front: "M78 100C70 36 106 16 144 16C182 16 218 36 210 100Q216 140 206 158Q144 166 82 158Q72 140 78 100Z" } },
-  "avatar.hair.pigtails": { slot: "hair", hair: { ...G, front: CAP + TAIL + mirror(TAIL) + circ(90, 112, 9) + circ(198, 112, 9) } },
-  "avatar.hair.ponytail": { slot: "hair", hair: { ...G, front: CAP + "M200 64Q244 74 240 136Q236 172 220 186Q222 144 204 108Z" } },
-  "avatar.hair.buns": { slot: "hair", hair: { ...G, front: CAP, behind: circ(92, 40, 26) + circ(196, 40, 26) } },
+  "avatar.hair.buzz": {
+    slot: "hair",
+    hair: { ...B, front: "M82 96q-8-78 62-78q70 0 62 78q-20-20-62-20q-42 0-62 20Z", back: "M82 100C76 44 106 18 144 18C182 18 212 44 206 100Q196 116 144 116Q92 116 82 100Z", side: "M144 18C186 18 210 46 206 92Q192 80 176 78Q150 80 136 90Q132 106 136 120Q124 128 110 128Q90 122 84 102C76 52 104 18 144 18Z" },
+  },
+  "avatar.hair.bowl": {
+    slot: "hair",
+    hair: { ...B, front: "M76 106C70 30 110 12 144 12C178 12 218 30 212 106L196 106L194 82L94 82L92 106Z", back: "M76 106C70 30 110 12 144 12C178 12 218 30 212 106Q200 126 144 126Q88 126 76 106Z", side: "M144 12C186 12 216 40 212 82L190 82Q160 82 140 84Q134 100 136 122Q126 134 110 134Q86 128 78 106C70 44 104 12 144 12Z" },
+  },
+  "avatar.hair.spiky": {
+    slot: "hair",
+    hair: {
+      ...B,
+      front: "M80 100Q72 50 96 34L90 12L114 26L122 4L140 22L156 2L168 24L190 10L190 36Q216 56 208 100Q198 86 192 72Q170 84 146 78Q120 84 98 74Q92 88 80 100Z",
+      back: "M80 104Q72 50 96 34L90 12L114 26L122 4L140 22L156 2L168 24L190 10L190 36Q216 56 208 104Q200 124 186 126Q144 120 102 126Q88 124 80 104Z",
+      side: "M136 16L150 0L160 20L178 6L184 30Q214 50 208 96Q200 82 190 72Q182 84 166 82Q170 74 168 66Q150 84 136 82Q132 100 136 122Q126 134 110 134Q88 126 82 104Q74 64 92 38L78 22L104 22L112 4Z",
+    },
+  },
+  "avatar.hair.curly": {
+    slot: "hair",
+    hair: {
+      ...B,
+      front: "M84 96q-8-78 60-78q68 0 60 78q-24-16-60-16q-36 0-60 16Z" + curls(144, 64) + circ(112, 66, 16) + circ(144, 66, 16) + circ(176, 66, 16),
+      back: B.back + curls(144, 64),
+      side: B.side + curls(136, 58),
+    },
+  },
+  "avatar.hair.bob": {
+    slot: "hair",
+    hair: {
+      ...G,
+      front: "M78 100C70 36 106 16 144 16C182 16 218 36 210 100Q216 140 206 158Q144 166 82 158Q72 140 78 100Z",
+      back: "M76 104C70 36 106 14 144 14C182 14 218 36 212 104Q216 140 206 158Q144 166 82 158Q72 140 76 104Z",
+      side: "M144 16C188 16 212 44 208 98Q196 84 184 70Q162 90 140 86Q134 100 136 122L138 150Q138 160 128 160H92Q80 158 80 142L82 104C76 50 104 16 144 16Z",
+    },
+  },
+  "avatar.hair.pigtails": {
+    slot: "hair",
+    hair: { ...G, front: CAP, back: CAP, side: GIRL_SHORT_SIDE, behind: TAIL + mirror(TAIL), sideBehind: "M98 96Q64 110 66 160Q68 198 88 210Q94 172 112 128Z" },
+  },
+  "avatar.hair.ponytail": {
+    slot: "hair",
+    hair: {
+      ...G,
+      front: CAP,
+      // 뒤: 머리 덩어리와 꼬리를 한 줄로 이어 그려 겹친 선이 없다
+      back: "M80 104C72 42 104 16 144 16C184 16 216 42 208 104Q200 124 186 126Q170 124 158 123Q166 160 154 194Q144 204 134 194Q122 160 130 123Q116 124 102 126Q88 124 80 104Z",
+      side: GIRL_SHORT_SIDE,
+      behind: "M200 64Q244 74 240 136Q236 172 220 186Q222 144 204 108Z",
+      backBehind: "", // 뒤에서는 꼬리가 가운데로 내려온다 (back에 그렸다)
+      sideBehind: "M98 58Q58 68 60 124Q62 160 78 174Q82 136 106 100Z",
+    },
+  },
+  "avatar.hair.buns": {
+    slot: "hair",
+    hair: { ...G, front: CAP, back: CAP, side: GIRL_SHORT_SIDE, behind: circ(92, 40, 26) + circ(196, 40, 26), sideBehind: circ(100, 36, 26) },
+  },
 } as const;
 
 export const WEAR_PIECES = {

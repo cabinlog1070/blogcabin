@@ -14,7 +14,7 @@ import { saveTriedLook, setHairColor } from "./actions";
 import { ShopGrid, type ShopItem } from "./shop-grid";
 
 /** 옷 카테고리 탭 (2026-10-13): 전체 + 헤어·모자·상의·하의·신발. 한 벌로 된 옷(기모노)은 상의에 있다.
- *  헤어는 아직 부위(AvatarSlot)가 없어서 빈 탭으로 "곧 나와요"를 보여 준다. 헤어 아이템이 slot "hair"로 들어오면 그대로 채워진다 */
+ *  헤어 탭 아래에는 머리 색 동그라미가 있다 */
 type Category = "all" | AvatarSlot;
 const CATEGORIES: Category[] = ["all", "hair", "hat", "top", "bottom", "shoes"];
 const CATEGORY_LABEL: Record<Category, string> = { all: msg("전체"), ...SLOT_LABEL };
@@ -240,7 +240,7 @@ function AvatarSection({
       <div role="tabpanel">
         {shown.length === 0 && (
           <p className="card p-6 text-center text-sm text-ink-soft" data-shop-empty>
-            {category === "hair" ? t("헤어 스타일은 곧 상점에 들어와요. 조금만 기다려 주세요!") : t("이 종류의 옷은 아직 없어요.")}
+            {t("이 종류의 옷은 아직 없어요.")}
           </p>
         )}
         <ShopGrid items={shown} level={level} coins={coins} onTry={tryOn} triedIds={triedList.map((i) => i.id)} />

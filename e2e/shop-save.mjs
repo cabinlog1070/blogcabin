@@ -30,10 +30,23 @@ try {
   const tabs = await avatar.getByRole("tab").allInnerTexts();
   check("카테고리 탭: 전체·헤어·모자·상의·하의·신발", tabs.map((x) => x.replace(/\s*\d+$/, "")).join(",") === "전체,헤어,모자,상의,하의,신발", tabs.join(" / "));
   await avatar.getByRole("tab", { name: /^헤어/ }).click();
-  check("헤어 탭: 아직 없어서 '곧 들어와요'", (await names()).length === 0 && (await avatar.locator("[data-shop-empty]").innerText()).includes("곧"));
+  const hairNames = await names();
+  check("헤어 탭: 헤어 10가지", hairNames.length === 10 && hairNames.includes("양쪽 똥머리"), hairNames.join(","));
+  // 머리 색 (2026-10-13): 헤어 탭에서만 동그라미가 보이고, 누르면 바로 저장된다
+  const preview = () => page.locator("[data-try-on] img").first().getAttribute("src");
+  const plainLook = await preview();
+  await page.getByRole("button", { name: "금발", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "머리 색을 바꿨어요" }).waitFor();
+  check("머리 색: 금발로 저장", (await one("SELECT hair_color FROM profiles WHERE user_id = $1", [uid])).hair_color === "blonde");
+  // 크레용 그림은 색을 파스텔로 옮겨 칠해서 색 코드를 그대로 찾을 수 없다: 그림이 바뀌었는지와 헤더 얼굴 모습 키로 본다
+  check("머리 색: 미리 입어 보기 캐릭터 그림이 바뀜", (await preview()) !== plainLook);
+  await page.getByRole("button", { name: "기본 색", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "머리 색을 바꿨어요" }).waitFor();
+  check("머리 색: 기본 색으로 되돌림", (await one("SELECT hair_color FROM profiles WHERE user_id = $1", [uid])).hair_color === null);
   await page.screenshot({ path: `${outDir}/shop-category-hair.png`, clip: { x: 0, y: 150, width: 1280, height: 600 } });
   await avatar.getByRole("tab", { name: /^전체/ }).click();
-  check("처음엔 전체 (28개)", (await names()).length === 28, String((await names()).length));
+  check("머리 색 동그라미는 헤어 탭에서만", (await page.locator("[data-hair-colors]").count()) === 0);
+  check("전체 (38개)", (await names()).length === 38, String((await names()).length));
   await avatar.getByRole("tab", { name: /^모자/ }).click();
   const hats = await names();
   check("모자 탭은 모자만", hats.length > 0 && hats.every((n) => /모자|왕관|반다나/.test(n)), hats.join(","));
@@ -61,7 +74,8 @@ try {
   await page.waitForURL(/\/town/);
   check("저장하면 광장으로 나감", page.url().includes("/town"));
   const worn = await db.query("SELECT i.name FROM avatar_equips ae JOIN items i ON i.id = ae.item_id WHERE ae.user_id = $1 ORDER BY i.name", [uid]);
-  check("밀짚모자·반바지를 입음", worn.rows.map((r) => r.name).sort().join(",") === ["밀짚모자", "반바지"].sort().join(","), worn.rows.map((r) => r.name).join(","));
+  // 긴 머리 주민은 가입할 때부터 "긴 머리" 헤어를 입고 있다 (2026-10-13)
+  check("밀짚모자·반바지를 입음 (가입 때 헤어 그대로)", worn.rows.map((r) => r.name).sort().join(",") === ["긴 머리", "밀짚모자", "반바지"].sort().join(","), worn.rows.map((r) => r.name).join(","));
   const spent = await one("SELECT COUNT(*)::int n, -SUM(coin_delta)::int c FROM point_ledger WHERE user_id = $1 AND reason = 'purchase'", [uid]);
   check("두 벌을 사고 코인 80 차감", spent.n === 2 && spent.c === 80, JSON.stringify(spent));
 

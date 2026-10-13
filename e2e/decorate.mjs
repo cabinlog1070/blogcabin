@@ -54,7 +54,7 @@ try {
   const counts = await Promise.all(
     ["shop-avatar", "shop-furniture", "shop-background"].map((id) => page.locator(`section[aria-labelledby="${id}"] article`).count()),
   );
-  check("SHOP-01 꾸미기 30 · 가구 14 · 배경 5", JSON.stringify(counts) === "[30,14,5]", counts.join(","));
+  check("SHOP-01 꾸미기 38 · 가구 14 · 배경 5", JSON.stringify(counts) === "[38,14,5]", counts.join(","));
   const furnNames = async () => page.locator('section[aria-labelledby="shop-furniture"] article h3').allInnerTexts();
   check("SHOP-01 기본 정렬은 레벨순", (await furnNames()).join(",") === "꽃바구니,화분,의자,곰인형,러그,램프,책장,책상,티비,게임기,침대,구름,무지개,우주선", (await furnNames()).join(","));
   await page.getByLabel("정렬").selectOption({ label: "비싼 순" });
