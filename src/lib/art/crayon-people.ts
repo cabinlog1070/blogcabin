@@ -40,7 +40,7 @@ const SIDE_TORSO = "M132 148Q124 152 122 160L124 214Q126 222 144 222Q162 222 164
 const SIDE_ARM = "M137 156q2 8 4 20q2 16 3 26q2 8 9 6q6-2 4-8l-3-26q-1-14-4-20q-6-6-13 2Z";
 
 /** 머리 모양: c 색, front 앞모습(under면 얼굴 뒤에 깔고 face의 윗선이 앞머리가 된다), back 뒷모습, side 옆모습 */
-export type HairWear = { c: string; front: string; face: string; under?: boolean; back: string; side: string; /** 머리 뒤에 숨겨 그리는 덩어리(똥머리 등, 앞·뒤 모습). 머리카락 윗선이 그 위를 덮어 겹친 선이 보이지 않는다 */ behind?: string; /** 옆모습에서 머리 뒤에 숨기는 덩어리 */ sideBehind?: string; /** 뒷모습만 behind 대신 쓴다 (""이면 없음) */ backBehind?: string };
+export type HairWear = { c: string; front: string; face: string; under?: boolean; back: string; side: string; /** 머리 뒤에 숨겨 그리는 덩어리(똥머리 등, 앞·뒤 모습). 머리카락 윗선이 그 위를 덮어 겹친 선이 보이지 않는다 */ behind?: string; /** 옆모습에서 머리 뒤에 숨기는 덩어리 */ sideBehind?: string; /** 뒷모습만 behind 대신 쓴다 (""이면 없음) */ backBehind?: string; /** 긴 머리 계열(under)인데 뒷머리가 짧아 뒤통수·목이 보이는 머리 (묶은 머리) */ backShort?: boolean };
 type Hair = HairWear;
 const HAIRS: Record<"girl" | "boy" | "visitor", Hair> = {
   girl: {
@@ -130,7 +130,7 @@ function headBack(c: Ctx): string {
   const H = hairOf(c);
   if (!H) return S(HEAD, c.skin, 5.5);
   let s = S(E(85, 112, 10, 15), c.skin, 4.5) + S(E(203, 112, 10, 15), c.skin, 4.5);
-  if (!H.under) s += S(HEAD, c.skin, 5.5);
+  if (!H.under || H.backShort) s += S(HEAD, c.skin, 5.5);
   s += S(H.back, H.c, 5);
   if (c.kind === "visitor") s += S(LEAF, "#6fb34f", 3.5);
   return s;
@@ -235,6 +235,12 @@ const curls = (cx: number, rx: number) => {
   for (let t = 180; t <= 360; t += 22.5) d += circ(Math.round(cx + rx * Math.cos((t * Math.PI) / 180)), Math.round(74 + 56 * Math.sin((t * Math.PI) / 180)), 19);
   return d;
 };
+/** 곱슬 덩어리 안쪽을 채우는 털뭉치: inside(x, y)인 자리에 22px 간격으로 */
+const curlFill = (inside: (x: number, y: number) => boolean) => {
+  let d = "";
+  for (let y = 30; y <= 124; y += 20) for (let x = 70 + ((y / 20) % 2) * 11; x <= 218; x += 22) if (inside(x, y)) d += circ(x, y, 14);
+  return d;
+};
 const B = HAIRS.boy, G = HAIRS.girl;
 const MORE_HAIRS = {
   "avatar.hair.buzz": {
@@ -259,8 +265,8 @@ const MORE_HAIRS = {
     hair: {
       ...B,
       front: "M84 96q-8-78 60-78q68 0 60 78q-24-16-60-16q-36 0-60 16Z" + curls(144, 64) + circ(112, 66, 16) + circ(144, 66, 16) + circ(176, 66, 16),
-      back: B.back + curls(144, 64),
-      side: B.side + curls(136, 58),
+      back: B.back + curls(144, 64) + curlFill((x, y) => ((x - 144) / 58) ** 2 + ((y - 72) / 50) ** 2 <= 1) + circ(100, 112, 16) + circ(144, 118, 16) + circ(188, 112, 16),
+      side: B.side + curls(136, 58) + curlFill((x, y) => ((x - 128) / 52) ** 2 + ((y - 72) / 50) ** 2 <= 1 && !(x > 132 && y > 76)) + circ(96, 110, 16) + circ(116, 124, 14),
     },
   },
   "avatar.hair.bob": {
@@ -274,13 +280,14 @@ const MORE_HAIRS = {
   },
   "avatar.hair.pigtails": {
     slot: "hair",
-    hair: { ...G, front: CAP, back: CAP, side: GIRL_SHORT_SIDE, behind: TAIL + mirror(TAIL), sideBehind: "M98 96Q64 110 66 160Q68 198 88 210Q94 172 112 128Z" },
+    hair: { ...G, front: CAP, back: CAP, backShort: true, side: GIRL_SHORT_SIDE, behind: TAIL + mirror(TAIL), sideBehind: "M98 96Q64 110 66 160Q68 198 88 210Q94 172 112 128Z" },
   },
   "avatar.hair.ponytail": {
     slot: "hair",
     hair: {
       ...G,
       front: CAP,
+      backShort: true,
       // 뒤: 머리 덩어리와 꼬리를 한 줄로 이어 그려 겹친 선이 없다
       back: "M80 104C72 42 104 16 144 16C184 16 216 42 208 104Q200 124 186 126Q170 124 158 123Q166 160 154 194Q144 204 134 194Q122 160 130 123Q116 124 102 126Q88 124 80 104Z",
       side: GIRL_SHORT_SIDE,
@@ -291,7 +298,7 @@ const MORE_HAIRS = {
   },
   "avatar.hair.buns": {
     slot: "hair",
-    hair: { ...G, front: CAP, back: CAP, side: GIRL_SHORT_SIDE, behind: circ(92, 40, 26) + circ(196, 40, 26), sideBehind: circ(100, 36, 26) },
+    hair: { ...G, front: CAP, back: CAP, backShort: true, side: GIRL_SHORT_SIDE, behind: circ(92, 40, 26) + circ(196, 40, 26), sideBehind: circ(100, 36, 26) },
   },
 } as const;
 
