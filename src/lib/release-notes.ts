@@ -6,13 +6,25 @@
 // - kind: new(새 기능) · improved(바뀐 점) · fixed(고친 문제)
 // - text: 주민이 알아듣는 쉬운 말로 한 문장. 파일 이름·함수·마이그레이션 같은 개발 용어는 쓰지 않는다
 // - admin: true면 관리자만 쓰는 기능 (화면에 '관리자' 표시)
+// - images: 바뀐 모습을 보여 주는 화면 사진 (넣고 싶을 때만). 파일은 public/release-notes/<버전>/ 에 webp로 두고(가로 1200px 안쪽),
+//   src는 "/release-notes/1.19.0/shop.webp"처럼 쓴다. alt는 사진을 말로 한 줄(msg()로 감싸고 일본어도 넣는다).
+//   before에 바뀌기 전 사진을 같이 넣으면 화면에 [전]·[후]로 나란히 보인다
 // 화면에 보이지 않는 배포·DB 작업만 바뀐 날은 적지 않아도 된다.
 // 문장은 msg()로 감싸고 일본어를 src/lib/i18n/ja/release-notes.ts에 같이 넣는다 (npm run test:i18n이 확인한다).
 import { msg } from "@/lib/i18n";
 
 export type ReleaseChangeKind = "new" | "improved" | "fixed";
 
-export type ReleaseChange = { kind: ReleaseChangeKind; text: string; admin?: boolean };
+export type ReleaseImage = {
+  /** public 아래 경로, "/release-notes/<버전>/이름.webp" */
+  src: string;
+  /** 사진을 말로 한 줄 (msg) */
+  alt: string;
+  /** 바뀌기 전 사진 (있으면 전·후로 나란히) */
+  before?: string;
+};
+
+export type ReleaseChange = { kind: ReleaseChangeKind; text: string; admin?: boolean; images?: ReleaseImage[] };
 
 export type ReleaseVersion = {
   version: string;

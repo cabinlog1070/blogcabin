@@ -1,6 +1,9 @@
 // 릴리스 노트 데이터 검사: 날짜 형식, 최신이 위, 같은 날 묶음은 하나, 빈 묶음 없음,
+// 화면 사진은 public/release-notes/<그 버전>/ 아래에 실제로 있고 설명(alt)이 있다,
 // 버전 번호 형식·겹침 없음·최신이 위(새 기능이 있으면 가운데 숫자를, 아니면 끝 숫자를 올린다)
 // 실행: npm run test:release-notes
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { RELEASE_NOTES } from "../src/lib/release-notes";
 
 let failed = 0;
@@ -18,6 +21,13 @@ for (const day of RELEASE_NOTES) {
   for (const v of day.versions) {
     expect(`v${v.version}: 번호가 1.2.3 모양`, /^\d+\.\d+\.\d+$/.test(v.version));
     expect(`v${v.version}: 제목과 바뀐 점이 있다`, v.title.trim().length > 0 && v.changes.length > 0 && v.changes.every((c) => c.text.trim().length > 0));
+    for (const img of v.changes.flatMap((c) => c.images ?? [])) {
+      for (const src of [img.src, img.before].filter((s): s is string => !!s)) {
+        const ok = src.startsWith(`/release-notes/${v.version}/`) && /\.(webp|png|jpg)$/.test(src) && existsSync(join("public", src));
+        expect(`v${v.version}: 사진 ${src}이 public/release-notes/${v.version}/ 에 있다`, ok);
+      }
+      expect(`v${v.version}: 사진 ${img.src}에 설명이 있다`, img.alt.trim().length > 0);
+    }
   }
 }
 const dates = RELEASE_NOTES.map((d) => d.date);

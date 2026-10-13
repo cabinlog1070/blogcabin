@@ -1,6 +1,7 @@
 import { Icon } from "@/components/icon";
 import { getLocale, getT } from "@/server/i18n";
 import type { Locale } from "@/lib/i18n";
+import { ReleaseImage } from "./release-image";
 import { CURRENT_VERSION, RELEASE_KIND_LABEL, RELEASE_NOTES, type ReleaseChangeKind } from "@/lib/release-notes";
 
 export async function generateMetadata() {
@@ -76,6 +77,13 @@ export default async function ReleaseNotesPage() {
                                 <li key={c.text}>
                                   {c.admin && <span className="mr-1 rounded border border-line px-1 text-xs font-bold text-ink-soft">{t("관리자")}</span>}
                                   {t(c.text)}
+                                  {c.images && (
+                                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                                      {c.images.map((img) => (
+                                        <ReleaseImage key={img.src} src={img.src} before={img.before} alt={t(img.alt)} />
+                                      ))}
+                                    </div>
+                                  )}
                                 </li>
                               ))}
                             </ul>
