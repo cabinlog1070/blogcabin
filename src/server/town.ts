@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { lookSql } from "@/server/look";
 import { animalSpecies, attendances, blogs, follows, items, pointLedger, postLikes, posts, profiles, userAnimals } from "@/db/schema";
 import { animalStage } from "@/lib/farm";
+import { stripEmoji } from "@/lib/status-message";
 import { houseStageForLevel, levelFromExp, todayKST } from "@/lib/game";
 import type { TownHouse, TownResident } from "@/components/town/types";
 
@@ -88,8 +89,10 @@ export async function getResidents(userId: string): Promise<TownResident[]> {
     .leftJoin(animalSpecies, eq(animalSpecies.id, userAnimals.speciesId))
     .orderBy(sql`${lastPublicPostAt} DESC NULLS LAST`, desc(follows.createdAt))
     .limit(TOWN_NEIGHBOR_LIMIT);
-  return rows.map(({ petAsset, petGrowth, petGrowExp, petAccessory, petColor, ...r }) => ({
+  return rows.map(({ petAsset, petGrowth, petGrowExp, petAccessory, petColor, statusMessage, ...r }) => ({
     ...r,
+    // 이모티콘을 막기 전에 저장된 메시지도 말풍선에서 깨지지 않게 이모티콘을 뺀다
+    statusMessage: stripEmoji(statusMessage),
     pet: petAsset && petGrowth !== null && petGrowExp !== null && petAccessory
       ? { assetKey: petAsset, stage: animalStage(petGrowth, petGrowExp), accessory: petAccessory, color: petColor ?? undefined }
       : null,

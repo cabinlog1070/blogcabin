@@ -8,6 +8,7 @@ import { blogs, categories, profiles } from "@/db/schema";
 import { DEFAULT_CATEGORY, msg } from "@/lib/i18n";
 import { parseId } from "@/lib/ids";
 import { ADMIN_BLOG_TITLE, ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
+import { STATUS_MESSAGE_MAX, hasEmoji } from "@/lib/status-message";
 import { requireMember } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
 import { getT } from "@/server/i18n";
@@ -18,8 +19,13 @@ const infoSchema = z.object({
   nickname: nicknameSchema,
   title: z.string().trim().min(1, msg("블로그 이름을 적어 주세요")).max(12, msg("블로그 이름은 12자까지예요")),
   description: z.string().trim().max(160, msg("소개는 160자까지예요")),
-  // 상태 메시지 (TOWN-12): 비우면 NULL
-  statusMessage: z.string().trim().max(30, msg("상태 메시지는 30자까지예요")).transform((v) => v || null),
+  // 상태 메시지 (TOWN-12): 비우면 NULL. 이모티콘은 광장 말풍선에서 깨져서 받지 않는다
+  statusMessage: z
+    .string()
+    .trim()
+    .max(STATUS_MESSAGE_MAX, msg("상태 메시지는 30자까지예요"))
+    .refine((v) => !hasEmoji(v), msg("상태 메시지에는 이모티콘을 쓸 수 없어요"))
+    .transform((v) => v || null),
 });
 
 export async function updateBlogInfo(_prev: FormState, formData: FormData): Promise<FormState> {
