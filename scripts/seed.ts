@@ -60,7 +60,7 @@ const ITEMS: NewItem[] = [
   { code: "av_shoes_geta", type: "avatar", slot: "shoes", name: "게타", description: "또각또각 소리 나는 나무 게타", price: 70, requiredLevel: 1, isStarter: false, assetKey: "avatar.shoes.geta" },
   { code: "av_hat_bandana", type: "avatar", slot: "hat", name: "반다나", description: "머리에 질끈 묶는 초록 반다나", price: 70, requiredLevel: 2, isStarter: false, assetKey: "avatar.hat.bandana" },
 
-  // 가구 (SHOP-05): 미니룸에 끌어다 놓는다 (한 방에 최대 5개)
+  // 가구 (SHOP-05): 미니룸에 끌어다 놓는다 (가진 가구는 몇 개든)
   { code: "furn_plant", type: "furniture", name: "화분", description: "방에 생기를 더하는 초록 화분", price: 40, requiredLevel: 1, isStarter: false, assetKey: "furn.plant" },
   { code: "furn_chair", type: "furniture", name: "의자", description: "잠깐 앉아 쉬어 가는 나무 의자", price: 50, requiredLevel: 1, isStarter: false, assetKey: "furn.chair" },
   { code: "furn_lamp", type: "furniture", name: "램프", description: "밤에도 글을 쓸 수 있는 스탠드", price: 80, requiredLevel: 2, isStarter: false, assetKey: "furn.lamp" },

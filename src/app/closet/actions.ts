@@ -1,22 +1,22 @@
 "use server";
 
-import { and, count, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { avatarEquips, blogs, items, profiles, roomFurniture, userItems } from "@/db/schema";
-import { isFurnitureColor } from "@/lib/art/furniture";
+import { avatarEquips, blogs, items, profiles, roomFurniture, userAnimals, userItems } from "@/db/schema";
+import { fitRoomSpot, isFurnitureColor } from "@/lib/art/furniture";
 import { isRoofColor } from "@/lib/art/town";
-import { clampPct, MAX_FURNITURE } from "@/lib/shop";
+import { clampCharacterSpot, clampPct, clampPetSpot } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
-import { getWallet, lockUser } from "@/server/points";
+import { getWallet } from "@/server/points";
 
 export type ActionResult = { ok: boolean; error?: string };
 
 /** 내가 가진 아이템인지와 종류·부위·필요 레벨 */
 async function ownedItem(userId: string, itemId: number) {
   const [owned] = await db
-    .select({ type: items.type, slot: items.slot, requiredLevel: items.requiredLevel })
+    .select({ type: items.type, slot: items.slot, requiredLevel: items.requiredLevel, assetKey: items.assetKey })
     .from(userItems)
     .innerJoin(items, eq(items.id, userItems.itemId))
     .where(and(eq(userItems.userId, userId), eq(userItems.itemId, itemId)));
@@ -78,23 +78,43 @@ export async function placeFurniture(itemId: number, x: number, y: number): Prom
   if (!owned) return { ok: false, error: t("가지고 있지 않은 아이템이에요") };
   if (owned.type !== "furniture") return { ok: false, error: t("가구만 미니룸에 놓을 수 있어요") };
 
-  const result = await db.transaction(async (tx): Promise<ActionResult> => {
-    // 같은 회원의 배치 요청이 겹쳐서 5개를 넘지 않게 잠근다
-    await lockUser(tx, viewer.userId);
-    const [others] = await tx
-      .select({ n: count() })
-      .from(roomFurniture)
-      .where(and(eq(roomFurniture.userId, viewer.userId), ne(roomFurniture.itemId, itemId)));
-    if (others.n >= MAX_FURNITURE) return { ok: false, error: t("가구는 {max}개까지 놓을 수 있어요", { max: MAX_FURNITURE }) };
-    // 이미 놓인 가구면 새로 추가하지 않고 위치만 옮긴다 (기본 키: 회원, 아이템)
-    await tx
-      .insert(roomFurniture)
-      .values({ userId: viewer.userId, itemId, x: clampPct(x), y: clampPct(y) })
-      .onConflictDoUpdate({ target: [roomFurniture.userId, roomFurniture.itemId], set: { x: clampPct(x), y: clampPct(y) } });
-    return { ok: true };
-  });
-  if (result.ok) revalidatePath("/", "layout");
-  return result;
+  // 가진 가구는 몇 개든 놓을 수 있다 (2026-10-13 5개 제한 없앰). 이미 놓인 가구면 위치만 옮긴다 (기본 키: 회원, 아이템)
+  // 벽 장식은 벽 안, 창문·액자를 가리지 않는 자리로 맞춘다
+  const at = fitRoomSpot(owned.assetKey, clampPct(x), clampPct(y));
+  await db
+    .insert(roomFurniture)
+    .values({ userId: viewer.userId, itemId, x: at.x, y: at.y })
+    .onConflictDoUpdate({ target: [roomFurniture.userId, roomFurniture.itemId], set: { x: at.x, y: at.y } });
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** 미니룸 안 캐릭터 자리 옮기기 (SHOP-05, 2026-10-13). x·y는 발이 닿는 곳(미니룸 기준 %), 바닥 근처로 맞춘다 */
+export async function moveRoomCharacter(x: number, y: number): Promise<ActionResult> {
+  const viewer = await requireMember();
+  const t = await getT();
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: t("놓을 위치가 올바르지 않아요") };
+  const spot = clampCharacterSpot({ x, y });
+  await db.update(blogs).set({ roomCharX: spot.x, roomCharY: spot.y }).where(eq(blogs.ownerId, viewer.userId));
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** 데리고 다니는 펫을 미니룸에 놓기·옮기기(spot) 또는 빼기(null, 다시 캐릭터 옆으로). 놓은 펫은 그 자리에서부터 방 안을 돌아다닌다 */
+export async function placeRoomPet(spot: { x: number; y: number } | null): Promise<ActionResult> {
+  const viewer = await requireMember();
+  const t = await getT();
+  if (spot === null) {
+    await db.update(blogs).set({ roomPetX: null, roomPetY: null }).where(eq(blogs.ownerId, viewer.userId));
+  } else {
+    if (!Number.isFinite(spot.x) || !Number.isFinite(spot.y)) return { ok: false, error: t("놓을 위치가 올바르지 않아요") };
+    const [carried] = await db.select({ id: userAnimals.id }).from(userAnimals).where(and(eq(userAnimals.userId, viewer.userId), eq(userAnimals.carried, true)));
+    if (!carried) return { ok: false, error: t("데리고 다니는 펫이 없어요. 동물 농장에서 펫을 골라 주세요") };
+    const at = clampPetSpot(spot);
+    await db.update(blogs).set({ roomPetX: at.x, roomPetY: at.y }).where(eq(blogs.ownerId, viewer.userId));
+  }
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 /** 미니룸에서 가구 빼기 (미니룸 밖으로 끌어냄) */

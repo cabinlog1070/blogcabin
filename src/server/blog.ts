@@ -37,6 +37,11 @@ export async function getBlogBySlug(slug: string) {
       nickname: profiles.nickname,
       characterAsset: lookSql(characterItem.assetKey, profiles.userId),
       backgroundAsset: backgroundItem.assetKey,
+      // 미니룸 캐릭터·펫 자리 (SHOP-05, NULL = 기본)
+      roomCharX: blogs.roomCharX,
+      roomCharY: blogs.roomCharY,
+      roomPetX: blogs.roomPetX,
+      roomPetY: blogs.roomPetY,
       followerCount: sql<number>`(SELECT COUNT(*)::int FROM ${follows} WHERE ${follows.followeeId} = ${blogs.ownerId})`,
       postCount: sql<number>`(SELECT COUNT(*)::int FROM ${posts} WHERE ${posts.blogId} = ${blogs.id} AND ${posts.visibility} = 'public')`,
     })

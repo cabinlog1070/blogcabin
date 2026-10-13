@@ -1,9 +1,11 @@
 import type { HTMLAttributes } from "react";
 import { PetArt } from "@/components/pet-art";
 import { faceFrame } from "@/lib/art/characters";
-import { backgroundDataUri, characterDataUri, furnitureDataUri, furnitureInfo, parseFurnitureKey } from "@/lib/assets";
+import { backgroundDataUri, characterDataUri, furnitureDataUri, fitRoomSpot, furnitureInfo, parseFurnitureKey } from "@/lib/assets";
 import type { AnimalStage, PetAccessory, PetColor } from "@/lib/farm";
 import { makeT, type Locale } from "@/lib/i18n";
+import { ROOM_CHARACTER_SPOT, roomDepth, type RoomSpot } from "@/lib/shop";
+import { WanderingPet } from "@/components/wandering-pet";
 
 /** 미니룸에서 캐릭터 옆에 서 있는 펫 (데리고 다니는 펫, TOWN-09) */
 export type RoomPet = { name: string; assetKey: string; stage: AnimalStage; accessory: PetAccessory; color?: PetColor };
@@ -41,9 +43,6 @@ export function CharacterArt({ asset, size = 96, className = "" }: { asset: stri
 /** 미니룸에 놓인 가구 하나. x·y는 미니룸 기준 비율(0~100%)로 본 가구의 가운데 (SHOP-05) */
 export type RoomFurniture = { id: number; assetKey: string; x: number; y: number };
 
-/** 캐릭터가 서 있는 깊이(%). 가구의 가운데가 이보다 아래면 캐릭터 앞에 그린다 */
-const CHARACTER_DEPTH = 72;
-
 /** 가구 그림 (미니룸 안 위치, 높이는 미니룸 높이에 대한 비율) */
 export function FurnitureArt({ assetKey, className = "" }: { assetKey: string; className?: string }) {
   // eslint-disable-next-line @next/next/no-img-element -- 코드로 만든 SVG(data URI)
@@ -62,6 +61,11 @@ export function MiniRoom({
   furnitureProps,
   hiddenFurnitureId,
   pet,
+  characterSpot,
+  petSpot,
+  characterProps,
+  petProps,
+  petWander = true,
   locale = "ko",
 }: {
   characterAsset: string;
@@ -72,10 +76,21 @@ export function MiniRoom({
   furnitureProps?: (f: RoomFurniture) => HTMLAttributes<HTMLDivElement>;
   hiddenFurnitureId?: number | null;
   pet?: RoomPet | null;
+  /** 캐릭터 발 자리 (미니룸 기준 %). 없으면 가운데 아래 (SHOP-05, 2026-10-13) */
+  characterSpot?: RoomSpot | null;
+  /** 펫을 미니룸에 놓았으면 그 자리 (여기서부터 돌아다닌다). 없으면 캐릭터 옆에 붙어 있다 */
+  petSpot?: RoomSpot | null;
+  /** 꾸미기 화면에서 캐릭터·놓은 펫을 끌어 옮기는 포인터 이벤트 */
+  characterProps?: HTMLAttributes<HTMLDivElement>;
+  petProps?: HTMLAttributes<HTMLDivElement>;
+  /** false면 놓은 펫이 돌아다니지 않는다 (꾸미기 화면) */
+  petWander?: boolean;
   /** 화면 언어 (서버·브라우저 어디서나 그리므로 받아서 쓴다) */
   locale?: Locale;
 }) {
   const t = makeT(locale);
+  const char = characterSpot ?? ROOM_CHARACTER_SPOT;
+  const petBeside = pet && !petSpot; // 놓지 않은 펫은 캐릭터 옆에 붙어 다닌다
   return (
     <div
       // isolate: 가구 z-index(최대 120)가 이 방 안에서만 겨루게 한다. 없으면 body에 뜨는 헤더 메뉴(z-40)를 덮는다
@@ -88,6 +103,7 @@ export function MiniRoom({
     >
       {furniture.map((f) => {
         const info = furnitureInfo(f.assetKey);
+        const at = fitRoomSpot(f.assetKey, f.x, f.y); // 벽 장식은 창문·액자를 가리지 않는 자리로 (예전에 놓은 자리도)
         return (
           <div
             key={f.id}
@@ -96,32 +112,49 @@ export function MiniRoom({
             {...furnitureProps?.(f)}
             className={`absolute -translate-x-1/2 -translate-y-1/2 drop-shadow ${furnitureProps ? "cursor-grab touch-none select-none" : ""} ${hiddenFurnitureId === f.id ? "opacity-0" : ""}`}
             style={{
-              left: `${f.x}%`,
-              top: `${f.y}%`,
+              left: `${at.x}%`,
+              top: `${at.y}%`,
               height: `${info.heightPct}%`,
               aspectRatio: String(info.aspect),
-              zIndex: info.flat ? 0 : f.y > CHARACTER_DEPTH ? 20 + Math.round(f.y) : 1 + Math.round(f.y / 10),
+              zIndex: info.flat ? 0 : roomDepth("furniture", at.y),
             }}
           >
             <FurnitureArt assetKey={f.assetKey} className="pointer-events-none h-full w-full" />
           </div>
         );
       })}
-      <div className="pointer-events-none absolute inset-x-0 bottom-[6%] z-[15] flex flex-col items-center">
+      {/* 캐릭터: 발이 char 자리에 닿게 (닉네임은 발 아래). 아래쪽에 서 있을수록 앞에 보인다 */}
+      <div
+        {...characterProps}
+        data-room-character
+        className={`absolute -translate-x-1/2 -translate-y-full ${characterProps ? "cursor-grab touch-none select-none" : "pointer-events-none"}`}
+        style={{ left: `${char.x}%`, top: `${char.y}%`, zIndex: roomDepth("character", char.y) }}
+      >
         <div className="flex items-end">
-          {/* 펫이 있으면 캐릭터가 가운데에 그대로 서 있도록 반대쪽에 같은 폭의 빈 자리를 둔다 */}
-          {pet && <span className="w-[8cqw]" aria-hidden />}
-          <CharacterArt asset={characterAsset} size={128} className="h-[16.5cqw] w-[16.5cqw] drop-shadow-md" />
-          {pet && (
+          {/* 펫이 옆에 있으면 캐릭터가 가운데에 그대로 서 있도록 반대쪽에 같은 폭의 빈 자리를 둔다 */}
+          {petBeside && <span className="w-[8cqw]" aria-hidden />}
+          <CharacterArt asset={characterAsset} size={128} className="pointer-events-none h-[16.5cqw] w-[16.5cqw] drop-shadow-md" />
+          {petBeside && (
             <span className="-ml-2 mb-1 drop-shadow" data-room-pet={pet.name} title={t("{name} (함께 다니는 펫)", { name: pet.name })}>
-              <PetArt assetKey={pet.assetKey} stage={pet.stage} accessory={pet.accessory} color={pet.color} size={72} className="h-[9.5cqw] w-[9.5cqw]" style={{ transform: "scaleX(-1)" }} />
+              <PetArt assetKey={pet.assetKey} stage={pet.stage} accessory={pet.accessory} color={pet.color} size={72} className="pointer-events-none h-[9.5cqw] w-[9.5cqw]" style={{ transform: "scaleX(-1)" }} />
             </span>
           )}
         </div>
         {nickname && (
-          <span className="-mt-1 rounded-full bg-white/90 px-[2.4cqw] py-0.5 text-[clamp(10px,2.8cqw,14px)] font-bold text-ink shadow">{nickname}</span>
+          <span className="absolute left-1/2 top-full -mt-1 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-[2.4cqw] py-0.5 text-[clamp(10px,2.8cqw,14px)] font-bold text-ink shadow">{nickname}</span>
         )}
       </div>
+      {/* 미니룸에 놓은 펫: 방 바닥을 돌아다닌다 */}
+      {pet && petSpot && (
+        <WanderingPet
+          {...petProps}
+          pet={pet}
+          spot={petSpot}
+          wander={petWander}
+          title={t("{name} (미니룸에서 노는 중)", { name: pet.name })}
+          className={petProps ? "cursor-grab touch-none select-none" : ""}
+        />
+      )}
     </div>
   );
 }

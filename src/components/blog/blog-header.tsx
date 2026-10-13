@@ -19,6 +19,10 @@ type Blog = {
   backgroundAsset: string;
   followerCount: number;
   postCount: number;
+  roomCharX?: number | null;
+  roomCharY?: number | null;
+  roomPetX?: number | null;
+  roomPetY?: number | null;
 };
 
 /** 블로그 상단: 미니룸 + 블로그 정보 */
@@ -34,7 +38,7 @@ export async function BlogHeader({
 }: {
   blog: Blog;
   furniture?: PlacedFurniture[];
-  pet?: RoomPet | null; // 주인이 데리고 다니는 펫 (미니룸에서 캐릭터 옆)
+  pet?: RoomPet | null; // 주인이 데리고 다니는 펫 (미니룸에 놓았으면 돌아다니고, 아니면 캐릭터 옆)
   card?: (PetShowcase & { grownAt: Date | null }) | null; // 프로필에 전시한 다 키운 동물 카드
   viewerId: string | null;
   following: boolean;
@@ -103,6 +107,8 @@ export async function BlogHeader({
           nickname={blog.nickname}
           furniture={furniture.map((f) => ({ id: f.itemId, assetKey: f.assetKey, x: f.x, y: f.y }))}
           pet={pet}
+          characterSpot={blog.roomCharX != null && blog.roomCharY != null ? { x: blog.roomCharX, y: blog.roomCharY } : null}
+          petSpot={blog.roomPetX != null && blog.roomPetY != null ? { x: blog.roomPetX, y: blog.roomPetY } : null}
           locale={locale}
           className="border-b-2 border-line md:rounded-2xl md:border-2"
         />
