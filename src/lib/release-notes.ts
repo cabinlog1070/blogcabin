@@ -50,10 +50,15 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.29.2",
+        title: msg("상점 저장하기 다듬기"),
+        changes: [{ kind: "improved", text: msg("상점에서 [저장하기]를 눌러도 광장으로 나가지 않고 상점에 그대로 있어요. 입어 보거나 머리 색을 골라 본 것은 [저장하기]를 눌러야 저장되고, 누르지 않고 나가면 원래 모습 그대로예요.") }],
+      },
+      {
         version: "1.29.1",
         title: msg("알림 3초 뒤 사라짐"),
         changes: [
-          { kind: "improved", text: msg("상점에서 산 뒤, 머리 색을 바꾼 뒤, 꾸미기·즐겨찾기·이웃 저장·초대 링크 복사 뒤에 뜨는 알림도 농장처럼 3초 뒤에 저절로 사라져요.") },
+          { kind: "improved", text: msg("상점에서 산 뒤, 꾸미기·즐겨찾기·이웃 저장·초대 링크 복사 뒤에 뜨는 알림도 농장처럼 3초 뒤에 저절로 사라져요.") },
         ],
       },
       {
