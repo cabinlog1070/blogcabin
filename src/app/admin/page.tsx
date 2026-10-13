@@ -1,14 +1,15 @@
-import { desc, eq, gte, sql } from "drizzle-orm";
+import { asc, desc, eq, gte, sql } from "drizzle-orm";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { db } from "@/db";
-import { attendances, blogs, comments, pointLedger, posts, profiles, users } from "@/db/schema";
+import { attendances, blogs, comments, GIFT_MESSAGE_MAX, items, pointLedger, posts, profiles, users } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
 import { levelFromExp, todayKST } from "@/lib/game";
 import { requireAdmin } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
 import { startOfTodayKST } from "@/server/points";
 import { AdminDeletePostButton } from "./delete-button";
+import { AdminGiftForm } from "./gift-form";
 import { AdminGrantForm } from "./grant-form";
 
 export async function generateMetadata() {
@@ -21,7 +22,7 @@ export default async function AdminPage() {
   const t = await getT();
   const locale = await getLocale();
 
-  const [[stats], recentUsers, recentPosts, residents] = await Promise.all([
+  const [[stats], recentUsers, recentPosts, residents, giftable] = await Promise.all([
     db.select({
       users: sql<number>`(SELECT COUNT(*)::int FROM ${users})`,
       residents: sql<number>`(SELECT COUNT(*)::int FROM ${profiles})`,
@@ -67,10 +68,22 @@ export default async function AdminPage() {
       .leftJoin(pointLedger, eq(pointLedger.userId, profiles.userId))
       .groupBy(profiles.userId, profiles.nickname, users.username)
       .orderBy(profiles.nickname),
+    // 선물로 보낼 수 있는 아이템: 가입할 때 모두 받는 기본 아이템은 뺀다
+    db
+      .select({ id: items.id, type: items.type, name: items.name, assetKey: items.assetKey })
+      .from(items)
+      .where(eq(items.isStarter, false))
+      .orderBy(asc(items.type), asc(items.requiredLevel), asc(items.price), asc(items.id)),
   ]);
   const members = residents.map((r) => ({
     userId: r.userId,
     label: `${r.nickname} (${r.username ?? t("소셜")}) · Lv.${levelFromExp(r.exp)} · 🪙 ${r.coins.toLocaleString()}`,
+  }));
+
+  const giftMembers = residents.map((r) => ({
+    userId: r.userId,
+    label: `${r.nickname} (${r.username ?? t("소셜")})${r.userId === admin.userId ? ` · ${t("나")}` : ""}`,
+    search: `${r.nickname} ${r.username ?? ""}`.toLowerCase(),
   }));
 
   // 문장 가운데 아이콘이 들어가서 {icon} 자리에서 나눈다
@@ -90,9 +103,12 @@ export default async function AdminPage() {
       <h1 className="font-display text-3xl">
         <Icon name="level" size={34} className="-mt-1" /> {t("관리자")}
       </h1>
-      <p className="mt-3">
+      <p className="mt-3 flex flex-wrap gap-2">
         <Link href="/admin/members" className="btn btn-basic" data-admin-members-link>
           <Icon name="search" size={20} /> {t("회원 관리 (조회·글/댓글 삭제·강제 탈퇴)")}
+        </Link>
+        <Link href="/admin/content" className="btn btn-basic" data-admin-content-link>
+          <Icon name="write" size={20} /> {t("글 관리 (전체 글·댓글 보기·삭제)")}
         </Link>
       </p>
 
@@ -115,6 +131,14 @@ export default async function AdminPage() {
           {grantNote[1]}
         </p>
         <AdminGrantForm members={members} defaultUserId={admin.userId} />
+      </section>
+
+      <section className="card mt-8 p-5" id="gift">
+        <h2 className="mb-1 font-display text-xl">
+          <Icon name="gift" size={26} className="-mt-1" /> {t("선물 보내기")}
+        </h2>
+        <p className="mb-4 text-sm text-ink-soft">{t("주민을 골라 코인·아이템을 선물하고, 함께 보낼 말을 적어요. 같은 주민에게 몇 번이든 보낼 수 있어요.")}</p>
+        <AdminGiftForm members={giftMembers} items={giftable} messageMax={GIFT_MESSAGE_MAX} />
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">
@@ -146,7 +170,10 @@ export default async function AdminPage() {
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">
-        <h2 className="mb-3 font-display text-xl">{t("최근 30일 글")}</h2>
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-display text-xl">{t("최근 30일 글")}</h2>
+          <Link href="/admin/content" className="text-sm text-sky underline">{t("글 관리에서 전체 보기")}</Link>
+        </div>
         {recentPosts.length ? (
           <table className="w-full text-left text-sm">
             <thead className="text-ink-soft">

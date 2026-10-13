@@ -7,7 +7,8 @@ import { db } from "@/db";
 import { blogs, categories, profiles } from "@/db/schema";
 import { DEFAULT_CATEGORY, msg } from "@/lib/i18n";
 import { parseId } from "@/lib/ids";
-import { ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
+import { ADMIN_BLOG_TITLE, ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
+import { STATUS_MESSAGE_MAX, hasEmoji } from "@/lib/status-message";
 import { requireMember } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
 import { getT } from "@/server/i18n";
@@ -18,23 +19,32 @@ const infoSchema = z.object({
   nickname: nicknameSchema,
   title: z.string().trim().min(1, msg("블로그 이름을 적어 주세요")).max(12, msg("블로그 이름은 12자까지예요")),
   description: z.string().trim().max(160, msg("소개는 160자까지예요")),
-  // 상태 메시지 (TOWN-12): 비우면 NULL
-  statusMessage: z.string().trim().max(30, msg("상태 메시지는 30자까지예요")).transform((v) => v || null),
+  // 상태 메시지 (TOWN-12): 비우면 NULL. 이모티콘은 광장 말풍선에서 깨져서 받지 않는다
+  statusMessage: z
+    .string()
+    .trim()
+    .max(STATUS_MESSAGE_MAX, msg("상태 메시지는 30자까지예요"))
+    .refine((v) => !hasEmoji(v), msg("상태 메시지에는 이모티콘을 쓸 수 없어요"))
+    .transform((v) => v || null),
 });
 
 export async function updateBlogInfo(_prev: FormState, formData: FormData): Promise<FormState> {
   const viewer = await requireMember();
   const t = await getT();
+  const isAdmin = viewer.user.role === "admin";
   const parsed = infoSchema.safeParse({
     nickname: formData.get("nickname") ?? "",
-    title: formData.get("title") ?? "",
+    // 관리자 블로그 이름은 고정이라 보낸 값을 받지 않는다. 12자 제한을 넘는 이름이라 검사도 건너뛴다
+    title: isAdmin ? "-" : (formData.get("title") ?? ""),
     description: formData.get("description") ?? "",
     statusMessage: formData.get("statusMessage") ?? "",
   });
   if (!parsed.success) return { error: t(parsed.error.issues[0].message) };
   const { nickname, statusMessage, ...info } = parsed.data;
   // 관리자 닉네임은 관리자만 쓴다 (AUTH-08)
-  if (nickname === ADMIN_NICKNAME && viewer.user.role !== "admin") return { error: t("이 닉네임은 쓸 수 없어요") };
+  if (nickname === ADMIN_NICKNAME && !isAdmin) return { error: t("이 닉네임은 쓸 수 없어요") };
+  // 예전에 바꿔 둔 관리자 블로그 이름도 저장할 때 원래 이름으로 돌린다
+  if (isAdmin) info.title = ADMIN_BLOG_TITLE;
   try {
     await db.transaction(async (tx) => {
       await tx.update(profiles).set({ nickname, statusMessage }).where(eq(profiles.userId, viewer.userId));

@@ -337,7 +337,7 @@ try {
   await form.getByLabel("비밀번호 확인").fill(PW);
   await form.getByRole("button", { name: "회원 탈퇴" }).click();
   await w.page.waitForURL(/\/\?withdrawn=1/);
-  check("AUTH-06 탈퇴하면 첫 화면으로 + 로그인 끝 (헤더에 [시작하기])", (await w.page.getByText("탈퇴가 끝났어요").isVisible()) && (await w.page.getByRole("banner").getByRole("link", { name: "시작하기" }).isVisible()));
+  check("AUTH-06 탈퇴하면 첫 화면으로 + 로그인 끝 (로그인 카드가 보임)", (await w.page.getByText("탈퇴가 끝났어요").isVisible()) && (await w.page.getByRole("heading", { name: "마을에 들어가기" }).isVisible()));
   await w.page.screenshot({ path: `${outDir}/d8-withdraw-done.png` });
   const gone = await one(
     `SELECT (SELECT COUNT(*) FROM users WHERE id = $1)::int AS users, (SELECT COUNT(*) FROM accounts WHERE user_id = $1)::int AS accounts,

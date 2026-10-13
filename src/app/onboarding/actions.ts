@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
 import { blogs, categories, follows, items, profiles, userItems, users } from "@/db/schema";
+import { giveStarterHair } from "@/db/starter-hair";
 import { DEFAULT_CATEGORY, msg, type T } from "@/lib/i18n";
 import { generateInviteCode, INVITE_COOKIE, normalizeInviteCode } from "@/lib/invite";
 import { ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
@@ -121,6 +122,8 @@ async function createResident(
         inviteCode: generateInviteCode(),
         invitedBy,
       });
+      // 고른 주민의 머리(짧은 머리·긴 머리)를 헤어 아이템으로 주고 입혀 둔다
+      await giveStarterHair(tx, userId);
       const [blog] = await tx
         .insert(blogs)
         .values({

@@ -8,9 +8,6 @@ export function isForSale(item: { type: ItemType; isStarter: boolean }): boolean
   return !item.isStarter && item.type !== "character";
 }
 
-/** 한 미니룸에 놓을 수 있는 가구 수 (SHOP-05) */
-export const MAX_FURNITURE = 5;
-
 export const SORTS = [
   { key: "level", label: msg("레벨순") },
   { key: "popular", label: msg("인기순") },
@@ -49,3 +46,24 @@ export function sortItems<T extends Sortable>(items: T[], sort: SortKey): T[] {
 export function clampPct(v: number): number {
   return Math.round(Math.min(100, Math.max(0, v)) * 10) / 10;
 }
+
+/** 미니룸 안 캐릭터·펫 자리 (SHOP-05, 2026-10-13). 좌표는 미니룸 기준 %, 발이 닿는 곳 */
+export type RoomSpot = { x: number; y: number };
+/** 캐릭터를 옮기지 않았을 때의 자리: 가운데 아래 */
+export const ROOM_CHARACTER_SPOT: RoomSpot = { x: 50, y: 88 };
+/** 캐릭터 발은 바닥 근처에만 (너무 위로 올리면 몸이 잘리고, 너무 아래면 발밑 닉네임이 잘린다) */
+export const clampCharacterSpot = (s: RoomSpot): RoomSpot => ({ x: clampPct(Math.min(94, Math.max(6, s.x))), y: clampPct(Math.min(92, Math.max(55, s.y))) });
+/** 놓은 펫이 돌아다니는 바닥 범위 */
+export const PET_FLOOR = { minX: 6, maxX: 94, minY: 74, maxY: 98 };
+export const clampPetSpot = (s: RoomSpot): RoomSpot => ({
+  x: clampPct(Math.min(PET_FLOOR.maxX, Math.max(PET_FLOOR.minX, s.x))),
+  y: clampPct(Math.min(PET_FLOOR.maxY, Math.max(PET_FLOOR.minY, s.y))),
+});
+/** 미니룸 안 앞뒤 순서: 아래쪽일수록 앞에. 가구는 가운데, 캐릭터·펫은 발 자리로 재서 16%쯤 차이를 맞춘다
+ *  (기본 자리의 캐릭터 기준으로 가운데가 72%보다 아래인 가구가 앞에 보인다. 전과 같다) */
+export const roomDepth = (kind: "furniture" | "character" | "pet", y: number) =>
+  20 + Math.round(2 * (kind === "furniture" ? y : y - 16)) + (kind === "furniture" ? 0 : 1);
+
+/** 꾸미기 화면 탭 (2026-10-13): 캐릭터 꾸미기 / 미니룸 꾸미기 / 집 테마. 주소 ?tab=으로 바로 연다 */
+export type ClosetTab = "char" | "room" | "house";
+export const CLOSET_TABS: ClosetTab[] = ["char", "room", "house"];

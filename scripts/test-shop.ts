@@ -2,7 +2,7 @@
 // 실행: npm run test:shop
 import { piecesInOrder } from "../src/lib/art/avatar";
 import { characterSvg, composeLook, parseLook } from "../src/lib/art/characters";
-import { FURNITURE_COLOR_KEYS, furnitureInfo, furnitureSvg, paintedFurnitureKey, parseFurnitureKey } from "../src/lib/art/furniture";
+import { fitRoomSpot, FURNITURE_COLOR_KEYS, furnitureInfo, furnitureSvg, paintedFurnitureKey, parseFurnitureKey } from "../src/lib/art/furniture";
 import { FURNITURE_COLORS as DB_FURNITURE_COLORS } from "../src/db/schema";
 import { clampPct, isForSale, sortItems } from "../src/lib/shop";
 
@@ -61,6 +61,23 @@ expect("상점에서 빠진 캐릭터(고양이)는 꾸미기를 그리지 않�
 
 // 가구 위치
 expect("위치는 0~100으로", [clampPct(-5), clampPct(42.345), clampPct(130)], [0, 42.3, 100]);
+
+// 벽 장식 자리 (SHOP-05, 2026-10-13): 창문(x 3~29.5, y 9~50)·액자(x 78.5~91.5, y 12~37)를 가리지 않고 벽 안에만
+{
+  const box = (key: string, p: { x: number; y: number }) => {
+    const { heightPct, aspect } = furnitureInfo(key);
+    return { x0: p.x - (heightPct * aspect) / 4, x1: p.x + (heightPct * aspect) / 4, y0: p.y - heightPct / 2, y1: p.y + heightPct / 2 };
+  };
+  const clear = (b: ReturnType<typeof box>) =>
+    b.x0 >= 0 && b.x1 <= 100 && b.y0 >= 0 && b.y1 <= 71 && (b.x1 <= 3 || b.x0 >= 29.5 || b.y1 <= 9 || b.y0 >= 50) && (b.x1 <= 78.5 || b.x0 >= 91.5 || b.y1 <= 12 || b.y0 >= 37);
+  for (const key of ["furn.cloud", "furn.rainbow@pink", "furn.rocket"]) {
+    for (const [x, y] of [[16, 30], [85, 25], [50, 85], [54, 25]]) {
+      expect(`${key} (${x}, ${y})에 놓으면 창문·액자를 피해 벽 안에`, clear(box(key, fitRoomSpot(key, x, y))), true);
+    }
+  }
+  expect("빈 벽에 놓은 구름은 그 자리 그대로", fitRoomSpot("furn.cloud", 54, 25), { x: 54, y: 25 });
+  expect("바닥 가구는 그대로", fitRoomSpot("furn.chair", 16, 30), { x: 16, y: 30 });
+}
 
 if (failed) {
   console.error(`\n${failed}개 실패`);

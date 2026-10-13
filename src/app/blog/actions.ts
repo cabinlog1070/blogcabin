@@ -8,21 +8,22 @@ import { blogs, comments, follows, pointLedger, postLikes, posts } from "@/db/sc
 import { MAX_FAVORITES } from "@/lib/game";
 import { msg } from "@/lib/i18n";
 import { MAX_DB_INT, parseId } from "@/lib/ids";
-import { canSeePrivatePosts } from "@/server/blog";
+import { canSeePrivatePosts, isPublished } from "@/server/blog";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
 import { hasLikeNotification, notifySocial } from "@/server/notifications";
 import { grantReward, lockUser } from "@/server/points";
 import { addBlogVisit, addPostView, currentViewerKey, getBlogVisitStats } from "@/server/visits";
 
-/** 글과 그 글의 블로그 주인 (공개 글이거나, 내 글이거나, 서로 이웃의 비공개 글일 때만) */
+/** 글과 그 글의 블로그 주인 (공개 글이거나, 내 글이거나, 서로 이웃의 비공개 글일 때만. 아직 안 올라간 예약 글은 주인만) */
 async function findVisiblePost(postId: number, viewerId: string) {
   const [row] = await db
-    .select({ id: posts.id, visibility: posts.visibility, ownerId: blogs.ownerId })
+    .select({ id: posts.id, visibility: posts.visibility, ownerId: blogs.ownerId, published: isPublished })
     .from(posts)
     .innerJoin(blogs, eq(blogs.id, posts.blogId))
     .where(eq(posts.id, postId));
   if (!row) return null;
+  if (!row.published && row.ownerId !== viewerId) return null;
   if (row.visibility === "private" && !(await canSeePrivatePosts(viewerId, row.ownerId))) return null;
   return row;
 }
@@ -128,6 +129,41 @@ export async function addComment(_prev: CommentState, formData: FormData): Promi
   return { ok: Date.now() };
 }
 
+const editCommentSchema = commentSchema.pick({ content: true }).extend({
+  commentId: z.coerce.number().int().positive().max(MAX_DB_INT, msg("잘못된 요청이에요")),
+});
+
+/** 내가 쓴 댓글·답글의 내용 고치기. 작성자만 (블로그 주인·관리자는 지울 수만 있다) */
+export async function editComment(_prev: CommentState, formData: FormData): Promise<CommentState> {
+  const viewer = await requireMember();
+  const t = await getT();
+  const parsed = editCommentSchema.safeParse({
+    commentId: formData.get("commentId"),
+    content: formData.get("content") ?? "",
+  });
+  if (!parsed.success) return { error: t(parsed.error.issues[0].message) };
+  const { commentId, content } = parsed.data;
+
+  const [row] = await db
+    .select({ postId: comments.postId, authorId: comments.authorId, content: comments.content })
+    .from(comments)
+    .where(and(eq(comments.id, commentId), isNull(comments.deletedAt)));
+  // 비공개로 바뀌어 더는 볼 수 없는 글의 댓글도 고칠 수 없다
+  if (!row || row.authorId !== viewer.userId || !(await findVisiblePost(row.postId, viewer.userId))) {
+    return { error: t("댓글을 찾을 수 없어요") };
+  }
+  // 그대로면 "수정됨"을 붙이지 않는다 (폼은 줄바꿈을 \r\n으로 보내서 줄바꿈 모양은 비교하지 않는다)
+  const lf = (s: string) => s.replace(/\r\n/g, "\n");
+  if (lf(row.content) === lf(content)) return { ok: Date.now() };
+
+  await db
+    .update(comments)
+    .set({ content, editedAt: new Date() })
+    .where(and(eq(comments.id, commentId), eq(comments.authorId, viewer.userId), isNull(comments.deletedAt)));
+  revalidatePath("/", "layout");
+  return { ok: Date.now() };
+}
+
 export async function deleteComment(commentId: number) {
   const viewer = await requireMember();
   if (parseId(commentId) === null) return;
@@ -226,7 +262,7 @@ export async function recordBlogVisit(blogId: number): Promise<{ today: number; 
 export async function recordPostView(postId: number): Promise<number | null> {
   if (parseId(postId) === null) return null;
   const [post] = await db
-    .select({ visibility: posts.visibility, viewCount: posts.viewCount, ownerId: blogs.ownerId })
+    .select({ visibility: posts.visibility, viewCount: posts.viewCount, ownerId: blogs.ownerId, published: isPublished })
     .from(posts)
     .innerJoin(blogs, eq(blogs.id, posts.blogId))
     .where(eq(posts.id, postId));
@@ -236,5 +272,6 @@ export async function recordPostView(postId: number): Promise<number | null> {
   // 볼 수 없는 비공개 글은 404 화면이라 세지 않는다 (주인과 서로 이웃만 본다)
   if (post.visibility === "private" && !(await canSeePrivatePosts(memberId, post.ownerId))) return null;
   if (isOwner) return post.viewCount;
+  if (!post.published) return null; // 아직 안 올라간 예약 글은 주인만 본다 (POST-11)
   return addPostView(postId, key);
 }

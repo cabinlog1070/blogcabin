@@ -14,6 +14,8 @@ export type Wear = {
   bottom?: BottomWear;
   shoes?: ShoesWear;
   hat?: HatWear;
+  /** 헤어 (2026-10-13). 없으면 캐릭터의 기본 머리(짧은 머리 주민은 짧은 머리, 긴 머리 주민은 긴 머리) */
+  hair?: HairWear;
 };
 export type TopWear = { color: string; longSleeve?: boolean; sleeveless?: boolean; /** 기모노처럼 발목까지 내려오는 옷자락 */ robe?: boolean; deco?: (v: View) => string };
 export type BottomWear = { color: string; long?: boolean; skirt?: boolean; /** 한복 치마처럼 가슴께에서 발목까지 오는 긴 치마 */ longSkirt?: boolean; /** 꼬리처럼 몸 밖으로 나오는 장식. 앞·옆은 몸 뒤, 뒤는 몸 위에 그린다 */ tail?: (v: View) => string };
@@ -21,6 +23,8 @@ export type ShoesWear = { color: string; boots?: boolean; deco?: (v: View) => st
 export type HatWear = { draw: (v: View) => string };
 
 const BEIGE = "#e8d2ae";
+/** 카드 바탕색 (globals.css의 paper) */
+const PAPER = "#fffaf0";
 const HEAD = "M144 20C200 20 214 66 207 100C202 126 190 141 144 144C98 141 86 126 81 100C74 66 88 20 144 20Z";
 const TORSO = "M139 146Q122 149 118 156L114 214Q114 222 128 222L160 222Q174 222 174 214L170 156Q166 149 149 146Z";
 const LEGL = "M114 204L114 264Q114 270 121 270L134 270Q140 270 140 264L141 204Z";
@@ -35,7 +39,9 @@ const SIDE_LEG = (x: number) => `M${x} 204v60q0 6 6 6h20q4 0 2-6l-8-6v-54Z`;
 const SIDE_TORSO = "M132 148Q124 152 122 160L124 214Q126 222 144 222Q162 222 164 214L162 160Q160 150 150 147Z";
 const SIDE_ARM = "M137 156q2 8 4 20q2 16 3 26q2 8 9 6q6-2 4-8l-3-26q-1-14-4-20q-6-6-13 2Z";
 
-type Hair = { c: string; front: string; face: string; under?: boolean; back: string; side: string };
+/** 머리 모양: c 색, front 앞모습(under면 얼굴 뒤에 깔고 face의 윗선이 앞머리가 된다), back 뒷모습, side 옆모습 */
+export type HairWear = { c: string; front: string; face: string; under?: boolean; back: string; side: string; /** 머리 뒤에 숨겨 그리는 덩어리(똥머리 등, 앞·뒤 모습). 머리카락 윗선이 그 위를 덮어 겹친 선이 보이지 않는다 */ behind?: string; /** 옆모습에서 머리 뒤에 숨기는 덩어리 */ sideBehind?: string; /** 뒷모습만 behind 대신 쓴다 (""이면 없음) */ backBehind?: string; /** 긴 머리 계열(under)인데 뒷머리가 짧아 뒤통수·목이 보이는 머리 (묶은 머리) */ backShort?: boolean };
+type Hair = HairWear;
 const HAIRS: Record<"girl" | "boy" | "visitor", Hair> = {
   girl: {
     c: "#7a4a2a",
@@ -61,6 +67,10 @@ const HAIRS: Record<"girl" | "boy" | "visitor", Hair> = {
   },
 };
 const LEAF = "M144 18q-2-14 10-18q4 10-10 18Z";
+/** 앞머리 덩어리. 뒤에 숨긴 덩어리(behind)가 있으면 파스텔 면이 반쯤 비쳐 겹친 자리가 짙어 보여서, 밑에 종이색을 먼저 깐다 */
+const hairFront = (H: Hair) => (H.behind ? `<path d="${H.front}" fill="${PAPER}"/>` : "") + S(H.front, H.c, 5);
+/** 입은 헤어, 없으면 캐릭터의 기본 머리 (마네킹은 머리 없음) */
+const hairOf = (c: Ctx): Hair | null => c.w.hair ?? (c.kind === "mannequin" ? null : HAIRS[c.kind]);
 
 type Ctx = { kind: Kind; frame: Frame; skin: string; top: string; bot: string; shoe: string; w: Wear };
 
@@ -106,19 +116,21 @@ function bodyFB(c: Ctx, v: View): string {
 const bootF = (c: Ctx, x: number) => (c.w.shoes?.boots ? S(Rc(x, 238, 30, 34, 5), c.shoe, 4) : "");
 
 function headFront(c: Ctx): string {
-  if (c.kind === "mannequin") return S(HEAD, c.skin, 5.5);
-  const H = HAIRS[c.kind];
-  let s = S(E(85, 112, 10, 15), c.skin, 4.5) + S(E(203, 112, 10, 15), c.skin, 4.5) + S(H.face, c.skin, 5.5);
-  s += dot(122, 100, 6) + dot(166, 100, 6) + blush(110, 116) + blush(178, 116) + L("M137 117q7 7 14 0", 3.5);
-  if (!H.under) s += S(H.front, H.c, 5);
+  const H = hairOf(c);
+  if (!H) return S(HEAD, c.skin, 5.5);
+  // 파스텔 면은 반쯤 비쳐서, 머리카락 위에 얹는 얼굴·귀(여자 주민)는 밑에 종이색을 먼저 깔아 머리색이 비치지 않게 한다
+  let s = H.under ? [E(85, 112, 10, 15), E(203, 112, 10, 15), H.face].map((d) => `<path d="${d}" fill="${PAPER}"/>`).join("") : "";
+  s += S(E(85, 112, 10, 15), c.skin, 4.5) + S(E(203, 112, 10, 15), c.skin, 4.5) + S(H.face, c.skin, 5.5);
+  if (c.kind !== "mannequin") s += dot(122, 100, 6) + dot(166, 100, 6) + blush(110, 116) + blush(178, 116) + L("M137 117q7 7 14 0", 3.5);
+  if (!H.under) s += hairFront(H);
   if (c.kind === "visitor") s += S(LEAF, "#6fb34f", 3.5);
   return s;
 }
 function headBack(c: Ctx): string {
-  if (c.kind === "mannequin") return S(HEAD, c.skin, 5.5);
-  const H = HAIRS[c.kind];
+  const H = hairOf(c);
+  if (!H) return S(HEAD, c.skin, 5.5);
   let s = S(E(85, 112, 10, 15), c.skin, 4.5) + S(E(203, 112, 10, 15), c.skin, 4.5);
-  if (c.kind !== "girl") s += S(HEAD, c.skin, 5.5);
+  if (!H.under || H.backShort) s += S(HEAD, c.skin, 5.5);
   s += S(H.back, H.c, 5);
   if (c.kind === "visitor") s += S(LEAF, "#6fb34f", 3.5);
   return s;
@@ -127,9 +139,11 @@ function headBack(c: Ctx): string {
 function front(c: Ctx, v: View): string {
   const bob = c.frame ? -3 : 0;
   let o = shadow(144, 270, 40, 6);
-  const under = c.kind !== "mannequin" && HAIRS[c.kind].under;
+  const H = hairOf(c);
+  const behind = v === "back" ? (H?.backBehind ?? H?.behind) : H?.behind;
+  if (H && behind) o += `<g transform="translate(0 ${bob})">${S(behind, H.c, 5)}</g>`;
   if (v === "front") {
-    if (under) o += `<g transform="translate(0 ${bob})">${S(HAIRS[c.kind as "girl"].front, HAIRS.girl.c, 5)}</g>`;
+    if (H?.under) o += `<g transform="translate(0 ${bob})">${hairFront(H)}</g>`;
     o += bodyFB(c, v) + `<g transform="translate(0 ${bob})">${headFront(c)}${c.w.hat?.draw(v) ?? ""}</g>`;
   } else {
     o += bodyFB(c, v) + `<g transform="translate(0 ${bob})">${headBack(c)}${c.w.hat?.draw(v) ?? ""}</g>`;
@@ -149,7 +163,8 @@ function side(c: Ctx): string {
   o += c.w.bottom?.tail?.("side") ?? "";
   o += sideLeg(134, -sw) + sideLeg(136, sw);
   o += `<g transform="translate(0 -${c.frame ? 3 : 0})">`;
-  const H = c.kind === "mannequin" ? null : HAIRS[c.kind];
+  const H = hairOf(c);
+  if (H?.sideBehind) o += S(H.sideBehind, H.c, 5);
   o += torso(c, SIDE_TORSO);
   if (c.w.bottom?.longSkirt) o += S("M122 176h44l16 86q-38 9-76 0Z", c.w.bottom.color, 4.5) + L("M142 182l-6 76", 2.5);
   else if (c.w.bottom?.skirt) o += S("M122 200h44l12 34q-34 10-68 0Z", c.w.bottom.color, 4.5) + L("M140 204l-4 28", 2.5);
@@ -158,7 +173,7 @@ function side(c: Ctx): string {
   // 머리는 앞모습과 같은 동그란 두상을 몸 한가운데 위에 얹고, 머리카락이 뒤통수·정수리를 덮는다
   o += S(HEAD, c.skin, 5.5);
   if (H) {
-    o += dot(184, 102, 6) + blush(190, 120) + L("M194 124q6 2 10-2", 3.5);
+    if (c.kind !== "mannequin") o += dot(184, 102, 6) + blush(190, 120) + L("M194 124q6 2 10-2", 3.5);
     o += S(H.side, H.c, 5) + S(E(140, 112, 10, 15), c.skin, 4.5);
     if (c.kind === "visitor") o += S(LEAF, "#6fb34f", 3.5);
   }
@@ -206,7 +221,92 @@ const flower = (x: number, y: number) =>
 const button = (x: number, y: number) => `<circle cx="${x}" cy="${y}" r="3.5" fill="#f2c230"/>`;
 const star = (x: number, y: number) => `<path d="M${x} ${y}l3 5l5 1l-5 2l-1 5l-3-4l-5 0l4-4Z" fill="#fff"/>`;
 
+// 새 머리 스타일 (2026-10-13). 짧은 머리 계열은 앞머리를 얼굴 위에, 긴 머리 계열(under)은 얼굴 뒤에 깐다.
+// 묶은 머리(양갈래·포니테일·똥머리)는 behind(앞·뒤)·sideBehind(옆)로 머리 뒤에 숨겨 그려서 겹친 선이 보이지 않게 한다
+const circ = (x: number, y: number, r: number) => `M${x - r} ${y}a${r} ${r} 0 1 1 ${2 * r} 0a${r} ${r} 0 1 1 ${-2 * r} 0Z`;
+/** 머리를 덮는 짧은 머리 덩어리 (짧은 머리의 뒷모습과 같다) */
+const CAP = "M80 104C72 42 104 16 144 16C184 16 216 42 208 104Q200 124 186 126Q144 120 102 126Q88 124 80 104Z";
+/** 긴 머리 계열의 짧은 옆모습 (앞머리는 긴 머리와 같고 뒤는 귀 아래에서 끝난다) */
+const GIRL_SHORT_SIDE = "M144 16C188 16 212 44 208 98Q196 84 184 70Q162 90 140 86Q134 100 136 122Q126 134 110 134Q88 126 82 104C76 50 104 16 144 16Z";
+const TAIL = "M86 92Q46 104 48 156Q50 196 70 210Q78 172 96 124Z";
+/** 곱슬: 머리 윗부분을 둥근 털뭉치로 덮는다 (cx, 위로 벌어진 정도) */
+const curls = (cx: number, rx: number) => {
+  let d = "";
+  for (let t = 180; t <= 360; t += 22.5) d += circ(Math.round(cx + rx * Math.cos((t * Math.PI) / 180)), Math.round(74 + 56 * Math.sin((t * Math.PI) / 180)), 19);
+  return d;
+};
+/** 곱슬 덩어리 안쪽을 채우는 털뭉치: inside(x, y)인 자리에 22px 간격으로 */
+const curlFill = (inside: (x: number, y: number) => boolean) => {
+  let d = "";
+  for (let y = 30; y <= 124; y += 20) for (let x = 70 + ((y / 20) % 2) * 11; x <= 218; x += 22) if (inside(x, y)) d += circ(x, y, 14);
+  return d;
+};
+const B = HAIRS.boy, G = HAIRS.girl;
+const MORE_HAIRS = {
+  "avatar.hair.buzz": {
+    slot: "hair",
+    hair: { ...B, front: "M82 96q-8-78 62-78q70 0 62 78q-20-20-62-20q-42 0-62 20Z", back: "M82 100C76 44 106 18 144 18C182 18 212 44 206 100Q196 116 144 116Q92 116 82 100Z", side: "M144 18C186 18 210 46 206 92Q192 80 176 78Q150 80 136 90Q132 106 136 120Q124 128 110 128Q90 122 84 102C76 52 104 18 144 18Z" },
+  },
+  "avatar.hair.bowl": {
+    slot: "hair",
+    hair: { ...B, front: "M76 106C70 30 110 12 144 12C178 12 218 30 212 106L196 106L194 82L94 82L92 106Z", back: "M76 106C70 30 110 12 144 12C178 12 218 30 212 106Q200 126 144 126Q88 126 76 106Z", side: "M144 12C186 12 216 40 212 82L190 82Q160 82 140 84Q134 100 136 122Q126 134 110 134Q86 128 78 106C70 44 104 12 144 12Z" },
+  },
+  "avatar.hair.spiky": {
+    slot: "hair",
+    hair: {
+      ...B,
+      front: "M80 100Q72 50 96 34L90 12L114 26L122 4L140 22L156 2L168 24L190 10L190 36Q216 56 208 100Q198 86 192 72Q170 84 146 78Q120 84 98 74Q92 88 80 100Z",
+      back: "M80 104Q72 50 96 34L90 12L114 26L122 4L140 22L156 2L168 24L190 10L190 36Q216 56 208 104Q200 124 186 126Q144 120 102 126Q88 124 80 104Z",
+      side: "M136 16L150 0L160 20L178 6L184 30Q214 50 208 96Q200 82 190 72Q182 84 166 82Q170 74 168 66Q150 84 136 82Q132 100 136 122Q126 134 110 134Q88 126 82 104Q74 64 92 38L78 22L104 22L112 4Z",
+    },
+  },
+  "avatar.hair.curly": {
+    slot: "hair",
+    hair: {
+      ...B,
+      front: "M84 96q-8-78 60-78q68 0 60 78q-24-16-60-16q-36 0-60 16Z" + curls(144, 64) + circ(112, 66, 16) + circ(144, 66, 16) + circ(176, 66, 16),
+      back: B.back + curls(144, 64) + curlFill((x, y) => ((x - 144) / 58) ** 2 + ((y - 72) / 50) ** 2 <= 1) + circ(100, 112, 16) + circ(144, 118, 16) + circ(188, 112, 16),
+      side: B.side + curls(136, 58) + curlFill((x, y) => ((x - 128) / 52) ** 2 + ((y - 72) / 50) ** 2 <= 1 && !(x > 132 && y > 76)) + circ(96, 110, 16) + circ(116, 124, 14),
+    },
+  },
+  "avatar.hair.bob": {
+    slot: "hair",
+    hair: {
+      ...G,
+      front: "M78 100C70 36 106 16 144 16C182 16 218 36 210 100Q216 140 206 158Q144 166 82 158Q72 140 78 100Z",
+      back: "M76 104C70 36 106 14 144 14C182 14 218 36 212 104Q216 140 206 158Q144 166 82 158Q72 140 76 104Z",
+      side: "M144 16C188 16 212 44 208 98Q196 84 184 70Q162 90 140 86Q134 100 136 122L138 150Q138 160 128 160H92Q80 158 80 142L82 104C76 50 104 16 144 16Z",
+    },
+  },
+  "avatar.hair.pigtails": {
+    slot: "hair",
+    hair: { ...G, front: CAP, back: CAP, backShort: true, side: GIRL_SHORT_SIDE, behind: TAIL + mirror(TAIL), sideBehind: "M98 96Q64 110 66 160Q68 198 88 210Q94 172 112 128Z" },
+  },
+  "avatar.hair.ponytail": {
+    slot: "hair",
+    hair: {
+      ...G,
+      front: CAP,
+      backShort: true,
+      // 뒤: 머리 덩어리와 꼬리를 한 줄로 이어 그려 겹친 선이 없다
+      back: "M80 104C72 42 104 16 144 16C184 16 216 42 208 104Q200 124 186 126Q170 124 158 123Q166 160 154 194Q144 204 134 194Q122 160 130 123Q116 124 102 126Q88 124 80 104Z",
+      side: GIRL_SHORT_SIDE,
+      behind: "M200 64Q244 74 240 136Q236 172 220 186Q222 144 204 108Z",
+      backBehind: "", // 뒤에서는 꼬리가 가운데로 내려온다 (back에 그렸다)
+      sideBehind: "M98 58Q58 68 60 124Q62 160 78 174Q82 136 106 100Z",
+    },
+  },
+  "avatar.hair.buns": {
+    slot: "hair",
+    hair: { ...G, front: CAP, back: CAP, backShort: true, side: GIRL_SHORT_SIDE, behind: circ(92, 40, 26) + circ(196, 40, 26), sideBehind: circ(100, 36, 26) },
+  },
+} as const;
+
 export const WEAR_PIECES = {
+  // 헤어 (2026-10-13): 처음 고른 주민의 머리를 떼어 내 누구나 바꿔 쓸 수 있게 했다
+  "avatar.hair.short": { slot: "hair", hair: HAIRS.boy },
+  "avatar.hair.long": { slot: "hair", hair: HAIRS.girl },
+  ...MORE_HAIRS,
   "avatar.top.stripe": { slot: "top", top: { color: "#ffffff", deco: (v: View) => (v === "side" ? recolor(L("M126 168h34M126 184h36M126 200h36", 3), "#4f8fe0") : recolor(L("M116 168h56M114 184h60M114 200h60", 3), "#4f8fe0")) } },
   "avatar.top.hoodie": {
     slot: "top",

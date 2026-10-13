@@ -1,4 +1,4 @@
-// 블로그 관리 기본 정보에서 닉네임 바꾸기 (BLOG-03): 저장·헤더 반영·중복·관리자 닉네임·관리자 본인 저장
+// 블로그 관리 기본 정보에서 닉네임 바꾸기 (BLOG-03): 저장·헤더 반영·중복·관리자 닉네임·관리자 본인 저장·관리자 블로그 이름 고정
 import { chromium } from "@playwright/test";
 import { config } from "dotenv";
 import pg from "pg";
@@ -57,12 +57,18 @@ await admin.getByLabel("아이디").fill(ADMIN.username);
 await admin.getByLabel("비밀번호", { exact: true }).fill(ADMIN.password);
 await admin.getByRole("button", { name: "로그인", exact: true }).click();
 await admin.waitForURL(/town/);
+// 예전에 바꿔 둔 공지 블로그 이름도 저장하면 원래 이름으로 돌아간다
+await db.query("UPDATE blogs SET title = '공지사항' WHERE slug = 'notice'");
 await admin.goto(`${BASE}/settings/blog`);
-// 공지 블로그 이름(BlogCabin 공지사항, 14자)은 12자 제한보다 길어서 짧게 바꿔 저장한다
-await admin.locator('input[name="title"]').fill("공지사항");
+// 공지 블로그 이름(BlogCabin 공지사항)은 고정: 이름 칸이 없고 읽기 전용으로 보여 준다
+check("관리자 블로그 이름은 바꿀 수 없다 (이름 칸 없음)", (await admin.locator('input[name="title"]').count()) === 0);
+await admin.getByText("관리자 블로그 이름은 바꿀 수 없어요").waitFor();
 await admin.getByRole("button", { name: "저장", exact: true }).first().click();
 await admin.getByText("저장했어요 ✓").waitFor();
 check("관리자는 닉네임 '관리자'로 기본 정보를 저장할 수 있다", (await nicknameOf(ADMIN.username)) === "관리자");
+const noticeTitle = (await db.query("SELECT title FROM blogs WHERE slug = 'notice'")).rows[0]?.title;
+check("저장하면 공지 블로그 이름이 'BlogCabin 공지사항'으로 돌아간다", noticeTitle === "BlogCabin 공지사항");
+await admin.screenshot({ path: `${outDir}/admin-title-locked.png` });
 
 // 휴대폰 화면
 const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, storageState: await ctx.storageState() });

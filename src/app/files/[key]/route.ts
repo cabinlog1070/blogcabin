@@ -3,7 +3,7 @@ import { eq, like } from "drizzle-orm";
 import { db } from "@/db";
 import { attachments, blogs, posts } from "@/db/schema";
 import { ATTACHMENT_KEY_RE } from "@/lib/attachments";
-import { canSeePrivatePosts } from "@/server/blog";
+import { canSeePrivatePosts, isPublished } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { getT } from "@/server/i18n";
 import { openAttachment } from "@/server/storage";
@@ -50,11 +50,12 @@ export async function GET(_request: Request, ctx: RouteContext<"/files/[key]">) 
  */
 async function canOpen(key: string, uploaderId: string) {
   const used = await db
-    .select({ visibility: posts.visibility, ownerId: blogs.ownerId })
+    .select({ visibility: posts.visibility, ownerId: blogs.ownerId, published: isPublished })
     .from(posts)
     .innerJoin(blogs, eq(blogs.id, posts.blogId))
     .where(like(posts.contentHtml, `%/files/${key}%`));
-  if (used.some((p) => p.visibility === "public")) return true;
+  // 아직 안 올라간 예약 글(POST-11)은 공개 글이어도 비공개 글처럼 다룬다
+  if (used.some((p) => p.visibility === "public" && p.published)) return true;
   const viewer = await getViewer();
   const me = viewer?.profile ? viewer.userId : null;
   if (!me) return false;

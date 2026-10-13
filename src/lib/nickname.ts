@@ -10,3 +10,6 @@ export const nicknameSchema = z
 
 /** 관리자 계정의 닉네임 (AUTH-08). 회원은 쓸 수 없다 */
 export const ADMIN_NICKNAME = "관리자";
+
+/** 관리자 공지 블로그(/@notice)의 이름. 관리자도 블로그 관리에서 바꿀 수 없다 (BLOG-03) */
+export const ADMIN_BLOG_TITLE = "BlogCabin 공지사항";

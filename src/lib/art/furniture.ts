@@ -44,6 +44,40 @@ export function furnitureInfo(key: string) {
   return { heightPct: HEIGHT_PCT[assetKey] ?? 24, aspect: w / h, flat: FURN_FLAT.has(assetKey) };
 }
 
+/** 벽 장식 (SHOP-05, 2026-10-13): 바닥이 아니라 벽에 붙이는 가구 */
+export const WALL_FURNITURE = new Set(["furn.rocket", "furn.cloud", "furn.rainbow"]);
+export const isWallFurniture = (key: string) => WALL_FURNITURE.has(parseFurnitureKey(key).assetKey);
+
+/** 미니룸 배경(crayon.ts room, 1040×520)에서 벽 장식이 가리면 안 되는 곳 (미니룸 기준 %).
+ *  창문은 커튼·창턱까지, 액자는 거는 끈까지. 바닥선은 y 370/520 */
+const WALL_BLOCKS = [
+  { x0: 3, x1: 29.5, y0: 9, y1: 50 }, // 창문
+  { x0: 78.5, x1: 91.5, y0: 12, y1: 37 }, // 액자
+];
+const WALL_BOTTOM = 71;
+
+/** 벽 장식 자리 맞추기: 벽 안에 들어가고 창문·액자와 겹치지 않는 곳 중에서 놓은 자리에 가장 가까운 곳.
+ *  다른 가구는 그대로 돌려준다. 서버 저장과 그리기(예전에 놓은 자리) 모두 이것을 거친다 */
+export function fitRoomSpot(key: string, x: number, y: number): { x: number; y: number } {
+  if (!isWallFurniture(key)) return { x, y };
+  const { heightPct, aspect } = furnitureInfo(key);
+  const hh = heightPct / 2;
+  const hw = (heightPct * aspect) / 4; // 미니룸은 2:1이라 너비 % = 높이 % × 비율 ÷ 2
+  const fits = (cx: number, cy: number) =>
+    cx - hw >= 0 && cx + hw <= 100 && cy - hh >= 0 && cy + hh <= WALL_BOTTOM &&
+    WALL_BLOCKS.every((b) => cx + hw <= b.x0 || cx - hw >= b.x1 || cy + hh <= b.y0 || cy - hh >= b.y1);
+  if (fits(x, y)) return { x, y };
+  let best: { x: number; y: number } | null = null;
+  let bestD = Infinity;
+  for (let cx = 0; cx <= 100; cx += 0.5) {
+    for (let cy = 0; cy <= WALL_BOTTOM; cy += 0.5) {
+      const d = (cx - x) ** 2 + ((cy - y) / 2) ** 2; // 미니룸은 2:1이라 세로 %는 절반 거리
+      if (d < bestD && fits(cx, cy)) [best, bestD] = [{ x: cx, y: cy }, d];
+    }
+  }
+  return best ?? { x: 54, y: Math.min(WALL_BOTTOM - hh, Math.max(hh, y)) };
+}
+
 /** 같은 가구는 한 번만 그린다 */
 const cache = new Map<string, string>();
 

@@ -76,7 +76,7 @@ async function onboard(page, nick, slug) {
   await page.locator('input[name="nickname"]').fill(nick);
   await page.locator('input[name="blogTitle"]').fill(`${nick}집`.slice(0, 12));
   await page.locator('input[name="slug"]').fill(slug);
-  await page.locator("label", { hasText: "남자 주민" }).click();
+  await page.locator("label", { hasText: "짧은 머리" }).click();
   await page.getByRole("button", { name: /광장으로 출발/ }).click();
   await page.waitForURL(/town/);
 }

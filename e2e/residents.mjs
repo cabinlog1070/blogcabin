@@ -1,6 +1,6 @@
 // TOWN-12 광장 이웃 주민: 즐겨찾기한 이웃이 펫과 함께 광장을 돌아다니고, 가까이 가면 상태 메시지 말풍선이 뜬다.
 // 무작위 동작(걷기·의자에 앉기·기타·노래·펫 쓰다듬기·꽃에 물 주기·마시멜로)이 하나씩 나오는지 지켜본다.
-// 블로그 관리에서 상태 메시지를 저장할 수 있다 (30자까지, 비우면 지워진다).
+// 블로그 관리에서 상태 메시지를 저장할 수 있다 (30자까지, 이모티콘은 안 됨, 비우면 지워진다).
 // 사용: 개발 서버를 띄운 상태에서 node e2e/residents.mjs <스크린샷 폴더> (실행마다 새 회원)
 import { mkdirSync } from "node:fs";
 import { chromium } from "@playwright/test";
@@ -104,6 +104,9 @@ for (let i = 0; i < 14 && !bubble; i++) {
   bubble = (await canvas.getAttribute("data-bubble")) ?? "";
 }
 check("상태 메시지가 있는 이웃에게 다가가면 말풍선이 뜬다", bubble !== "", bubble);
+// 이모티콘을 막기 전에 저장된 메시지(🎸)는 말풍선에서 이모티콘을 빼고 보여 준다
+const bubbleText = (await canvas.getAttribute("data-bubble-text")) ?? "";
+check("말풍선에서 이모티콘이 빠진다", bubble !== target || bubbleText === "오늘은 캠프파이어 앞에서 기타 연습", bubbleText);
 await page.screenshot({ path: `${outDir}/residents-bubble.png` });
 
 // ── 블로그 관리: 상태 메시지 저장 ──
@@ -114,6 +117,12 @@ await page.getByRole("button", { name: "저장", exact: true }).first().click();
 await page.getByText("저장했어요 ✓").waitFor();
 check("블로그 관리에서 상태 메시지를 저장한다", (await one("SELECT status_message FROM profiles WHERE user_id = $1", [uid])).status_message === "광장에서 만나요");
 check("상태 메시지는 30자까지 (입력 칸 maxlength)", (await field.getAttribute("maxlength")) === "30");
+check("입력 칸 아래에 이모티콘 안내가 있다", await page.getByText("이모티콘은 말풍선에서 깨져 보여서 쓸 수 없어요").isVisible());
+await field.fill("광장에서 만나요 💕");
+await page.getByRole("button", { name: "저장", exact: true }).first().click();
+await page.getByText("상태 메시지에는 이모티콘을 쓸 수 없어요").waitFor();
+check("이모티콘이 든 상태 메시지는 저장되지 않는다", (await one("SELECT status_message FROM profiles WHERE user_id = $1", [uid])).status_message === "광장에서 만나요");
+await page.screenshot({ path: `${outDir}/residents-emoji.png` });
 await field.fill("");
 await page.getByRole("button", { name: "저장", exact: true }).first().click();
 await page.waitForTimeout(800);

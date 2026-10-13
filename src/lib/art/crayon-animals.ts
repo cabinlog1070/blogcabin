@@ -9,7 +9,7 @@ export type AnimalKind =
   | "puppy" | "tiger" | "dragon" | "raccoon" | "monkey" | "cat" | "bear" | "fox" | "hamster" | "unicorn" | "wolf" | "turtle" | "dino" | "mole";
 export type Stage = "baby" | "teen" | "adult";
 export type Acc = "none" | "ribbon" | "flower" | "scarf";
-export type Coat = "default" | "brown" | "yellow" | "red" | "black" | "white" | "pink";
+export type Coat = "default" | "brown" | "yellow" | "red" | "black" | "white" | "pink" | "orange" | "mint" | "sky" | "purple" | "gray" | "green";
 
 /** 고를 수 있는 몸 색 (파스텔) */
 const COATS: Record<Exclude<Coat, "default">, string> = {
@@ -19,6 +19,13 @@ const COATS: Record<Exclude<Coat, "default">, string> = {
   black: "#3f3735",
   white: "#fbf8f1",
   pink: "#f7b8c8",
+  // 2026-10-13 더한 색
+  orange: "#ffb36b",
+  mint: "#a8e6cf",
+  sky: "#9fd3f0",
+  purple: "#c9a8ea",
+  gray: "#b8b2ae",
+  green: "#a6d98a",
 };
 
 const recolor = (s: string, c: string) => s.replace(/#262220/g, c);

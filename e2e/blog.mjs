@@ -64,7 +64,7 @@ if (tagLength !== 300) throw new Error(`태그 칸이 300자에서 멈추지 않
 const ctxB = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const b = await ctxB.newPage();
 const errB = collectErrors(b);
-await loginDev(b, "tester2", "여자 주민");
+await loginDev(b, "tester2", "긴 머리");
 const bBefore = await coins(b);
 await b.goto(postUrl);
 await b.getByRole("button", { name: /공감/ }).click();

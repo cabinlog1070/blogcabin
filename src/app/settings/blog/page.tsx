@@ -3,6 +3,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { accounts, profiles } from "@/db/schema";
 import { WithdrawForm } from "@/app/settings/account/withdraw-form";
+import { ADMIN_BLOG_TITLE } from "@/lib/nickname";
 import { getBlogByOwner, getCategories } from "@/server/blog";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
@@ -18,7 +19,8 @@ export default async function BlogSettingsPage() {
   const t = await getT();
   const blog = await getBlogByOwner(viewer.userId);
   if (!blog) return null;
-  const cats = await getCategories(blog.id, true);
+  const cats = await getCategories(blog.id, true, true);
+  const isAdmin = viewer.user.role === "admin";
   // 아이디로 가입한 회원은 탈퇴할 때 비밀번호를 다시 입력한다 (AUTH-06)
   const [credential] = await db
     .select({ id: accounts.id })
@@ -35,7 +37,13 @@ export default async function BlogSettingsPage() {
 
       <section className="card mt-6 p-6">
         <h2 className="mb-4 font-display text-xl">{t("기본 정보")}</h2>
-        <BlogInfoForm nickname={viewer.profile.nickname} title={blog.title} description={blog.description} statusMessage={statusMessage} />
+        <BlogInfoForm
+          nickname={viewer.profile.nickname}
+          title={isAdmin ? ADMIN_BLOG_TITLE : blog.title}
+          titleLocked={isAdmin}
+          description={blog.description}
+          statusMessage={statusMessage}
+        />
         <p className="mt-3 text-sm text-ink-soft">{t("블로그 주소: {address} (주소는 바꿀 수 없어요)", { address: `/@${blog.slug}` })}</p>
       </section>
 
