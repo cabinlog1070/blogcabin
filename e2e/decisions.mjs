@@ -36,8 +36,8 @@ await page.locator("[data-save-closet]").click();
 const saved = await page.getByRole("status").filter({ hasText: "저장했어요" }).waitFor({ timeout: 5000 }).then(() => true).catch(() => false);
 check("SHOP-04 장착하면 '저장했어요' 표시", saved);
 await page.screenshot({ path: `${outDir}/50-closet-saved.png` });
-await page.waitForTimeout(2300);
-check("SHOP-04 '저장했어요'는 2초 뒤 사라짐", !(await page.getByRole("status").innerText()).includes("저장했어요"));
+await page.waitForTimeout(3300);
+check("SHOP-04 '저장했어요'는 3초 뒤 사라짐", !(await page.getByRole("status").innerText()).includes("저장했어요"));
 
 // ── GAME-04: 달이 바뀌어도 연속 일수가 맞게 보이고, 7일째 보너스 ──
 const uid = await userId("decide01");

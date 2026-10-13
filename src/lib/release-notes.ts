@@ -6,13 +6,25 @@
 // - kind: new(새 기능) · improved(바뀐 점) · fixed(고친 문제)
 // - text: 주민이 알아듣는 쉬운 말로 한 문장. 파일 이름·함수·마이그레이션 같은 개발 용어는 쓰지 않는다
 // - admin: true면 관리자만 쓰는 기능 (화면에 '관리자' 표시)
+// - images: 바뀐 모습을 보여 주는 화면 사진 (넣고 싶을 때만). 파일은 public/release-notes/<버전>/ 에 webp로 두고(가로 1200px 안쪽),
+//   src는 "/release-notes/1.19.0/shop.webp"처럼 쓴다. alt는 사진을 말로 한 줄(msg()로 감싸고 일본어도 넣는다).
+//   before에 바뀌기 전 사진을 같이 넣으면 화면에 [전]·[후]로 나란히 보인다
 // 화면에 보이지 않는 배포·DB 작업만 바뀐 날은 적지 않아도 된다.
 // 문장은 msg()로 감싸고 일본어를 src/lib/i18n/ja/release-notes.ts에 같이 넣는다 (npm run test:i18n이 확인한다).
 import { msg } from "@/lib/i18n";
 
 export type ReleaseChangeKind = "new" | "improved" | "fixed";
 
-export type ReleaseChange = { kind: ReleaseChangeKind; text: string; admin?: boolean };
+export type ReleaseImage = {
+  /** public 아래 경로, "/release-notes/<버전>/이름.webp" */
+  src: string;
+  /** 사진을 말로 한 줄 (msg) */
+  alt: string;
+  /** 바뀌기 전 사진 (있으면 전·후로 나란히) */
+  before?: string;
+};
+
+export type ReleaseChange = { kind: ReleaseChangeKind; text: string; admin?: boolean; images?: ReleaseImage[] };
 
 export type ReleaseVersion = {
   version: string;
@@ -38,7 +50,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
-        version: "1.30.0",
+        version: "1.32.0",
         title: msg("꾸미기 머리 색과 펫 알 선물"),
         changes: [
           { kind: "new", text: msg("꾸미기의 헤어 칸에서도 머리 색을 고를 수 있어요. 고른 색은 [저장하기]를 누르면 광장과 미니룸에 보여요.") },
@@ -49,25 +61,54 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         ],
       },
       {
+        version: "1.31.0",
+        title: msg("물가에서 낚시하는 이웃"),
+        changes: [
+          { kind: "new", text: msg("광장을 돌아다니는 이웃이 가끔 아래 물가에 서서 낚시를 해요. 운이 좋으면 물고기를 낚아요."), images: [{ src: "/release-notes/1.31.0/fishing.webp", alt: msg("물가에서 낚싯대를 드리운 이웃") }] },
+          { kind: "new", text: msg("저녁에 불꽃놀이가 터지면 이웃 한두 명이 광장 위쪽으로 가서 하늘을 올려다보며 구경해요."), images: [{ src: "/release-notes/1.31.0/fireworks.webp", alt: msg("불꽃놀이를 올려다보는 이웃") }] },
+          { kind: "improved", text: msg("캠프파이어에서 마시멜로를 굽는 이웃은 한 번에 두 명까지예요.") },
+        ],
+      },
+      {
+        version: "1.30.0",
+        title: msg("휴대폰 조이스틱"),
+        changes: [
+          { kind: "new", text: msg("휴대폰·태블릿 광장에서 화면을 누르면 그 자리에 반투명 조이스틱이 나타나요. 누른 채 밀면 그쪽으로 걷고, 손을 떼면 조이스틱이 사라져요."), images: [{ src: "/release-notes/1.30.0/joystick.webp", alt: msg("누른 자리에 나타난 반투명 조이스틱") }] },
+          { kind: "improved", text: msg("끌지 않고 톡 치면 예전처럼 그곳으로 걸어가거나 건물에 들어가요. 태블릿 왼쪽 아래에 늘 떠 있던 조이스틱은 없어졌어요.") },
+        ],
+      },
+      {
+        version: "1.29.2",
+        title: msg("상점 저장하기 다듬기"),
+        changes: [{ kind: "improved", text: msg("상점에서 [저장하기]를 눌러도 광장으로 나가지 않고 상점에 그대로 있어요. 입어 보거나 머리 색을 골라 본 것은 [저장하기]를 눌러야 저장되고, 누르지 않고 나가면 원래 모습 그대로예요."), images: [{ src: "/release-notes/1.29.2/shop-saved.webp", alt: msg("저장한 뒤 상점에 그대로 있는 화면") }] }],
+      },
+      {
+        version: "1.29.1",
+        title: msg("알림 3초 뒤 사라짐"),
+        changes: [
+          { kind: "improved", text: msg("상점에서 산 뒤, 꾸미기·즐겨찾기·이웃 저장·초대 링크 복사 뒤에 뜨는 알림도 농장처럼 3초 뒤에 저절로 사라져요.") },
+        ],
+      },
+      {
         version: "1.29.0",
         title: msg("관리자 선물"),
         changes: [
-          { kind: "new", text: msg("관리자가 보낸 선물이 도착하면 알림과 함께 선물 팝업이 떠요. 관리자가 적은 말과 받은 코인·아이템을 보여 주고, 받은 아이템은 바로 내 것이 돼요.") },
-          { kind: "new", text: msg("관리자 화면에서 주민을 한 명 이상(또는 모든 주민) 골라 코인과 아이템을 선물하고, 보낼 때마다 함께 보낼 말을 적을 수 있어요."), admin: true },
+          { kind: "new", text: msg("관리자가 보낸 선물이 도착하면 알림과 함께 선물 팝업이 떠요. 관리자가 적은 말과 받은 코인·아이템을 보여 주고, 받은 아이템은 바로 내 것이 돼요."), images: [{ src: "/release-notes/1.29.0/gift-popup.webp", alt: msg("선물이 도착하면 뜨는 팝업") }] },
+          { kind: "new", text: msg("관리자 화면에서 주민을 한 명 이상(또는 모든 주민) 골라 코인과 아이템을 선물하고, 보낼 때마다 함께 보낼 말을 적을 수 있어요."), admin: true, images: [{ src: "/release-notes/1.29.0/gift-admin.webp", alt: msg("관리자 화면의 선물 보내기") }] },
         ],
       },
       {
         version: "1.28.0",
         title: msg("관리자 글 관리"),
         changes: [
-          { kind: "new", text: msg("관리자 화면에 글 관리가 생겼어요. 기간 제한 없이 모든 글과 댓글을 탭으로 나눠 최신순으로 보고, 찾고, 지울 수 있어요."), admin: true },
+          { kind: "new", text: msg("관리자 화면에 글 관리가 생겼어요. 기간 제한 없이 모든 글과 댓글을 탭으로 나눠 최신순으로 보고, 찾고, 지울 수 있어요."), admin: true, images: [{ src: "/release-notes/1.28.0/admin-posts.webp", alt: msg("관리자 화면의 글 관리") }] },
         ],
       },
       {
         version: "1.27.0",
         title: msg("반딧불이가 날아다니는 저녁 광장"),
         changes: [
-          { kind: "new", text: msg("저녁부터 밤까지 광장과 숲 위로 반딧불이가 은은하게 깜빡이며 떠다녀요.") },
+          { kind: "new", text: msg("저녁부터 밤까지 광장과 숲 위로 반딧불이가 은은하게 깜빡이며 떠다녀요."), images: [{ src: "/release-notes/1.27.0/fireflies.webp", alt: msg("저녁 광장에 떠다니는 반딧불이") }] },
           { kind: "improved", text: msg("밤 광장의 가로등 불빛을 연하게 바꿨어요.") },
         ],
       },
@@ -94,7 +135,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         version: "1.26.0",
         title: msg("댓글 고치기"),
         changes: [
-          { kind: "new", text: msg("내가 남긴 댓글과 답글을 [수정]으로 고칠 수 있어요. 고친 댓글에는 작은 '수정됨' 표시가 붙어요.") },
+          { kind: "new", text: msg("내가 남긴 댓글과 답글을 [수정]으로 고칠 수 있어요. 고친 댓글에는 작은 '수정됨' 표시가 붙어요."), images: [{ src: "/release-notes/1.26.0/comment-edit.webp", alt: msg("'수정됨' 표시가 붙은 댓글과 답글") }] },
         ],
       },
       {
@@ -102,14 +143,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         title: msg("새 머리 스타일과 머리 색"),
         changes: [
           { kind: "new", text: msg("상점 헤어에 새 머리 스타일 8가지가 들어왔어요: 스포츠 머리, 바가지 머리, 단발, 삐죽 머리, 양갈래, 포니테일, 곱슬 머리, 양쪽 똥머리.") },
-          { kind: "new", text: msg("상점 헤어 탭에서 머리 색을 무료로 바꿀 수 있어요. 검정, 갈색, 밝은 갈색, 금발, 빨강, 분홍, 파랑, 보라, 민트 중에서 고르면 바로 광장 캐릭터에도 보여요.") },
+          { kind: "new", text: msg("상점 헤어 탭에서 머리 색을 무료로 바꿀 수 있어요. 검정, 갈색, 밝은 갈색, 금발, 빨강, 분홍, 파랑, 보라, 민트 중에서 고르면 바로 광장 캐릭터에도 보여요."), images: [{ src: "/release-notes/1.25.0/hair-shop.webp", alt: msg("상점 헤어 탭의 머리 색과 새 머리 스타일") }] },
         ],
       },
       {
         version: "1.24.0",
         title: msg("새로워진 꾸미기 화면"),
         changes: [
-          { kind: "new", text: msg("꾸미기 화면이 캐릭터 꾸미기, 미니룸 꾸미기, 집 테마 세 칸으로 나뉘었어요. 컴퓨터에서는 왼쪽에 미니룸을 보면서 오른쪽에서 골라요.") },
+          { kind: "new", text: msg("꾸미기 화면이 캐릭터 꾸미기, 미니룸 꾸미기, 집 테마 세 칸으로 나뉘었어요. 컴퓨터에서는 왼쪽에 미니룸을 보면서 오른쪽에서 골라요."), images: [{ src: "/release-notes/1.24.0/closet.webp", alt: msg("세 칸으로 나뉜 꾸미기 화면") }] },
           { kind: "new", text: msg("캐릭터 꾸미기는 상점처럼 헤어·모자·상의·하의·신발로 나뉘어 있어요.") },
           { kind: "new", text: msg("미니룸에서 가구를 누르면 바로 그 가구의 색을 바꿀 수 있어요. 가구는 바닥 가구와 벽 장식으로 나뉘어 있어요.") },
           { kind: "improved", text: msg("이것저것 골라 입어 보고 꾸며 본 뒤, 저장하기를 눌러야 저장돼요. 마음에 안 들면 되돌리기를 누르세요.") },
@@ -119,7 +160,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         version: "1.23.0",
         title: msg("머리 바꾸기"),
         changes: [
-          { kind: "new", text: msg("캐릭터 꾸미기에 헤어가 생겼어요. 처음 고른 머리를 그대로 갖고 시작하고, 짧은 머리와 긴 머리는 상점에서 0코인에 받아 언제든 바꿔 쓸 수 있어요.") },
+          { kind: "new", text: msg("캐릭터 꾸미기에 헤어가 생겼어요. 처음 고른 머리를 그대로 갖고 시작하고, 짧은 머리와 긴 머리는 상점에서 0코인에 받아 언제든 바꿔 쓸 수 있어요."), images: [{ src: "/release-notes/1.23.0/hair.webp", alt: msg("캐릭터 꾸미기의 헤어 칸") }] },
         ],
       },
       {
@@ -134,7 +175,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         version: "1.22.0",
         title: msg("글 예약 발행"),
         changes: [
-          { kind: "new", text: msg("글쓰기에서 [⏰ 예약하기]를 누르고 날짜와 시간(한국 시간)을 정하면, 그 시간에 글이 올라가요. 올라가기 전까지는 내 블로그에서 나만 볼 수 있고, 시간을 바꾸거나 바로 올릴 수도 있어요.") },
+          { kind: "new", text: msg("글쓰기에서 [⏰ 예약하기]를 누르고 날짜와 시간(한국 시간)을 정하면, 그 시간에 글이 올라가요. 올라가기 전까지는 내 블로그에서 나만 볼 수 있고, 시간을 바꾸거나 바로 올릴 수도 있어요."), images: [{ src: "/release-notes/1.22.0/schedule.webp", alt: msg("글쓰기 화면의 예약하기") }] },
           { kind: "new", text: msg("공지 글을 올릴 때 광장 게시판 맨 위에 몇 시간 걸어 둘지 고를 수 있어요. 걸지 않기부터 7일까지 고를 수 있어요."), admin: true },
         ],
       },
@@ -142,7 +183,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         version: "1.21.0",
         title: msg("옷 종류별로 보는 상점"),
         changes: [
-          { kind: "new", text: msg("상점의 아바타 꾸미기를 헤어, 모자, 상의, 하의, 신발로 나눠서 볼 수 있어요. 기모노처럼 한 벌로 된 옷은 상의에 있어요.") },
+          { kind: "new", text: msg("상점의 아바타 꾸미기를 헤어, 모자, 상의, 하의, 신발로 나눠서 볼 수 있어요. 기모노처럼 한 벌로 된 옷은 상의에 있어요."), images: [{ src: "/release-notes/1.21.0/shop-tabs.webp", alt: msg("옷 종류별로 나뉜 상점") }] },
           { kind: "new", text: msg("미리 입어 본 옷을 [저장하기]로 바로 입고 광장에 나갈 수 있어요. 아직 없는 옷은 그때 한꺼번에 사요.") },
         ],
       },
@@ -151,7 +192,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         title: msg("내 마음대로 꾸미는 미니룸"),
         changes: [
           { kind: "new", text: msg("꾸미기 화면의 미니룸에서 내 캐릭터를 끌어 원하는 자리에 세울 수 있어요.") },
-          { kind: "new", text: msg("데리고 다니는 펫을 미니룸에 놓으면 방 안을 자유롭게 돌아다녀요. 미니룸 밖으로 끌어내면 다시 캐릭터 옆으로 와요.") },
+          { kind: "new", text: msg("데리고 다니는 펫을 미니룸에 놓으면 방 안을 자유롭게 돌아다녀요. 미니룸 밖으로 끌어내면 다시 캐릭터 옆으로 와요."), images: [{ src: "/release-notes/1.20.0/miniroom-pet.webp", alt: msg("미니룸을 돌아다니는 펫") }] },
           { kind: "improved", text: msg("미니룸에 놓을 수 있는 가구 수 제한(5개)이 없어졌어요. 가진 가구를 모두 꺼내 방을 꾸며 보세요.") },
           { kind: "improved", text: msg("우주선·구름·무지개는 벽에만 붙고, 창문과 액자를 가리지 않는 자리로 놓여요.") },
         ],
@@ -160,9 +201,9 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         version: "1.19.0",
         title: msg("펫 골라서 꾸미기"),
         changes: [
-          { kind: "new", text: msg("펫 꾸미기 창에서 농장 펫이나 다 자란 동물 카드를 하나 골라 꾸미기, 색, 이름을 한곳에서 바꿀 수 있어요. 상태창의 [꾸미기 · 이름 · 색 바꾸기] 버튼으로도 바로 열려요.") },
-          { kind: "improved", text: msg("다 자란 동물 카드가 카드 도감 칸에 바로 들어가요. 같은 동물 카드가 여러 장이면 칸에 장수가 붙고, 누르면 골라 볼 수 있어요.") },
-          { kind: "new", text: msg("알 받기 칸 오른쪽 위의 i 버튼을 누르면 알에서 어떤 펫이 몇 % 확률로 나오는지 볼 수 있어요.") },
+          { kind: "new", text: msg("펫 꾸미기 창에서 농장 펫이나 다 자란 동물 카드를 하나 골라 꾸미기, 색, 이름을 한곳에서 바꿀 수 있어요. 상태창의 [꾸미기 · 이름 · 색 바꾸기] 버튼으로도 바로 열려요."), images: [{ src: "/release-notes/1.19.0/pet-decorate.webp", alt: msg("펫 꾸미기 창") }] },
+          { kind: "improved", text: msg("다 자란 동물 카드가 카드 도감 칸에 바로 들어가요. 같은 동물 카드가 여러 장이면 칸에 장수가 붙고, 누르면 골라 볼 수 있어요."), images: [{ src: "/release-notes/1.19.0/card-book.webp", alt: msg("카드 도감") }] },
+          { kind: "new", text: msg("알 받기 칸 오른쪽 위의 i 버튼을 누르면 알에서 어떤 펫이 몇 % 확률로 나오는지 볼 수 있어요."), images: [{ src: "/release-notes/1.19.0/hatch-odds.webp", alt: msg("알에서 나오는 펫 확률") }] },
           { kind: "new", text: msg("펫 색이 6가지 더 생겼어요: 주황색, 민트색, 하늘색, 보라색, 회색, 초록색.") },
           { kind: "improved", text: msg("농장 위쪽에 뜨는 알림은 3초 뒤에 저절로 사라져요.") },
           { kind: "improved", text: msg("알 둥지에 삐져나와 있던 갈색 나뭇가지를 치워 깔끔한 짚 둥지로 바꿨어요.") },
@@ -172,7 +213,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         version: "1.18.2",
         title: msg("간결해진 첫 화면과 시작 캐릭터"),
         changes: [
-          { kind: "improved", text: msg("휴대폰 첫 화면이 간결해졌어요. 소개 글 없이 로그인이 맨 위에 있고, 두 주민 사이에 BlogCabin 로고가 있어요.") },
+          { kind: "improved", text: msg("휴대폰 첫 화면이 간결해졌어요. 소개 글 없이 로그인이 맨 위에 있고, 두 주민 사이에 BlogCabin 로고가 있어요."), images: [{ src: "/release-notes/1.18.2/landing-phone.webp", alt: msg("간결해진 휴대폰 첫 화면") }] },
           { kind: "improved", text: msg("로그인 전 화면 위쪽의 [시작하기] 버튼을 없앴어요.") },
           { kind: "improved", text: msg("처음 고르는 캐릭터 이름이 남자·여자 주민에서 짧은 머리·긴 머리로 바뀌었어요.") },
           { kind: "fixed", text: msg("긴 머리 주민 얼굴에 머리색이 비쳐 얼굴이 어둡게 보이던 문제를 고쳤어요.") },
@@ -182,7 +223,7 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         version: "1.18.1",
         title: msg("공지사항 블로그 이름 고정"),
         changes: [
-          { kind: "improved", text: msg("공지사항 블로그 이름은 이제 고정돼서 블로그 관리에서 바꿀 수 없어요."), admin: true },
+          { kind: "improved", text: msg("공지사항 블로그 이름은 이제 고정돼서 블로그 관리에서 바꿀 수 없어요."), admin: true, images: [{ src: "/release-notes/1.18.1/admin-title.webp", alt: msg("바꿀 수 없게 된 공지사항 블로그 이름") }] },
           { kind: "fixed", text: msg("관리자가 블로그 관리 기본 정보를 저장할 때 블로그 이름이 12자를 넘는다며 저장되지 않던 문제를 고쳤어요."), admin: true },
         ],
       },

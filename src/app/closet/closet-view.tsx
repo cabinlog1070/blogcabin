@@ -28,6 +28,7 @@ import { HOUSE_STAGES, houseSvg, ROOF_COLORS, roofHex, type HouseStage, type Roo
 import { msg } from "@/lib/i18n";
 import { clampCharacterSpot, clampPct, clampPetSpot, CLOSET_TABS, ROOM_CHARACTER_SPOT, type ClosetTab, type ItemType, type RoomSpot } from "@/lib/shop";
 import { saveCloset, type ClosetDraft } from "./actions";
+import { useAutoClear } from "@/components/use-auto-clear";
 
 type OwnedItem = { id: number; type: ItemType; slot: string | null; name: string; assetKey: string; color?: string | null };
 type Message = { ok: boolean; text: string } | null;
@@ -143,12 +144,8 @@ export function ClosetView({
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const update = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
 
-  // "저장했어요"는 2초 뒤에 사라진다
-  useEffect(() => {
-    if (!message?.ok) return;
-    const timer = setTimeout(() => setMessage(null), 2000);
-    return () => clearTimeout(timer);
-  }, [message]);
+  // 알림 문구는 3초 뒤에 사라진다
+  useAutoClear(message, () => setMessage(null));
 
   // 저장하지 않고 창을 닫거나 새로고침하면 브라우저가 한 번 묻는다
   useEffect(() => {

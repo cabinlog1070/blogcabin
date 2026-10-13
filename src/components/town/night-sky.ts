@@ -135,6 +135,8 @@ export function createNightSky(scene: PhaserNS.Scene, Phaser: typeof PhaserNS, a
   }
 
   return {
+    /** 지금 불꽃놀이가 터지는가 (밤이고 "동작 줄이기"가 꺼져 있을 때) */
+    fireworks: () => !still && night >= 0.5,
     /** 0 = 낮(안 보임) ~ 1 = 밤 */
     setNight(n: number) {
       night = n;

@@ -10,8 +10,9 @@ import { HAIR_COLORS, HAIR_COLOR_KEYS, HAIR_DEFAULT_SWATCH, paintedHairKey, type
 import { canWear, composeLook, MANNEQUIN, SLOT_LABEL, SLOT_ORDER, type AvatarSlot } from "@/lib/assets";
 import { msg } from "@/lib/i18n";
 import { SORTS, sortItems, type ItemType, type SortKey } from "@/lib/shop";
-import { saveTriedLook, setHairColor } from "./actions";
+import { saveTriedLook } from "./actions";
 import { ShopGrid, type ShopItem } from "./shop-grid";
+import { useAutoClear } from "@/components/use-auto-clear";
 
 /** 옷 카테고리 탭 (2026-10-13): 전체 + 헤어·모자·상의·하의·신발. 한 벌로 된 옷(기모노)은 상의에 있다.
  *  헤어 탭 아래에는 머리 색 동그라미가 있다 */
@@ -101,19 +102,26 @@ function AvatarSection({
   const [category, setCategory] = useState<Category>("all");
   const [saving, startSave] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // 머리 색도 입어 보기처럼: 고르면 미리 보기만 바뀌고 [저장하기]를 눌러야 저장된다
   const [hairColor, setHairColorState] = useState<string | null>(savedHairColor);
-  const [hairSaved, setHairSaved] = useState(false);
+  // 저장한 모습은 여기서 바로 바꿔 둔다 (새로 받아 오는 화면을 기다리지 않게)
+  const [worn, setWorn] = useState(wornAssets);
+  const [savedHair, setSavedHair] = useState(savedHairColor);
+  const [saved, setSaved] = useState(false);
+  useAutoClear(saved, () => setSaved(false));
+  useAutoClear(error, () => setError(null));
+  const hairChanged = hairColor !== savedHair;
 
   const slotOf = (assetKey: string) => items.find((i) => i.assetKey === assetKey)?.slot;
   // 지금 입은 것에서 입어 본 부위만 바꾼다
-  const looks = SLOT_ORDER.map((slot) => tried[slot]?.assetKey ?? wornAssets.find((a) => slotOf(a) === slot))
+  const looks = SLOT_ORDER.map((slot) => tried[slot]?.assetKey ?? worn.find((a) => slotOf(a) === slot))
     .filter((a): a is string => Boolean(a))
     .map((a) => paintedHairKey(a, hairColor));
   const triedList = SLOT_ORDER.map((s) => tried[s]).filter((i): i is ShopItem => Boolean(i));
   const inCategory = (c: Category) => (c === "all" ? items : items.filter((i) => (i.slot as string | null) === c));
   const shown = inCategory(category);
 
-  // 저장하기: 없는 옷은 한꺼번에 사고, 입어 본 그대로 입은 채 광장으로 나간다
+  // 저장하기: 없는 옷은 한꺼번에 사고, 입어 본 그대로 저장한다. 상점에 그대로 남고, 저장하지 않고 나가면 아무것도 남지 않는다
   const cost = triedList.filter((i) => !i.owned).reduce((sum, i) => sum + i.price, 0);
   const lockedTried = triedList.find((i) => level < i.requiredLevel);
   const short = cost > coins;
@@ -127,26 +135,36 @@ function AvatarSection({
     if (!item.slot) return;
     const slot = item.slot;
     setError(null);
+    setSaved(false);
     setTried((prev) => ({ ...prev, [slot]: prev[slot]?.id === item.id ? undefined : item }));
   }
 
-  // 머리 색: 누르면 바로 저장한다 (무료). 입어 보는 헤어에도 같은 색으로 보인다
   function pickHairColor(color: HairColor | null) {
-    const before = hairColor;
+    setError(null);
+    setSaved(false);
     setHairColorState(color);
-    setHairSaved(false);
-    startSave(async () => {
-      const r = await setHairColor(color);
-      if (!r.ok) return (setHairColorState(before), setError(r.error ?? null));
-      setHairSaved(true);
-    });
+  }
+
+  function reset() {
+    setTried({});
+    setHairColorState(savedHair);
+    setError(null);
   }
 
   function save() {
     startSave(async () => {
-      const r = await saveTriedLook(triedList.map((i) => i.id));
+      const r = await saveTriedLook(
+        triedList.map((i) => i.id),
+        hairChanged ? hairColor : undefined,
+      );
       if (!r.ok) return setError(r.error);
-      router.push("/town");
+      // 입어 보던 옷이 이제 입은 옷이 된다. 코인·보유 표시·헤더는 새로 받아 온다
+      const triedSlots = new Set(triedList.map((i) => i.slot));
+      setWorn((prev) => [...prev.filter((a) => !triedSlots.has(slotOf(a) ?? null)), ...triedList.map((i) => i.assetKey)]);
+      setSavedHair(hairColor);
+      setTried({});
+      router.refresh();
+      setSaved(true);
     });
   }
 
@@ -165,7 +183,11 @@ function AvatarSection({
           ) : (
             <p className="text-sm text-ink-soft">{t("아이템 그림을 누르면 사기 전에 내 캐릭터에 입혀 볼 수 있어요.")}</p>
           )}
-          {error || blocker ? (
+          {saved && !error ? (
+            <p role="status" className="mt-1 text-xs font-bold text-leaf-dark">
+              {t("저장했어요 ✓ 이 모습으로 마을을 돌아다녀요.")}
+            </p>
+          ) : error || blocker ? (
             <p role="alert" className="mt-1 text-xs font-bold text-berry">
               {error ?? blocker}
             </p>
@@ -179,7 +201,7 @@ function AvatarSection({
           <button
             type="button"
             onClick={save}
-            disabled={!triedList.length || Boolean(blocker) || saving}
+            disabled={(!triedList.length && !hairChanged) || Boolean(blocker) || saving}
             className="btn bg-leaf text-sm text-white"
             data-save-look
           >
@@ -191,7 +213,7 @@ function AvatarSection({
               t("저장하기")
             )}
           </button>
-          <button type="button" onClick={() => (setTried({}), setError(null))} disabled={!triedList.length || saving} className="btn bg-paper text-sm text-ink">
+          <button type="button" onClick={reset} disabled={(!triedList.length && !hairChanged) || saving} className="btn bg-paper text-sm text-ink">
             {t("원래대로")}
           </button>
         </div>
@@ -230,11 +252,6 @@ function AvatarSection({
               />
             );
           })}
-          {hairSaved && (
-            <span role="status" className="text-xs font-bold text-leaf-dark">
-              {t("머리 색을 바꿨어요 ✓")}
-            </span>
-          )}
         </div>
       )}
       <div role="tabpanel">

@@ -69,7 +69,7 @@ import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { createFireflies } from "./fireflies";
 import { createNightSky } from "./night-sky";
 import { actPropKey, createResidents, residentPetKey, residentWalkKey } from "./residents";
-import { dropSvg, guitarSvg, heartSvg, marshmallowSvg, NOTE_KINDS, noteSvg, strumHandSvg, wateringCanSvg } from "@/lib/art/plaza-acts";
+import { bobberSvg, dropSvg, fishSvg, guitarSvg, heartSvg, marshmallowSvg, NOTE_KINDS, noteSvg, rodSvg, starSvg, strumHandSvg, wateringCanSvg } from "@/lib/art/plaza-acts";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
 
@@ -91,7 +91,9 @@ const PET_BEHIND = 48; // 캐릭터 뒤 얼마나 떨어져서 따라오는지
 const RESIDENT_PET_SIZE = 50; // 이웃 주민이 데리고 다니는 펫 (내 펫보다 조금 작게)
 const WALK_STEP_MS = 140; // 걷는 그림을 넘기는 간격
 // 가상 조이스틱 (터치 화면 전용, TOWN-02)
-const JOYSTICK = { radius: 56, thumb: 26, margin: 28, deadZone: 8 };
+// 조이스틱: 손가락을 댄 자리에 나타나고 떼면 사라진다. 크기는 화면 CSS px
+// (끌지 않고 그대로 떼면 조이스틱 대신 "탭" — 그곳으로 걸어가거나 건물에 들어간다)
+const JOYSTICK = { radius: 52, thumb: 24, deadZone: 10, alpha: 0.6 };
 // 휴대폰은 화면이 좁아서 멀리서 보듯 줄여 광장을 더 넓게 보여 준다
 const PHONE_ZOOM = 0.7;
 
@@ -239,6 +241,10 @@ export function townTextures(data: TownData, t: T) {
     list.set(actPropKey("can"), toDataUri(wateringCanSvg()));
     list.set(actPropKey("drop"), toDataUri(dropSvg()));
     list.set(actPropKey("heart"), toDataUri(heartSvg()));
+    list.set(actPropKey("rod"), toDataUri(rodSvg()));
+    list.set(actPropKey("bobber"), toDataUri(bobberSvg()));
+    list.set(actPropKey("fish"), toDataUri(fishSvg()));
+    list.set(actPropKey("star"), toDataUri(starSvg()));
     for (const c of NOTE_KINDS) list.set(actPropKey(`note:${c}`), toDataUri(noteSvg(c)));
   }
   list.set("board", toDataUri(boardSvg(t)));
@@ -433,8 +439,10 @@ export function createTownScene(
       thumb: PhaserNS.GameObjects.Arc;
       pointerId: number | null;
       vector: PhaserNS.Math.Vector2;
-      cx: number; // 조이스틱 가운데 (화면 CSS px)
+      cx: number; // 조이스틱 가운데 = 손가락을 댄 자리 (화면 CSS px)
       cy: number;
+      dragged: boolean; // 데드존 밖으로 끌었는가 (끌었으면 탭이 아니다)
+      fade: PhaserNS.Tweens.Tween | null;
     } | null = null;
 
     constructor() {
@@ -465,6 +473,11 @@ export function createTownScene(
           grid: this.grid,
           benches: BENCH_SPOTS,
           flowers: this.ringFlowers,
+          // 낚시: 아래 물가(걸을 수 있는 맨 아래 줄). 선착장 앞은 비운다
+          fishSpots: this.freeSpots(WORLD.height - 16, 180, 110),
+          // 불꽃놀이 구경: 광장 맨 위쪽, 하늘 바로 아래
+          skySpots: this.freeSpots(HORIZON + 44, 150, 0),
+          fireworks: () => this.nightSky?.fireworks() ?? false,
           campfire: { ...CAMPFIRE_POS, ...CAMPFIRE_SOLID },
           // 광장 둘레를 주로 걷고, 가끔 길을 따라 멀리 간다
           roam: (r = rng) => {
@@ -543,9 +556,10 @@ export function createTownScene(
       // 페이지 스크롤과 겹치지 않게 게임 안에서만 키를 쓴다
       keyboard.addCapture("UP,DOWN,LEFT,RIGHT,SPACE");
 
-      // 조이스틱은 태블릿처럼 화면이 넓은 터치 기기에서만. 휴대폰은 탭해서 움직이고, 시야를 넓게 본다
+      // 터치 화면(휴대폰·태블릿)에는 조이스틱: 누른 자리에 반투명하게 나타나고 손을 떼면 사라진다.
+      // 짧게 톡 치면 예전처럼 그곳으로 걸어간다. 휴대폰은 시야를 넓게 본다
       const phone = window.matchMedia?.(PHONE_MEDIA).matches;
-      if (!phone && window.matchMedia?.("(pointer: coarse)").matches) this.createJoystick();
+      if (window.matchMedia?.("(pointer: coarse)").matches || navigator.maxTouchPoints > 0) this.createJoystick();
       this.touch = Boolean(phone || this.joystick);
       // 큰 컴퓨터 화면에서는 광장 둘레의 숲이 보인다. 숲보다도 창이 큰 아주 넓은 화면에서만
       // 빈 곳이 남지 않게 그만큼 확대한다 (그림은 2배로 그려 둬서 2배까지는 선명하다)
@@ -554,6 +568,7 @@ export function createTownScene(
         const zoom = Math.max(baseZoom, this.scale.width / (WORLD.width + FOREST * 2), this.scale.height / (WORLD.height + FOREST * 2));
         this.cameras.main.setZoom(zoom);
         this.game.canvas.dataset.zoom = (zoom / dpr).toFixed(3); // CSS 기준 확대 배율 (e2e 확인용)
+        this.sizeJoystick();
       };
       fitZoom();
       this.scale.on("resize", fitZoom);
@@ -562,48 +577,57 @@ export function createTownScene(
       this.input.on("pointerdown", (pointer: PhaserNS.Input.Pointer) => {
         // 헤더의 내 정보·쪽지 창을 쓰는 탭은 광장 이동으로 치지 않는다
         if (headerPopoverBlocksTap()) return;
-        // 조이스틱을 누른 경우: 걷기 목표를 정하지 않고 조이스틱으로 움직인다
-        if (this.joystick && this.isOnJoystick(pointer)) {
-          this.joystick.pointerId = pointer.id;
-          this.moveJoystick(pointer);
-          return;
-        }
-        const hit = this.entranceAt(pointer.worldX, pointer.worldY);
-        if (hit) {
-          // 가까우면 바로 들어가고, 멀면 그 입구 앞까지 걸어간다
-          if (this.distanceTo(hit) <= INTERACT_DISTANCE) {
-            this.rememberSpot(true);
-            return onEnter(hit.target);
-          }
-          return this.walkTo(hit.x, hit.y);
-        }
-        this.walkTo(pointer.worldX, pointer.worldY);
+        // 손가락: 그 자리에 조이스틱을 띄운다 (탭인지 끌기인지는 손을 뗄 때 정한다)
+        if (this.joystick && pointer.wasTouch && this.joystick.pointerId === null) return this.showJoystick(pointer);
+        this.tapAt(pointer.worldX, pointer.worldY);
       });
       this.input.on("pointermove", (pointer: PhaserNS.Input.Pointer) => {
         if (this.joystick?.pointerId === pointer.id) this.moveJoystick(pointer);
       });
       const release = (pointer: PhaserNS.Input.Pointer) => {
-        if (this.joystick?.pointerId === pointer.id) this.resetJoystick();
+        const j = this.joystick;
+        if (j?.pointerId !== pointer.id) return;
+        const tap = !j.dragged;
+        this.hideJoystick();
+        if (tap) this.tapAt(pointer.worldX, pointer.worldY);
       };
       this.input.on("pointerup", release);
       this.input.on("pointerupoutside", release);
     }
 
-    // ===== 가상 조이스틱 =====
-    private createJoystick() {
-      this.input.addPointer(1); // 조이스틱을 누른 채 다른 곳도 탭할 수 있게 두 손가락까지
-      const base = this.add.circle(0, 0, JOYSTICK.radius, 0x2b2118, 0.18).setStrokeStyle(3, 0xffffff, 0.7);
-      const thumb = this.add.circle(0, 0, JOYSTICK.thumb, 0xffffff, 0.85).setStrokeStyle(2, 0x2b2118, 0.4);
-      for (const o of [base, thumb]) o.setScrollFactor(0).setDepth(200000);
-      this.joystick = { base, thumb, pointerId: null, vector: new Phaser.Math.Vector2(), cx: 0, cy: 0 };
-      this.placeJoystick();
-      this.scale.on("resize", () => this.placeJoystick());
+    /** 탭·클릭한 곳: 입구면 가까울 때 바로 들어가고 멀면 입구 앞까지, 아니면 그곳으로 걸어간다 */
+    private tapAt(x: number, y: number) {
+      const hit = this.entranceAt(x, y);
+      if (hit) {
+        if (this.distanceTo(hit) <= INTERACT_DISTANCE) {
+          this.rememberSpot(true);
+          return onEnter(hit.target);
+        }
+        return this.walkTo(hit.x, hit.y);
+      }
+      this.walkTo(x, y);
     }
 
-    /**
-     * 화면 CSS 좌표 → 고정(scrollFactor 0) 물체 좌표. 카메라가 가운데를 기준으로 확대(dpr배)돼 있어서 되돌려 준다.
-     * 조이스틱은 휴대폰이 아닐 때만 있으므로 카메라 확대 = dpr (아주 큰 화면에서는 광장을 채우려고 더 크다)
-     */
+    // ===== 가상 조이스틱 (누른 자리에 나타나고 떼면 사라진다) =====
+    private createJoystick() {
+      this.input.addPointer(1); // 조이스틱을 누른 채 다른 곳도 탭할 수 있게 두 손가락까지
+      const base = this.add.circle(0, 0, JOYSTICK.radius, 0x2b2118, 0.22).setStrokeStyle(3, 0xffffff, 0.8);
+      const thumb = this.add.circle(0, 0, JOYSTICK.thumb, 0xffffff, 0.9).setStrokeStyle(2, 0x2b2118, 0.35);
+      for (const o of [base, thumb]) o.setScrollFactor(0).setDepth(200000).setVisible(false).setAlpha(0);
+      this.joystick = { base, thumb, pointerId: null, vector: new Phaser.Math.Vector2(), cx: 0, cy: 0, dragged: false, fade: null };
+      this.game.canvas.dataset.joystickShown = "0"; // e2e 확인용
+    }
+
+    /** 카메라 확대와 상관없이 화면에서 늘 같은 크기로 보이게 (휴대폰은 광장을 줄여 보여 준다) */
+    private sizeJoystick() {
+      const j = this.joystick;
+      if (!j) return;
+      const scale = dpr / this.cameras.main.zoom;
+      j.base.setScale(scale);
+      j.thumb.setScale(scale);
+    }
+
+    /** 화면 CSS 좌표 → 고정(scrollFactor 0) 물체 좌표. 카메라가 가운데를 기준으로 확대돼 있어서 되돌려 준다 */
     private screenToFixed(x: number, y: number) {
       const zoom = this.cameras.main.zoom;
       const cx = this.scale.width / 2;
@@ -611,37 +635,54 @@ export function createTownScene(
       return { x: cx + (x * dpr - cx) / zoom, y: cy + (y * dpr - cy) / zoom };
     }
 
-    /** 화면 왼쪽 아래 (화면 크기가 바뀌어도 따라간다) */
-    private placeJoystick() {
-      const j = this.joystick;
-      if (!j) return;
-      j.cx = JOYSTICK.margin + JOYSTICK.radius;
-      j.cy = this.scale.height / dpr - JOYSTICK.margin - JOYSTICK.radius;
+    private fadeJoystick(to: number, done?: () => void) {
+      const j = this.joystick!;
+      j.fade?.stop();
+      j.fade = this.tweens.add({ targets: [j.base, j.thumb], alpha: to, duration: to ? 90 : 140, onComplete: done });
+    }
+
+    private showJoystick(pointer: PhaserNS.Input.Pointer) {
+      const j = this.joystick!;
+      j.pointerId = pointer.id;
+      j.cx = pointer.x / dpr;
+      j.cy = pointer.y / dpr;
+      j.dragged = false;
+      j.vector = new Phaser.Math.Vector2();
       const p = this.screenToFixed(j.cx, j.cy);
-      j.base.setPosition(p.x, p.y);
-      if (j.pointerId === null) j.thumb.setPosition(p.x, p.y);
+      j.base.setPosition(p.x, p.y).setVisible(true);
+      j.thumb.setPosition(p.x, p.y).setVisible(true);
+      this.fadeJoystick(JOYSTICK.alpha);
+      this.game.canvas.dataset.joystickShown = "1";
     }
 
-    private isOnJoystick(pointer: PhaserNS.Input.Pointer) {
-      const j = this.joystick!;
-      return Phaser.Math.Distance.Between(pointer.x / dpr, pointer.y / dpr, j.cx, j.cy) <= JOYSTICK.radius + 20;
-    }
-
-    /** 손가락 위치 → 방향 벡터 (조이스틱 반지름 밖으로는 나가지 않는다) */
-    private moveJoystick(pointer: PhaserNS.Input.Pointer) {
-      const j = this.joystick!;
-      const v = new Phaser.Math.Vector2(pointer.x / dpr - j.cx, pointer.y / dpr - j.cy);
-      if (v.length() > JOYSTICK.radius) v.setLength(JOYSTICK.radius);
-      const p = this.screenToFixed(j.cx + v.x, j.cy + v.y);
-      j.thumb.setPosition(p.x, p.y);
-      j.vector = v.length() < JOYSTICK.deadZone ? new Phaser.Math.Vector2() : v.clone().scale(1 / JOYSTICK.radius);
-    }
-
-    private resetJoystick() {
+    private hideJoystick() {
       const j = this.joystick!;
       j.pointerId = null;
       j.vector = new Phaser.Math.Vector2();
-      j.thumb.setPosition(j.base.x, j.base.y);
+      this.fadeJoystick(0, () => {
+        j.base.setVisible(false);
+        j.thumb.setVisible(false);
+      });
+      this.game.canvas.dataset.joystickShown = "0";
+    }
+
+    /** 손가락 위치 → 방향. 원 밖으로 끌면 조이스틱이 손가락을 따라온다 */
+    private moveJoystick(pointer: PhaserNS.Input.Pointer) {
+      const j = this.joystick!;
+      const x = pointer.x / dpr, y = pointer.y / dpr;
+      const v = new Phaser.Math.Vector2(x - j.cx, y - j.cy);
+      if (v.length() > JOYSTICK.deadZone) j.dragged = true;
+      if (!j.dragged) return;
+      if (v.length() > JOYSTICK.radius) {
+        v.setLength(JOYSTICK.radius);
+        j.cx = x - v.x;
+        j.cy = y - v.y;
+        const b = this.screenToFixed(j.cx, j.cy);
+        j.base.setPosition(b.x, b.y);
+      }
+      const p = this.screenToFixed(j.cx + v.x, j.cy + v.y);
+      j.thumb.setPosition(p.x, p.y);
+      j.vector = v.length() < JOYSTICK.deadZone ? new Phaser.Math.Vector2() : v.clone().scale(1 / JOYSTICK.radius);
     }
 
     update() {
@@ -662,6 +703,7 @@ export function createTownScene(
         this.path = [];
         const v = this.joystick.vector.clone().normalize().scale(SPEED);
         this.playerBody.setVelocity(v.x, v.y);
+        this.game.canvas.dataset.playerAt = `${Math.round(this.feet.x)},${Math.round(this.feet.y)}`; // e2e 확인용
       } else if (this.path.length) {
         this.followPath();
       } else {
@@ -1067,6 +1109,17 @@ export function createTownScene(
         .setDepth(GROUND_DEPTH - 1);
       this.drawHorizonSky();
       this.drawLake();
+    }
+
+    /** 한 줄(y)에서 걸어 설 수 있는 자리들: step 간격으로, 가운데 길에서 skip 안쪽은 뺀다 (이웃 주민의 낚시·불꽃놀이 구경 자리) */
+    private freeSpots(y: number, step: number, skip: number): Point[] {
+      const spots: Point[] = [];
+      for (let x = 160; x <= WORLD.width - 160; x += step) {
+        if (Math.abs(x - CENTER.x) < skip) continue;
+        const { cx, cy } = this.grid.cellOf({ x, y });
+        if ([-2, -1, 0, 1, 2].every((d) => this.grid.isFree(cx + d, cy))) spots.push({ x, y });
+      }
+      return spots;
     }
 
     /** 아래쪽 호수 (크레용 그림체): 물 바탕 + 크레용 결, 위에 모래·갈대 물가 띠, 잔물결·연잎, 가운데 길 끝에는 나무 선착장 */
