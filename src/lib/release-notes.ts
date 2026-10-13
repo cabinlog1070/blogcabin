@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.18.1",
+        title: msg("상태 메시지 이모티콘"),
+        changes: [
+          { kind: "fixed", text: msg("광장 말풍선에서 이모티콘이 네모로 깨져 보이던 문제를 고쳤어요. 이제 상태 메시지에는 이모티콘을 쓸 수 없고, 이미 적어 둔 이모티콘은 말풍선에서 빼고 보여 줘요.") },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [

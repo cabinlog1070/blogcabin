@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import { useT } from "@/components/i18n";
 import { addCategory, deleteCategory, moveCategory, renameCategory, updateBlogInfo, type FormState } from "./actions";
 import { categoryLabel } from "@/lib/i18n";
+import { STATUS_MESSAGE_MAX } from "@/lib/status-message";
 
 const input = "w-full rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun";
 
@@ -28,8 +29,9 @@ export function BlogInfoForm({ nickname, title, description, statusMessage }: { 
       </label>
       <label className="block">
         <span className="mb-1 block font-bold">{t("상태 메시지")}</span>
-        <input name="statusMessage" defaultValue={statusMessage ?? ""} maxLength={30} className={input} placeholder={t("오늘 기분이나 하고 싶은 말")} />
+        <input name="statusMessage" defaultValue={statusMessage ?? ""} maxLength={STATUS_MESSAGE_MAX} className={input} placeholder={t("오늘 기분이나 하고 싶은 말")} />
         <span className="mt-1 block text-sm text-ink-soft">{t("30자까지. 나를 즐겨찾기한 이웃이 광장에서 내 캐릭터에 다가오면 말풍선으로 보여요")}</span>
+        <span className="mt-0.5 block text-sm text-ink-soft">{t("이모티콘은 말풍선에서 깨져 보여서 쓸 수 없어요")}</span>
       </label>
       <div className="flex items-center justify-end gap-3">
         {state.error && <span className="text-sm text-berry">{state.error}</span>}
