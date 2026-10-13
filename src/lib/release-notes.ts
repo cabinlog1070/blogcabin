@@ -50,6 +50,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.32.4",
+        title: msg("선물 받은 알에서 농장으로"),
+        changes: [
+          { kind: "improved", text: msg("받은 선물 화면과 선물 팝업에서 펫 알을 누르면 동물 농장으로 바로 가요. 펫 알을 받은 선물 팝업에는 [농장으로 가기] 버튼도 있어요.") },
+        ],
+      },
+      {
         version: "1.32.3",
         title: msg("저녁 광장 캐릭터 밝기"),
         changes: [

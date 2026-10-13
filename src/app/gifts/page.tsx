@@ -12,12 +12,14 @@ export async function generateMetadata() {
   return { title: t("받은 선물") };
 }
 
-/** 받은 선물 (관리자 선물): 보낸 사람, 함께 보낸 말, 받은 코인·아이템. 최신 50개 */
+/** 받은 선물 (관리자 선물): 보낸 사람, 함께 보낸 말, 받은 코인·아이템·펫 알. 최신 50개. 펫 알을 누르면 동물 농장으로 */
 export default async function GiftsPage() {
   const viewer = await requireMember();
   const t = await getT();
   const locale = await getLocale();
   const gifts = await listReceivedGifts(viewer.userId);
+  const hasItems = gifts.some((g) => g.items.length > 0);
+  const hasPets = gifts.some((g) => g.pets.length > 0);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -48,8 +50,15 @@ export default async function GiftsPage() {
                   ))}
                   {g.pets.map((p) => (
                     <li key={`pet-${p.id}`} className="w-20 text-center" data-gift-pet>
-                      <GiftPetEgg assetKey={p.assetKey} />
-                      <span className="mt-1 block truncate text-xs font-bold">{t("{name} 알", { name: t(p.name) })}</span>
+                      <Link
+                        href="/farm"
+                        className="block rounded-xl pb-1 hover:bg-cream focus-visible:bg-cream"
+                        aria-label={t("{name} 알 · 동물 농장으로 가기", { name: t(p.name) })}
+                        data-gift-pet-link
+                      >
+                        <GiftPetEgg assetKey={p.assetKey} />
+                        <span className="mt-1 block truncate text-xs font-bold">{t("{name} 알", { name: t(p.name) })}</span>
+                      </Link>
                     </li>
                   ))}
                 </ul>
@@ -60,12 +69,22 @@ export default async function GiftsPage() {
       ) : (
         <p className="card mt-6 py-10 text-center text-ink-soft">{t("아직 받은 선물이 없어요")}</p>
       )}
-      <p className="mt-6 text-sm text-ink-soft">
-        {t("받은 아이템은 꾸미기에서 바로 쓸 수 있어요.")}{" "}
-        <Link href="/closet" className="font-bold text-leaf-dark underline">
-          {t("꾸미기로 가기")}
-        </Link>
-      </p>
+      {(hasItems || !gifts.length) && (
+        <p className="mt-6 text-sm text-ink-soft">
+          {t("받은 아이템은 꾸미기에서 바로 쓸 수 있어요.")}{" "}
+          <Link href="/closet" className="font-bold text-leaf-dark underline">
+            {t("꾸미기로 가기")}
+          </Link>
+        </p>
+      )}
+      {hasPets && (
+        <p className="mt-2 text-sm text-ink-soft">
+          {t("받은 펫 알은 동물 농장 둥지에 있어요. 알을 누르면 농장으로 가요.")}{" "}
+          <Link href="/farm" className="font-bold text-leaf-dark underline" data-gift-farm-link>
+            {t("동물 농장으로 가기")}
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

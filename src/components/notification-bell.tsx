@@ -259,10 +259,11 @@ function GiftModal({ gift, onClose }: { gift: GiftView; onClose: () => void }) {
   useEffect(() => setMounted(true), []);
   useEffect(() => okRef.current?.focus(), [mounted]);
 
-  const close = (goList: boolean) => {
+  /** 닫고 읽음으로 바꾼다. href가 있으면 그 화면으로 (받은 선물·동물 농장) */
+  const close = (href?: string) => {
     onClose();
     if (gift.notificationId) void seeGift(gift.notificationId);
-    if (goList) router.push("/gifts");
+    if (href) router.push(href);
   };
 
   if (!mounted) return null;
@@ -294,19 +295,32 @@ function GiftModal({ gift, onClose }: { gift: GiftView; onClose: () => void }) {
             ))}
             {shownPets.map((p) => (
               <li key={`pet-${p.id}`} className="w-20" data-gift-pet>
-                <GiftPetEgg assetKey={p.assetKey} />
-                <span className="mt-1 block truncate text-xs font-bold">{t("{name} 알", { name: t(p.name) })}</span>
+                <button
+                  type="button"
+                  onClick={() => close("/farm")}
+                  className="block w-full rounded-xl pb-1 hover:bg-cream focus-visible:bg-cream"
+                  aria-label={t("{name} 알 · 동물 농장으로 가기", { name: t(p.name) })}
+                >
+                  <GiftPetEgg assetKey={p.assetKey} />
+                  <span className="mt-1 block truncate text-xs font-bold">{t("{name} 알", { name: t(p.name) })}</span>
+                </button>
               </li>
             ))}
           </ul>
         )}
         {more > 0 && <p className="mt-1 text-xs text-ink-soft">{t("외 {n}개", { n: more })}</p>}
         {gift.pets.length > 0 && <p className="mt-2 text-xs text-ink-soft">{t("펫 알은 동물 농장 둥지에서 부화시켜요.")}</p>}
-        <div className="mt-6 flex justify-center gap-2">
-          <button type="button" onClick={() => close(true)} className="btn bg-sun text-ink">
+        {/* 펫 알이 있으면 버튼이 셋이라 한 줄에 들어가게 조금 줄인다 */}
+        <div className={`mt-6 flex justify-center gap-2 ${gift.pets.length > 0 ? "[&>.btn]:px-3 [&>.btn]:text-sm" : ""}`}>
+          {gift.pets.length > 0 && (
+            <button type="button" onClick={() => close("/farm")} className="btn bg-leaf text-white" data-gift-go-farm>
+              {t("농장으로 가기")}
+            </button>
+          )}
+          <button type="button" onClick={() => close("/gifts")} className="btn bg-sun text-ink">
             {t("받은 선물 보기")}
           </button>
-          <button ref={okRef} type="button" onClick={() => close(false)} className="btn bg-ink text-cream">
+          <button ref={okRef} type="button" onClick={() => close()} className="btn bg-ink text-cream">
             {t("확인")}
           </button>
         </div>
