@@ -41,6 +41,10 @@ await page.waitForURL(/town/);
 await page.goto(`${BASE}/admin#gift`);
 
 const form = page.locator("[data-admin-gift]");
+// 아이템 목록 = 상점에서 파는 것만 (기본 아이템, 판매를 멈춘 예전 캐릭터는 안 나온다)
+const { rows: notForSale } = await db.query("SELECT id FROM items WHERE is_starter OR type = 'character'");
+const shownIds = await form.locator("[data-gift-item]").evaluateAll((els) => els.map((e) => Number(e.getAttribute("data-gift-item"))));
+check("선물 목록에 예전 캐릭터·기본 아이템 없음", shownIds.length > 0 && !notForSale.some((r) => shownIds.includes(r.id)));
 // 말 없이 보내면 막힘 (브라우저 required를 피하려고 공백만)
 await form.locator("[data-gift-message-input]").fill("   ");
 await form.locator("[data-gift-coins-input]").fill("100");

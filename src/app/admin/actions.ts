@@ -9,6 +9,7 @@ import { comments, GIFT_MESSAGE_MAX, items, notifications, pointLedger, posts, p
 import { ADMIN_MAX_COINS, expForLevel, levelFromExp, MAX_LEVEL } from "@/lib/game";
 import { msg } from "@/lib/i18n";
 import { parseId } from "@/lib/ids";
+import { isForSale } from "@/lib/shop";
 import { requireAdmin } from "@/server/dal";
 import { sendGifts } from "@/server/gifts";
 import { getT } from "@/server/i18n";
@@ -139,7 +140,10 @@ export async function adminSendGift(_: GiftState, formData: FormData): Promise<G
   if (!Number.isInteger(coins) || coins < 0 || coins > GIFT_MAX_COINS) return { error: t("코인은 0부터 {n}까지 보낼 수 있어요", { n: GIFT_MAX_COINS.toLocaleString() }) };
   if (coins === 0 && itemIds.length === 0) return { error: t("보낼 코인이나 아이템을 골라 주세요") };
 
-  const known = itemIds.length ? await db.select({ id: items.id }).from(items).where(inArray(items.id, itemIds)) : [];
+  // 상점에서 파는 아이템만 (가입 때 받는 기본 아이템과 판매를 멈춘 예전 캐릭터는 보내지 않는다)
+  const known = itemIds.length
+    ? (await db.select({ id: items.id, type: items.type, isStarter: items.isStarter }).from(items).where(inArray(items.id, itemIds))).filter(isForSale)
+    : [];
   if (known.length !== itemIds.length) return { error: t("없는 아이템이 있어요. 화면을 새로 고쳐 주세요") };
 
   // 모든 주민: 보내는 관리자 자신은 뺀다

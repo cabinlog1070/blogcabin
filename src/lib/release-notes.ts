@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.29.1",
+        title: msg("선물 아이템 목록 정리"),
+        changes: [
+          { kind: "fixed", text: msg("선물 보내기의 아이템 목록에 이제 상점에서 팔지 않는 예전 캐릭터가 나오지 않아요. 상점에서 파는 아이템만 고를 수 있어요."), admin: true },
+        ],
+      },
+      {
         version: "1.29.0",
         title: msg("관리자 선물"),
         changes: [

@@ -1,4 +1,4 @@
-import { asc, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ne, sql } from "drizzle-orm";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { db } from "@/db";
@@ -68,11 +68,11 @@ export default async function AdminPage() {
       .leftJoin(pointLedger, eq(pointLedger.userId, profiles.userId))
       .groupBy(profiles.userId, profiles.nickname, users.username)
       .orderBy(profiles.nickname),
-    // 선물로 보낼 수 있는 아이템: 가입할 때 모두 받는 기본 아이템은 뺀다
+    // 선물로 보낼 수 있는 아이템 = 상점에서 파는 아이템 (기본 아이템과 판매를 멈춘 예전 캐릭터는 뺀다, isForSale과 같은 규칙)
     db
       .select({ id: items.id, type: items.type, name: items.name, assetKey: items.assetKey })
       .from(items)
-      .where(eq(items.isStarter, false))
+      .where(and(eq(items.isStarter, false), ne(items.type, "character")))
       .orderBy(asc(items.type), asc(items.requiredLevel), asc(items.price), asc(items.id)),
   ]);
   const members = residents.map((r) => ({

@@ -14,7 +14,6 @@ const TYPE_TABS = [
   { key: "avatar", label: "옷" },
   { key: "furniture", label: "가구" },
   { key: "background", label: "배경" },
-  { key: "character", label: "캐릭터" },
 ] as const;
 
 /**
