@@ -39,8 +39,8 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
   const view = sp.view === "grid" ? "grid" : "list";
 
   const [cats, list, follow, furniture, pet, card, visits, neighbors, followers, inviteCode] = await Promise.all([
-    getCategories(blog.id, includePrivate),
-    listBlogPosts({ blogId: blog.id, includePrivate, categoryId, page, sort }),
+    getCategories(blog.id, includePrivate, isOwner),
+    listBlogPosts({ blogId: blog.id, includePrivate, includeScheduled: isOwner, categoryId, page, sort }), // 예약 글은 주인에게만 (POST-11)
     viewerId && !isOwner ? getFollow(viewerId, blog.ownerId) : null,
     getRoomFurniture(blog.ownerId), // 미니룸 가구 (SHOP-05)
     getCarriedPet(blog.ownerId), // 미니룸 펫 (TOWN-09)

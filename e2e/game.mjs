@@ -7,7 +7,7 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const page = await ctx.newPage();
 const errors = collectErrors(page);
-await loginDev(page, "gamer1", "남자 주민");
+await loginDev(page, "gamer1", "짧은 머리");
 console.log("start coins:", await coins(page));
 
 // 같은 계정으로 탭 두 개를 열어 출석 버튼을 동시에 누른다
@@ -40,9 +40,10 @@ console.log("after purchase:", await coins(page));
 await page.screenshot({ path: `${outDir}/21-shop.png`, fullPage: true });
 
 // 꾸미기: 바닷가 장착 → 블로그 미니룸 확인
-await page.goto(`${BASE}/closet`);
+await page.goto(`${BASE}/closet?tab=house`);
 await page.getByRole("button", { name: /바닷가/ }).click();
-await page.waitForTimeout(800);
+await page.locator("[data-save-closet]").click();
+await page.getByRole("status").filter({ hasText: "저장했어요" }).waitFor();
 await page.screenshot({ path: `${outDir}/22-closet.png`, fullPage: true });
 await page.goto(`${BASE}/@gamer1`);
 await page.screenshot({ path: `${outDir}/23-blog-beach.png` });

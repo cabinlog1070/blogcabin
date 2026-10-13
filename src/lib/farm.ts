@@ -43,7 +43,7 @@ export const PET_ACCESSORIES: { value: PetAccessory; label: string }[] = [
 ];
 
 /** 펫 색 (무료, 2026-10-12): 기본은 동물마다 정해진 색. 고르면 몸 색이 바뀐다. 그림은 src/lib/art/crayon-animals.ts */
-export type PetColor = "default" | "brown" | "yellow" | "red" | "black" | "white" | "pink";
+export type PetColor = "default" | "brown" | "yellow" | "red" | "black" | "white" | "pink" | "orange" | "mint" | "sky" | "purple" | "gray" | "green";
 export const PET_COLORS: { value: PetColor; label: string }[] = [
   { value: "default", label: msg("기본") },
   { value: "brown", label: msg("갈색") },
@@ -52,6 +52,12 @@ export const PET_COLORS: { value: PetColor; label: string }[] = [
   { value: "black", label: msg("검정색") },
   { value: "white", label: msg("흰색") },
   { value: "pink", label: msg("분홍색") },
+  { value: "orange", label: msg("주황색") },
+  { value: "mint", label: msg("민트색") },
+  { value: "sky", label: msg("하늘색") },
+  { value: "purple", label: msg("보라색") },
+  { value: "gray", label: msg("회색") },
+  { value: "green", label: msg("초록색") },
 ];
 
 /**

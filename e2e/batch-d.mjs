@@ -190,13 +190,18 @@ try {
   await db.query("DELETE FROM point_ledger WHERE user_id = $1 AND reason = 'signup' AND coin_delta > 0", [a.uid]); // 코인 0인 회원으로
   const ledgerCount = async () => (await one("SELECT COUNT(*)::int AS n FROM point_ledger WHERE user_id = $1", [a.uid])).n;
   const before = await ledgerCount();
-  await a.page.goto(`${BASE}/closet`);
+  await a.page.goto(`${BASE}/closet?tab=house`);
   const roofSection = a.page.locator("[data-roof-section]");
-  check("TOWN-07 꾸미기에 🏠 지붕 색 8가지와 [배경 색 따라가기]", (await roofSection.getByRole("radio").count()) === 8 && (await roofSection.getByRole("button", { name: "배경 색 따라가기" }).isVisible()));
+  // 2026-10-13: 꾸미기 집 테마 탭, [저장하기]로 저장. [배경 색 따라가기]는 [벽지 색 따라가기]로
+  const saveCloset = async () => {
+    await a.page.locator("[data-save-closet]").click();
+    await a.page.getByRole("status").filter({ hasText: "저장했어요 ✓" }).waitFor();
+  };
+  check("TOWN-07 꾸미기 집 테마에 🏠 지붕 색 8가지와 [벽지 색 따라가기]", (await roofSection.getByRole("radio").count()) === 8 && (await roofSection.getByRole("button", { name: "벽지 색 따라가기" }).isVisible()));
   await roofSection.getByRole("radio", { name: "하늘" }).click();
-  await a.page.getByText("지붕 색을 하늘(으)로 바꿨어요 ✓").waitFor();
+  await saveCloset();
   await roofSection.getByRole("radio", { name: "보라" }).click();
-  await a.page.getByText("지붕 색을 보라(으)로 바꿨어요 ✓").waitFor();
+  await saveCloset();
   check("TOWN-07 코인 0이어도 연달아 바뀜 (저장: 보라)", (await one("SELECT roof_color FROM blogs WHERE id = $1", [a.blogId])).roof_color === "purple");
   check("TOWN-07 무료: 코인 그대로 0, 원장 기록 없음", (await coins(a.page)) === 0 && (await ledgerCount()) === before, `코인 ${await coins(a.page)}`);
   check("TOWN-07 미리 보기 지붕이 보라", (await roofSection.locator("[data-roof-preview]").getAttribute("data-roof-preview")) === "#9333ea");
@@ -213,9 +218,9 @@ try {
     await db.query("UPDATE blogs SET background_item_id = $2 WHERE id = $1", [a.blogId, sea.id]);
   }
   check("TOWN-07 배경을 바꿔도 지붕 색은 그대로", (await townAttr(a.page, "data-my-roof")) === "#9333ea");
-  await a.page.goto(`${BASE}/closet`);
-  await roofSection.getByRole("button", { name: "배경 색 따라가기" }).click();
-  await a.page.getByText("지붕 색이 배경 색을 따라가요 ✓").waitFor();
+  await a.page.goto(`${BASE}/closet?tab=house`);
+  await roofSection.getByRole("button", { name: "벽지 색 따라가기" }).click();
+  await saveCloset();
   const accent = sea ? "#0369a1" : "#2f855a";
   check("TOWN-07 [배경 색 따라가기] → 장착한 배경 색", (await one("SELECT roof_color FROM blogs WHERE id = $1", [a.blogId])).roof_color === null && (await townAttr(a.page, "data-my-roof")) === accent);
   // 집 단계도 함께 (TOWN-11): Lv.5로 올리면 2단계 집에 고른 지붕 색

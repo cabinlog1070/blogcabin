@@ -4,10 +4,11 @@ import "server-only";
 import { and, asc, desc, eq, gte, isNull, lte, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
-import { animalSpecies, blogs, items, notifications, pointLedger, posts, profiles, userAnimals } from "@/db/schema";
+import { animalSpecies, blogs, gifts, items, notifications, pointLedger, posts, profiles, userAnimals } from "@/db/schema";
 import { petDisplayName, withJosa } from "@/lib/farm";
 import { houseStageForLevel, levelFromExp } from "@/lib/game";
 import type { Locale, T } from "@/lib/i18n";
+import { getUnseenGifts } from "@/server/gifts";
 import { getLocale, getT } from "@/server/i18n";
 import type { Tx } from "@/server/points";
 
@@ -100,6 +101,7 @@ function present(t: T, locale: Locale, r: {
   postId: number | null;
   petName: string | null;
   speciesName: string | null;
+  giftMessage: string | null;
   createdAt: Date;
   readAt: Date | null;
 }): NotificationView {
@@ -125,6 +127,15 @@ function present(t: T, locale: Locale, r: {
       return { ...base, text: t("💬 {who}님이 {title}에 댓글을 달았어요", { who, title }), href: `${postHref}#comments` };
     case "reply":
       return { ...base, text: t("💬 {who}님이 내 댓글에 답글을 달았어요", { who }), href: `${postHref}#comments` };
+    case "gift":
+      // 관리자가 함께 보낸 말은 쓴 그대로 (번역하지 않는다)
+      return {
+        ...base,
+        text: r.giftMessage
+          ? t("🎁 {who}님이 선물을 보냈어요: {message}", { who: r.actorName ?? t("관리자"), message: `「${clip(r.giftMessage, 30)}」` })
+          : t("🎁 {who}님이 선물을 보냈어요", { who: r.actorName ?? t("관리자") }),
+        href: "/gifts",
+      };
   }
 }
 
@@ -145,6 +156,7 @@ export async function listNotifications(userId: string, page = 1, size = NOTIFIC
       postId: notifications.postId,
       petName: userAnimals.name,
       speciesName: animalSpecies.name,
+      giftMessage: gifts.message,
       createdAt: notifications.createdAt,
       readAt: notifications.readAt,
     })
@@ -153,6 +165,8 @@ export async function listNotifications(userId: string, page = 1, size = NOTIFIC
     // 동물 레벨업: ref_id = 동물 ID (지금 이름으로 보여준다)
     .leftJoin(userAnimals, and(eq(notifications.kind, "pet_level_up"), sql`${userAnimals.id}::text = ${notifications.refId}`))
     .leftJoin(animalSpecies, eq(animalSpecies.id, userAnimals.speciesId))
+    // 관리자 선물: ref_id = 선물 ID
+    .leftJoin(gifts, and(eq(notifications.kind, "gift"), sql`${gifts.id}::text = ${notifications.refId}`))
     .leftJoin(posts, eq(posts.id, notifications.postId))
     .leftJoin(blogs, eq(blogs.id, posts.blogId))
     .where(eq(notifications.userId, userId))
@@ -222,8 +236,16 @@ export async function getLevelUpPopup(userId: string): Promise<LevelUpPopup | nu
   };
 }
 
-/** 헤더에 필요한 알림 상태 한 번에 */
+/** 선물 팝업을 닫음: 그 선물 알림을 읽음으로 */
+export async function markGiftSeen(userId: string, notificationId: number) {
+  await db
+    .update(notifications)
+    .set({ readAt: new Date() })
+    .where(and(eq(notifications.userId, userId), eq(notifications.id, notificationId), eq(notifications.kind, "gift"), isNull(notifications.readAt)));
+}
+
+/** 헤더에 필요한 알림 상태 한 번에 (안 읽은 개수, 레벨업 팝업, 아직 안 본 선물) */
 export async function getNotificationState(userId: string) {
-  const [unread, popup] = await Promise.all([countUnread(userId), getLevelUpPopup(userId)]);
-  return { unread, popup };
+  const [unread, popup, gifts] = await Promise.all([countUnread(userId), getLevelUpPopup(userId), getUnseenGifts(userId)]);
+  return { unread, popup, gifts };
 }

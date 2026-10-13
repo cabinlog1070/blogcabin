@@ -21,7 +21,7 @@ const C = `nc${tag}`; // Lv.15 (3단계 집)
 
 const browser = await chromium.launch();
 const errorsAll = [];
-async function member(id, character = "남자 주민", viewport = { width: 1280, height: 900 }) {
+async function member(id, character = "짧은 머리", viewport = { width: 1280, height: 900 }) {
   const ctx = await browser.newContext({ viewport });
   const page = await ctx.newPage();
   errorsAll.push(collectErrors(page));
@@ -56,7 +56,7 @@ const closePopupIfAny = async (page) => {
 };
 
 try {
-  const a = await member(A, "여자 주민");
+  const a = await member(A, "긴 머리");
   const b = await member(B);
   const post = await addPost(a.uid, "알림이 오는지 보는 글");
 
@@ -184,7 +184,7 @@ try {
   await modal.waitFor({ timeout: 10000 });
   check("GAME-06 출석 화면에서 바로 'Lv.3이 되었어요!'", (await modal.getByRole("heading").innerText()) === "Lv.3이 되었어요!");
   const unlocked = await modal.locator("[data-unlocked-items] li").allInnerTexts();
-  check("GAME-06 'Lv.3부터 쓸 수 있는 아이템' (캐릭터 제외, 3개 + 외 9개)", (await modal.getByText("이제 이런 아이템을 쓸 수 있어요").isVisible()) && unlocked.join(",") === "공룡 발,장화,선원 바지" && (await modal.getByText("외 9개").isVisible()), unlocked.join(","));
+  check("GAME-06 'Lv.3부터 쓸 수 있는 아이템' (캐릭터 제외, 3개 + 외 11개)", (await modal.getByText("이제 이런 아이템을 쓸 수 있어요").isVisible()) && unlocked.join(",") === "공룡 발,장화,선원 바지" && (await modal.getByText("외 11개").isVisible()), unlocked.join(","));
   check("GAME-06 판다(캐릭터)는 안 보임", !(await modal.getByText("판다").isVisible()));
   check("GAME-06 Lv.3은 집 단계 그대로 (집이 커졌어요 없음)", (await modal.locator("[data-house-grown]").count()) === 0);
   await a.page.screenshot({ path: `${outDir}/b4-levelup-popup.png` });
@@ -230,7 +230,7 @@ try {
 
   // ── TOWN-11: 세 단계 집을 한 광장에 (A Lv.4 → 1단계, B Lv.5 → 2단계, C Lv.15 → 3단계 내 집) ──
   await addPost(b.uid, "B의 글");
-  const c = await member(C, "여자 주민", { width: 1800, height: 1460 });
+  const c = await member(C, "긴 머리", { width: 1800, height: 1460 });
   await setExp(c.uid, 10500);
   await addPost(c.uid, "C의 글");
   // 회원 광장에는 즐겨찾기한 이웃의 집만 나온다 (TOWN-04·08, batch D) → C가 A·B를 즐겨찾기

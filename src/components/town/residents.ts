@@ -466,7 +466,10 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
       // 말풍선은 가장 가까운 한 명만 (여럿이 겹쳐 보이지 않게)
       for (const w of walkers) showBubble(w, w === near);
       const bubble = near?.r.slug ?? "";
-      if (canvas.dataset.bubble !== bubble) canvas.dataset.bubble = bubble;
+      if (canvas.dataset.bubble !== bubble) {
+        canvas.dataset.bubble = bubble;
+        canvas.dataset.bubbleText = near?.r.statusMessage ?? "";
+      }
       // 지금 동작과 자리 (e2e 확인용): 0.5초마다
       if (scene.time.now - lastReport > 500) {
         lastReport = scene.time.now;

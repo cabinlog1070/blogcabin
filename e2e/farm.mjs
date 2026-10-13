@@ -238,6 +238,12 @@ if (other) {
 } else othersBlocked = true;
 check("DB: 남의 동물은 전시할 수 없다 (복합 외래 키)", othersBlocked);
 await page.keyboard.press("Escape");
+// 다 자란 동물 카드를 골라 꾸미기: 카드 → 상태창 [꾸미기] → 그 카드가 골라진 꾸미기 창
+await book.getByRole("button", { name: "콩이 카드 보기" }).click();
+await page.locator(`[data-pet-status="${hatched.id}"] [data-status-decorate]`).click();
+await page.locator(`[data-decorate-pet="${hatched.id}"]`).waitFor();
+check("카드 상태창 꾸미기 → 그 카드 꾸미기", (await page.locator(`[data-decorate-pick="${hatched.id}"]`).getAttribute("aria-pressed")) === "true");
+await page.keyboard.press("Escape");
 await book.scrollIntoViewIfNeeded();
 await book.screenshot({ path: `${outDir}/c4-card-book.png` });
 
@@ -245,8 +251,10 @@ await book.screenshot({ path: `${outDir}/c4-card-book.png` });
 await page.getByRole("button", { name: /펫 꾸미기/ }).click();
 const decoPanel = page.locator("[data-decorate-panel]");
 await decoPanel.waitFor();
+await decoPanel.locator(`[data-decorate-pick="${hatched.id}"]`).click();
 await decoPanel.locator(`[data-decorate-pet="${hatched.id}"]`).getByRole("button", { name: /리본/ }).click();
 await page.getByRole("status").getByText(/콩이 꾸미기를 바꿨어요/).waitFor();
+await decoPanel.locator(`[data-decorate-pick="${second.id}"]`).click();
 await decoPanel.locator(`[data-decorate-pet="${second.id}"]`).getByRole("button", { name: /스카프/ }).click();
 await decoPanel.locator(`[data-decorate-pet="${second.id}"] [aria-pressed="true"]`).getByText(/스카프/).waitFor();
 await page.screenshot({ path: `${outDir}/c3-pet-decorate.png` });
@@ -254,6 +262,7 @@ const accs = Object.fromEntries((await animals()).map((a) => [a.id, a.accessory]
 check("펫 꾸미기 저장 (콩이 리본, 둘째 스카프)", accs[hatched.id] === "ribbon" && accs[second.id] === "scarf");
 await page.reload();
 await page.getByRole("button", { name: /펫 꾸미기/ }).click();
+await page.locator(`[data-decorate-pick="${hatched.id}"]`).click();
 check("새로고침해도 꾸미기가 남아 있다", (await page.locator(`[data-decorate-pet="${hatched.id}"] [aria-pressed="true"]`).first().innerText()).includes("리본")); // 첫 줄은 꾸미기, 둘째 줄은 색
 await page.keyboard.press("Escape");
 await go(`/@${slug}`);

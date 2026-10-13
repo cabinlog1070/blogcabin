@@ -11,7 +11,9 @@ import { and, eq, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { accounts, blogs, categories, follows, items, profiles, sessions, userItems, users } from "../src/db/schema";
+import { giveStarterHair } from "../src/db/starter-hair";
 import { generateInviteCode } from "../src/lib/invite";
+import { ADMIN_BLOG_TITLE } from "../src/lib/nickname";
 
 config({ path: ".env.local" });
 
@@ -82,9 +84,10 @@ async function main() {
           .onConflictDoNothing();
         // 초대 코드(GAME-09)도 일반 회원처럼 하나 만든다 (32^6가지라 겹칠 일은 거의 없고, 겹치면 다시 실행하면 된다)
         await tx.insert(profiles).values({ userId: user.id, nickname: "관리자", characterItemId: character.id, inviteCode: generateInviteCode() });
+        await giveStarterHair(tx, user.id);
         const [blog] = await tx
           .insert(blogs)
-          .values({ ownerId: user.id, slug: NOTICE_SLUG, title: "BlogCabin 공지사항", description: "마을 소식과 업데이트를 알려드려요", backgroundItemId: background.id })
+          .values({ ownerId: user.id, slug: NOTICE_SLUG, title: ADMIN_BLOG_TITLE, description: "마을 소식과 업데이트를 알려드려요", backgroundItemId: background.id })
           .returning({ id: blogs.id });
         await tx.insert(categories).values({ blogId: blog.id, name: "공지", position: 0 });
         // 4. 관리자는 모든 주민의 기본 이웃: 이미 가입한 주민에게 관리자 이웃을 넣는다 (새 주민은 온보딩에서).
@@ -97,6 +100,8 @@ async function main() {
             .onConflictDoNothing();
         }
       }
+      // 공지사항 블로그 이름은 고정이다 (BLOG-03). 예전에 바꿔 둔 이름도 다시 실행하면 원래대로 돌아간다
+      await tx.update(blogs).set({ title: ADMIN_BLOG_TITLE }).where(eq(blogs.ownerId, user.id));
     });
     console.log(`✔ 관리자 계정 준비 완료: ${username}`);
   } finally {

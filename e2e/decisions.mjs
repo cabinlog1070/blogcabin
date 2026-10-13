@@ -22,23 +22,25 @@ const page = await ctx.newPage();
 const errors = collectErrors(page);
 
 // ── GAME-01: 가입할 때 남자/여자 중 고른 캐릭터 하나만 받고 장착 ──
-await loginDev(page, "decide01", "여자 주민");
+await loginDev(page, "decide01", "긴 머리");
 await page.goto(`${BASE}/closet`);
-// 캐릭터가 1개뿐이면 꾸미기에 🐾 내 캐릭터 구역이 없다 (SHOP-04 변경, spec 006 FR-021)
+// 캐릭터가 1개뿐이면 캐릭터 꾸미기에 🐾 캐릭터 칸이 없다 (SHOP-04 변경, spec 006 FR-021. 2026-10-13 꾸미기 탭)
 const owned01 = await db.query("SELECT i.code FROM user_items ui JOIN items i ON i.id = ui.item_id JOIN users u ON u.id = ui.user_id WHERE u.username = 'decide01' AND i.type = 'character'");
 check("GAME-01 가입하면 고른 캐릭터 1개만 보유", owned01.rows.length === 1 && owned01.rows[0].code === "char_girl", owned01.rows.map((r) => r.code).join(", "));
-check("SHOP-04 캐릭터가 1개면 '내 캐릭터' 구역 없음", (await page.getByRole("heading", { name: "🐾 내 캐릭터" }).count()) === 0);
+check("SHOP-04 캐릭터가 1개면 '캐릭터' 칸 없음", (await page.locator('[data-wear-tab="character"]').count()) === 0);
 
 // ── SHOP-04: 장착 저장 확인 표시 (바꿔 낄 캐릭터를 하나 더 넣어 둔다) ──
 await db.query("INSERT INTO user_items (user_id, item_id) SELECT u.id, i.id FROM users u, items i WHERE u.username = 'decide01' AND i.code = 'char_cat'");
 await page.reload();
-check("SHOP-04 캐릭터가 2개면 '내 캐릭터' 구역이 보임", await page.getByRole("heading", { name: "🐾 내 캐릭터" }).isVisible());
+check("SHOP-04 캐릭터가 2개면 '캐릭터' 칸이 보임", await page.locator('[data-wear-tab="character"]').isVisible());
+await page.locator('[data-wear-tab="character"]').click();
 await page.getByRole("button", { name: /고양이/ }).click();
+await page.locator("[data-save-closet]").click();
 const saved = await page.getByRole("status").filter({ hasText: "저장했어요" }).waitFor({ timeout: 5000 }).then(() => true).catch(() => false);
 check("SHOP-04 장착하면 '저장했어요' 표시", saved);
 await page.screenshot({ path: `${outDir}/50-closet-saved.png` });
 await page.waitForTimeout(2300);
-check("SHOP-04 '저장했어요'는 2초 뒤 사라짐", (await page.getByRole("status").innerText()).trim() === "");
+check("SHOP-04 '저장했어요'는 2초 뒤 사라짐", !(await page.getByRole("status").innerText()).includes("저장했어요"));
 
 // ── GAME-04: 달이 바뀌어도 연속 일수가 맞게 보이고, 7일째 보너스 ──
 const uid = await userId("decide01");
@@ -82,7 +84,7 @@ check("GAME-02 진행 막대 MAX", await page.getByText("MAX", { exact: true }).
 // ── TOWN-04 (2026-10-08 즐겨찾기 방식, batch D): 회원 광장에는 즐겨찾기한 이웃의 집만. 글이 없어도 집이 생긴다 ──
 const other = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const op = await other.newPage();
-await loginDev(op, "quiet01", "남자 주민");
+await loginDev(op, "quiet01", "짧은 머리");
 const houses = async () => {
   await page.goto(`${BASE}/town`);
   return (await page.locator("[data-neighbor-stages]").getAttribute("data-neighbor-stages")) ?? "";

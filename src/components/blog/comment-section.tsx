@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState } from "react";
-import { addComment, deleteComment, type CommentState } from "@/app/blog/actions";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import { addComment, deleteComment, editComment, type CommentState } from "@/app/blog/actions";
 import { CharacterBadge } from "@/components/character";
 import { useT } from "@/components/i18n";
 
@@ -14,6 +14,8 @@ export type CommentData =
       deleted: false;
       content: string;
       createdAtText: string;
+      /** 작성자가 내용을 고친 적이 있다 */
+      edited: boolean;
       authorId: string;
       nickname: string;
       characterAsset: string;
@@ -54,6 +56,40 @@ function CommentForm({ postId, parentId, onDone }: { postId: number; parentId?: 
   );
 }
 
+/** 내 댓글 고치기. 저장하면 닫힌다 */
+function EditCommentForm({ commentId, content, onDone }: { commentId: number; content: string; onDone: () => void }) {
+  const t = useT();
+  const [state, action, pending] = useActionState<CommentState, FormData>(editComment, {});
+  useEffect(() => {
+    if (state.ok) onDone();
+  }, [state.ok, onDone]);
+
+  return (
+    <form action={action} className="mt-1 flex flex-col gap-2">
+      <input type="hidden" name="commentId" value={commentId} />
+      <textarea
+        name="content"
+        required
+        maxLength={1000}
+        rows={3}
+        defaultValue={content}
+        autoFocus
+        aria-label={t("댓글 수정")}
+        className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
+      />
+      <div className="flex items-center justify-end gap-3">
+        {state.error && <span className="text-sm text-berry">{state.error}</span>}
+        <button type="button" onClick={onDone} className="text-sm text-ink-soft hover:text-ink">
+          {t("취소")}
+        </button>
+        <button disabled={pending} className="btn bg-ink py-1.5 text-sm text-cream">
+          {pending ? t("저장 중...") : t("수정 완료")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function CommentItem({
   c,
   viewerId,
@@ -69,6 +105,8 @@ function CommentItem({
 }) {
   const t = useT();
   const [replying, setReplying] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const stopEditing = useCallback(() => setEditing(false), []);
   if (c.deleted) {
     return (
       <p data-deleted-comment className="py-3 italic text-ink-soft">
@@ -86,13 +124,24 @@ function CommentItem({
               {c.nickname}
             </Link>{" "}
             <span className="text-ink-soft">{c.createdAtText}</span>
+            {c.edited && <span data-edited className="text-xs text-ink-soft"> · {t("수정됨")}</span>}
           </p>
-          <p className="mt-0.5 whitespace-pre-wrap break-words">{c.content}</p>
-          {viewerId && (
+          {editing ? (
+            <EditCommentForm commentId={c.id} content={c.content} onDone={stopEditing} />
+          ) : (
+            <p className="mt-0.5 whitespace-pre-wrap break-words">{c.content}</p>
+          )}
+          {viewerId && !editing && (
             <div className="mt-1 flex gap-3 text-xs text-ink-soft">
               {!isReply && (
                 <button type="button" onClick={() => setReplying((v) => !v)} className="hover:text-ink">
                   {replying ? t("답글 취소") : t("답글")}
+                </button>
+              )}
+              {/* 고치기는 작성자만 */}
+              {c.authorId === viewerId && (
+                <button type="button" onClick={() => { setEditing(true); setReplying(false); }} className="hover:text-ink">
+                  {t("수정")}
                 </button>
               )}
               {/* 내 댓글, 또는 내 블로그 글의 댓글·관리자면 남의 댓글도 지울 수 있다 (spec 004) */}

@@ -38,7 +38,7 @@ export async function SiteHeader() {
 
         {member && wallet && notice && loginMethods ? (
           <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
-            <NotificationBell unread={notice.unread} popup={notice.popup} />
+            <NotificationBell unread={notice.unread} popup={notice.popup} gifts={notice.gifts} />
             <LevelBadge
               level={wallet.level}
               exp={wallet.exp}
@@ -72,11 +72,7 @@ export async function SiteHeader() {
         ) : viewer ? (
           // 온보딩을 마치기 전에는 상태창이 없으니 로그아웃 버튼만 둔다
           <SignOutButton />
-        ) : (
-          <Link href="/" className="btn shrink-0 bg-leaf text-sm text-white">
-            {t("시작하기")}
-          </Link>
-        )}
+        ) : null}
       </div>
     </header>
   );

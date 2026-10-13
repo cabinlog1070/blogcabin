@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { CharacterNotice } from "@/components/character-notice";
+import { db } from "@/db";
+import { profiles } from "@/db/schema";
 import { Icon } from "@/components/icon";
 import { isForSale } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
@@ -15,10 +18,11 @@ export async function generateMetadata() {
 export default async function ShopPage() {
   const viewer = await requireMember();
   const t = await getT();
-  const [all, wallet, equipped] = await Promise.all([
+  const [all, wallet, equipped, [hair]] = await Promise.all([
     listItemsWithOwnership(viewer.userId),
     getWallet(viewer.userId),
     getEquipped(viewer.userId),
+    db.select({ color: profiles.hairColor }).from(profiles).where(eq(profiles.userId, viewer.userId)),
   ]);
   // 기본 아이템과 캐릭터(2026-10-06부터 판매 중단)는 상점에 나오지 않는다 (SHOP-01)
   const forSale = all.filter(isForSale);
@@ -51,6 +55,7 @@ export default async function ShopPage() {
         coins={wallet.coins}
         character={viewer.profile.baseCharacterAsset}
         wornAssets={wornAssets}
+        hairColor={hair?.color ?? null}
       />
     </div>
   );

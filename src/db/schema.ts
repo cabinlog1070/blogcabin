@@ -47,7 +47,7 @@ export const ITEM_TYPES = [
 ] as const;
 export const itemType = enumText(ITEM_TYPES);
 // 아바타 꾸미기 부위 (SHOP-06): 상의·하의·모자·신발. 그리는 순서는 몸 → 하의 → 상의 → 신발 → 모자 (src/lib/art/avatar.ts)
-export const AVATAR_SLOTS = ["top", "bottom", "hat", "shoes"] as const;
+export const AVATAR_SLOTS = ["hair", "top", "bottom", "hat", "shoes"] as const;
 export const avatarSlot = enumText(AVATAR_SLOTS);
 export const VISIBILITIES = ["public", "private"] as const;
 export const visibility = enumText(VISIBILITIES);
@@ -73,6 +73,8 @@ export const LEDGER_REASONS = [
   "invited",
   // 관리자가 관리자 화면에서 직접 준 코인·경험치 (ref_id = 준 관리자 ID)
   "admin_grant",
+  // 관리자가 선물 보내기로 보낸 코인 (ref_id = 선물 ID, 2026-10-13)
+  "admin_gift",
   // 주민이 프로필 메뉴에서 소셜 로그인을 연동함 (ref_id = "kakao:회원번호", 소셜 계정마다 사이트 전체에서 한 번)
   "social_link",
 ] as const;
@@ -91,7 +93,9 @@ export const animalGender = enumText(ANIMAL_GENDERS);
 export const PET_ACCESSORIES = ["none", "ribbon", "flower", "scarf"] as const;
 export const petAccessory = enumText(PET_ACCESSORIES);
 // 펫 색 (무료, 2026-10-12): default = 동물마다 정해진 색. 그림은 src/lib/art/crayon-animals.ts
-export const PET_COLORS = ["default", "brown", "yellow", "red", "black", "white", "pink"] as const;
+/** 머리 색 (src/lib/art/avatar.ts의 HAIR_COLORS와 같은 목록) */
+export const HAIR_COLORS = ["black", "brown", "caramel", "blonde", "red", "pink", "blue", "purple", "mint"] as const;
+export const PET_COLORS = ["default", "brown", "yellow", "red", "black", "white", "pink", "orange", "mint", "sky", "purple", "gray", "green"] as const;
 export const petColor = enumText(PET_COLORS);
 export const FARM_ITEM_KINDS = ["potion"] as const;
 export const farmItemKind = enumText(FARM_ITEM_KINDS);
@@ -102,6 +106,8 @@ export const NOTIFICATION_KINDS = [
   "comment",
   "reply",
   "pet_level_up",
+  // 관리자가 보낸 선물 (ref_id = 선물 ID, actor_id = 보낸 관리자, 2026-10-13)
+  "gift",
 ] as const;
 export const notificationKind = enumText(NOTIFICATION_KINDS);
 
@@ -313,6 +319,8 @@ export const profiles = pgTable(
     inviteRewardedAt: timestamp("invite_rewarded_at", { withTimezone: true }),
     // 상태 메시지 (TOWN-12): 즐겨찾기한 이웃의 광장에서 내 캐릭터에 가까이 오면 머리 위 말풍선으로 보인다. 비우면 NULL
     statusMessage: text("status_message"),
+    // 머리 색 (2026-10-13, 무료). NULL = 입은 헤어를 그린 그대로의 색
+    hairColor: text("hair_color"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -320,6 +328,7 @@ export const profiles = pgTable(
       "profiles_status_message_check",
       sql`char_length(${t.statusMessage}) BETWEEN 1 AND 30`,
     ),
+    check("profiles_hair_color_check", oneOf(t.hairColor, HAIR_COLORS)),
     check(
       "profiles_nickname_check",
       sql`char_length(${t.nickname}) BETWEEN 2 AND 12`,
@@ -357,6 +366,12 @@ export const blogs = pgTable(
     backgroundItemId: integer("background_item_id").notNull(),
     // 광장 집 지붕 색 (TOWN-07, 무료). NULL = 장착한 배경 색을 따른다. 색 이름은 src/lib/art/town.ts ROOF_COLORS
     roofColor: text("roof_color"),
+    // 미니룸 안 캐릭터 발 위치 (SHOP-05, 2026-10-13, 미니룸 기준 %). NULL = 가운데 아래 기본 자리
+    roomCharX: real("room_char_x"),
+    roomCharY: real("room_char_y"),
+    // 미니룸에 놓은 펫 (데리고 다니는 펫)의 발 위치. NULL = 놓지 않음(캐릭터 옆에 붙어 다님), 놓으면 이 자리에서부터 방 안을 돌아다닌다
+    roomPetX: real("room_pet_x"),
+    roomPetY: real("room_pet_y"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -367,6 +382,8 @@ export const blogs = pgTable(
       sql`${t.roofColor} IN ('red', 'orange', 'yellow', 'green', 'sky', 'blue', 'purple', 'brown')`,
     ),
     check("blogs_title_check", sql`char_length(${t.title}) BETWEEN 1 AND 40`),
+    check("blogs_room_char_check", sql`(${t.roomCharX} IS NULL) = (${t.roomCharY} IS NULL) AND ${t.roomCharX} BETWEEN 0 AND 100 AND ${t.roomCharY} BETWEEN 0 AND 100`),
+    check("blogs_room_pet_check", sql`(${t.roomPetX} IS NULL) = (${t.roomPetY} IS NULL) AND ${t.roomPetX} BETWEEN 0 AND 100 AND ${t.roomPetY} BETWEEN 0 AND 100`),
     foreignKey({
       name: "blogs_background_owned_fk",
       columns: [t.ownerId, t.backgroundItemId],
@@ -410,12 +427,16 @@ export const posts = pgTable(
     contentText: text("content_text").notNull(), // 태그를 뺀 본문: 요약, 검색, 글자 수 확인용
     visibility: visibility("visibility").notNull().default("public"),
     viewCount: integer("view_count").notNull().default(0),
+    // 관리자 글을 광장 게시판(마을 소식) 맨 위에 걸어 두는 시간. 올라간 때(created_at)부터 센다. 0 = 걸지 않음, 회원 글은 늘 0
+    pinHours: integer("pin_hours").notNull().default(0),
+    // 글이 올라가는(올라간) 시각. 예약 글(POST-11)은 미래 시각이고, 그 시각이 되기 전에는 주인에게만 보인다
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     check("posts_title_check", sql`char_length(${t.title}) BETWEEN 1 AND 100`),
     check("posts_view_count_check", sql`${t.viewCount} >= 0`),
+    check("posts_pin_hours_check", sql`${t.pinHours} BETWEEN 0 AND 720`),
     check("posts_visibility_check", oneOf(t.visibility, VISIBILITIES)),
     index("posts_blog_created_idx").on(t.blogId, t.createdAt.desc()),
     index("posts_visibility_created_idx").on(t.visibility, t.createdAt.desc()),
@@ -459,6 +480,7 @@ export const comments = pgTable(
     content: text("content").notNull(),
     createdAt: createdAt(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }), // 답글이 남도록 행은 지우지 않는다
+    editedAt: timestamp("edited_at", { withTimezone: true }), // 마지막으로 고친 시각. 화면에 "수정됨" 표시
   },
   (t) => [
     foreignKey({
@@ -818,6 +840,43 @@ export const postViews = pgTable(
     primaryKey({ columns: [t.postId, t.date, t.viewerKey] }),
     check("post_views_viewer_key_check", viewerKeyCheck(t.viewerKey)),
   ],
+);
+
+// ===== 관리자 선물 (2026-10-13) =====
+// 관리자가 주민을 골라 보내는 선물 하나 = 받는 주민 한 명. 여러 명에게 보내면 주민마다 한 행씩 생긴다.
+// 코인은 원장(admin_gift, ref_id = 선물 ID)에, 아이템은 user_items에 바로 넣고, 여기에는 무엇을 보냈는지와 함께 보낸 말을 남긴다
+export const GIFT_MESSAGE_MAX = 200;
+export const gifts = pgTable(
+  "gifts",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    senderId: text("sender_id").references(() => users.id, { onDelete: "set null" }), // 보낸 관리자 (탈퇴하면 NULL)
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    message: text("message").notNull(),
+    coins: integer("coins").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("gifts_recipient_created_idx").on(t.recipientId, t.createdAt.desc()),
+    check("gifts_coins_check", sql`${t.coins} >= 0`),
+    check("gifts_message_check", sql`char_length(${t.message}) BETWEEN 1 AND ${sql.raw(String(GIFT_MESSAGE_MAX))}`),
+  ],
+);
+
+// 선물 ↔ 아이템 (N:M): 선물에 담긴 아이템
+export const giftItems = pgTable(
+  "gift_items",
+  {
+    giftId: integer("gift_id")
+      .notNull()
+      .references(() => gifts.id, { onDelete: "cascade" }),
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => items.id),
+  },
+  (t) => [primaryKey({ columns: [t.giftId, t.itemId] })],
 );
 
 // ===== 로그인 시도 제한 (NF-10) =====
