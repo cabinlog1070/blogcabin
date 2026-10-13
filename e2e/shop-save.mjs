@@ -28,7 +28,11 @@ try {
   const avatar = page.locator('section[aria-labelledby="shop-avatar"]');
   const names = () => avatar.locator("article h3").allInnerTexts();
   const tabs = await avatar.getByRole("tab").allInnerTexts();
-  check("카테고리 탭: 전체·모자·상의·하의·신발", tabs.map((x) => x.replace(/\s*\d+$/, "")).join(",") === "전체,모자,상의,하의,신발", tabs.join(" / "));
+  check("카테고리 탭: 전체·헤어·모자·상의·하의·신발", tabs.map((x) => x.replace(/\s*\d+$/, "")).join(",") === "전체,헤어,모자,상의,하의,신발", tabs.join(" / "));
+  await avatar.getByRole("tab", { name: /^헤어/ }).click();
+  check("헤어 탭: 아직 없어서 '곧 들어와요'", (await names()).length === 0 && (await avatar.locator("[data-shop-empty]").innerText()).includes("곧"));
+  await page.screenshot({ path: `${outDir}/shop-category-hair.png`, clip: { x: 0, y: 150, width: 1280, height: 600 } });
+  await avatar.getByRole("tab", { name: /^전체/ }).click();
   check("처음엔 전체 (28개)", (await names()).length === 28, String((await names()).length));
   await avatar.getByRole("tab", { name: /^모자/ }).click();
   const hats = await names();
