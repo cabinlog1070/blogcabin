@@ -12,8 +12,9 @@ export default async function LandingPage(props: PageProps<"/">) {
   const t = await getT();
 
   return (
-    <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 md:grid-cols-2 md:py-20">
-      <section>
+    // 휴대폰은 소개 글 없이 로그인 카드만 맨 위에 둔다
+    <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-6 md:grid-cols-2 md:py-20">
+      <section className="max-md:hidden">
         <p className="mb-3 inline-block rounded-full bg-paper px-3 py-1 text-sm font-bold text-leaf-dark shadow-sm">
           {t("🪵 블로그들이 모여 사는 오두막 마을")}
         </p>
@@ -35,7 +36,7 @@ export default async function LandingPage(props: PageProps<"/">) {
         </ul>
       </section>
 
-      <section className="card flex flex-col items-center gap-6 p-8">
+      <section className="card flex flex-col items-center gap-6 p-6 md:p-8">
         {withdrawn && (
           <p role="status" className="w-full rounded-xl bg-cream p-3 text-center text-sm">
             {t("탈퇴가 끝났어요. 그동안 BlogCabin과 함께해 주셔서 고마워요.")}
@@ -48,6 +49,12 @@ export default async function LandingPage(props: PageProps<"/">) {
         )}
         <div className="flex items-end gap-2" aria-hidden>
           <CharacterArt asset="char.boy" size={88} />
+          {/* 휴대폰에는 소개 글이 없어서 두 주민 사이에 로고를 둔다 */}
+          <span className="mb-3 grid size-20 place-content-center rounded-2xl border-2 border-bark/25 bg-cream text-center font-display text-xl leading-tight text-bark md:hidden">
+            Blog
+            <br />
+            Cabin
+          </span>
           <CharacterArt asset="char.girl" size={88} />
         </div>
         <h2 className="font-display text-2xl">{t("마을에 들어가기")}</h2>

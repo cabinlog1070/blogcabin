@@ -21,6 +21,8 @@ export type ShoesWear = { color: string; boots?: boolean; deco?: (v: View) => st
 export type HatWear = { draw: (v: View) => string };
 
 const BEIGE = "#e8d2ae";
+/** 카드 바탕색 (globals.css의 paper) */
+const PAPER = "#fffaf0";
 const HEAD = "M144 20C200 20 214 66 207 100C202 126 190 141 144 144C98 141 86 126 81 100C74 66 88 20 144 20Z";
 const TORSO = "M139 146Q122 149 118 156L114 214Q114 222 128 222L160 222Q174 222 174 214L170 156Q166 149 149 146Z";
 const LEGL = "M114 204L114 264Q114 270 121 270L134 270Q140 270 140 264L141 204Z";
@@ -108,7 +110,9 @@ const bootF = (c: Ctx, x: number) => (c.w.shoes?.boots ? S(Rc(x, 238, 30, 34, 5)
 function headFront(c: Ctx): string {
   if (c.kind === "mannequin") return S(HEAD, c.skin, 5.5);
   const H = HAIRS[c.kind];
-  let s = S(E(85, 112, 10, 15), c.skin, 4.5) + S(E(203, 112, 10, 15), c.skin, 4.5) + S(H.face, c.skin, 5.5);
+  // 파스텔 면은 반쯤 비쳐서, 머리카락 위에 얹는 얼굴·귀(여자 주민)는 밑에 종이색을 먼저 깔아 머리색이 비치지 않게 한다
+  let s = H.under ? [E(85, 112, 10, 15), E(203, 112, 10, 15), H.face].map((d) => `<path d="${d}" fill="${PAPER}"/>`).join("") : "";
+  s += S(E(85, 112, 10, 15), c.skin, 4.5) + S(E(203, 112, 10, 15), c.skin, 4.5) + S(H.face, c.skin, 5.5);
   s += dot(122, 100, 6) + dot(166, 100, 6) + blush(110, 116) + blush(178, 116) + L("M137 117q7 7 14 0", 3.5);
   if (!H.under) s += S(H.front, H.c, 5);
   if (c.kind === "visitor") s += S(LEAF, "#6fb34f", 3.5);

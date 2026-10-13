@@ -30,7 +30,7 @@ if (page.url().includes("onboarding")) {
   await page.locator('input[name="nickname"]').fill(devId.slice(0, 12));
   await page.locator('input[name="blogTitle"]').fill(blogTitleFor(devId));
   await page.locator('input[name="slug"]').fill(devId.toLowerCase().slice(0, 12));
-  await page.locator("label", { hasText: "남자 주민" }).click();
+  await page.locator("label", { hasText: "짧은 머리" }).click();
   await page.getByRole("button", { name: /광장으로 출발/ }).click();
   await page.waitForURL(/town/);
 }
