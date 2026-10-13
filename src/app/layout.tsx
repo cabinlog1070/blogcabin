@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Jua, Kosugi_Maru, Noto_Sans_JP, Noto_Sans_KR } from "next/font/google";
 import { CrispArt } from "@/components/crisp-art";
 import { LocaleProvider } from "@/components/i18n";
@@ -14,6 +14,9 @@ const noto = Noto_Sans_KR({ variable: "--font-noto", preload: false });
 // 일본어 화면: Jua에는 가나가 없어서 제목은 둥근 Kosugi Maru, 본문은 Noto Sans JP (globals.css의 :lang(ja))
 const kosugi = Kosugi_Maru({ weight: "400", variable: "--font-kosugi", preload: false });
 const notoJp = Noto_Sans_JP({ variable: "--font-noto-jp", preload: false });
+
+// 밝은 화면만 쓴다: 갤럭시(삼성 인터넷·크롬)의 다크 모드가 크레용 그림과 색을 멋대로 어둡게 바꾸지 않게 (2026-10-13)
+export const viewport: Viewport = { colorScheme: "only light" };
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();

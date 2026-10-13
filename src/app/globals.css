@@ -39,6 +39,8 @@
 /* 헤더 높이 (h-14 + 아래 테두리 2px). 광장이 헤더 아래 화면을 꽉 채울 때 쓴다 */
 :root {
   --header-h: 58px;
+  /* 밝은 화면만 (layout.tsx의 viewport와 같이): 휴대폰 다크 모드가 색을 뒤집지 않게 */
+  color-scheme: only light;
 }
 
 /* 일본어 화면 (src/app/layout.tsx): 가나가 있는 글꼴을 먼저 쓰고, 회원이 쓴 한글은 Noto Sans KR로 보인다 */
