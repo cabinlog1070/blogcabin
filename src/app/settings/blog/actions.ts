@@ -18,6 +18,8 @@ const infoSchema = z.object({
   nickname: nicknameSchema,
   title: z.string().trim().min(1, msg("블로그 이름을 적어 주세요")).max(12, msg("블로그 이름은 12자까지예요")),
   description: z.string().trim().max(160, msg("소개는 160자까지예요")),
+  // 상태 메시지 (TOWN-12): 비우면 NULL
+  statusMessage: z.string().trim().max(30, msg("상태 메시지는 30자까지예요")).transform((v) => v || null),
 });
 
 export async function updateBlogInfo(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -27,14 +29,15 @@ export async function updateBlogInfo(_prev: FormState, formData: FormData): Prom
     nickname: formData.get("nickname") ?? "",
     title: formData.get("title") ?? "",
     description: formData.get("description") ?? "",
+    statusMessage: formData.get("statusMessage") ?? "",
   });
   if (!parsed.success) return { error: t(parsed.error.issues[0].message) };
-  const { nickname, ...info } = parsed.data;
+  const { nickname, statusMessage, ...info } = parsed.data;
   // 관리자 닉네임은 관리자만 쓴다 (AUTH-08)
   if (nickname === ADMIN_NICKNAME && viewer.user.role !== "admin") return { error: t("이 닉네임은 쓸 수 없어요") };
   try {
     await db.transaction(async (tx) => {
-      await tx.update(profiles).set({ nickname }).where(eq(profiles.userId, viewer.userId));
+      await tx.update(profiles).set({ nickname, statusMessage }).where(eq(profiles.userId, viewer.userId));
       await tx.update(blogs).set(info).where(eq(blogs.ownerId, viewer.userId));
     });
   } catch (err) {

@@ -67,6 +67,8 @@ import {
 import { crayonGrain, softBush, softFirework, softFireworkFace, softCloud, softDock, softFlowerBlue, softFlowerPink, softHedge, softLily, softMountain, softRipple, softShore, softSun, softTree } from "@/lib/art/soft";
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { createNightSky } from "./night-sky";
+import { actPropKey, createResidents, residentPetKey, residentWalkKey } from "./residents";
+import { dropSvg, guitarSvg, heartSvg, marshmallowSvg, NOTE_KINDS, noteSvg, strumHandSvg, wateringCanSvg } from "@/lib/art/plaza-acts";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
 
@@ -85,6 +87,7 @@ const INTERACT_DISTANCE = 90;
 const PLAYER_SIZE = 72; // 캐릭터 그림 크기
 const PET_SIZE = 58; // 따라다니는 펫 그림 크기 (TOWN-09)
 const PET_BEHIND = 48; // 캐릭터 뒤 얼마나 떨어져서 따라오는지
+const RESIDENT_PET_SIZE = 50; // 이웃 주민이 데리고 다니는 펫 (내 펫보다 조금 작게)
 const WALK_STEP_MS = 140; // 걷는 그림을 넘기는 간격
 // 가상 조이스틱 (터치 화면 전용, TOWN-02)
 const JOYSTICK = { radius: 56, thumb: 26, margin: 28, deadZone: 8 };
@@ -130,6 +133,10 @@ const FARM_POS = { x: CENTER.x - 480, y: CENTER.y + 200 };
 const MY_HOUSE_POS = { x: CENTER.x, y: CENTER.y + PLAZA_RADIUS + 210 };
 // 캠프파이어 그림의 아랫변 가운데 (TOWN-02: 예전 분수와 같은 자리·크기)
 const CAMPFIRE_POS = { x: CENTER.x, y: CENTER.y + CAMPFIRE_SIZE.height / 2 };
+const CAMPFIRE_SOLID = { w: 150, h: 70 };
+// 불가의 통나무 의자 (아랫변 가운데): 왼쪽·오른쪽·위쪽 양옆 (아래쪽은 캐릭터가 처음 서는 자리라 비운다). 이웃 주민이 앉는다 (TOWN-12)
+const BENCH_SPOTS = [[-150, 20], [150, 20], [-100, -95], [100, -95]].map(([dx, dy]) => ({ x: CENTER.x + dx, y: CENTER.y + dy }));
+const PLAYER_START = { x: CENTER.x, y: CENTER.y + 160 };
 
 // ===== 꾸밈 소품 (2026-10-08 디자인 시안 지도 느낌). 건물 자리·길·광장 입구는 그대로 두고 빈 풀밭에만 놓는다 =====
 const PROP_ART = {
@@ -191,6 +198,22 @@ export function townTextures(data: TownData, t: T) {
   }
   const pet = data.player?.pet;
   if (pet) list.set("pet", toAnimalDataUri(animalSvg(pet.assetKey, pet.stage, PET_SIZE * 2, pet.accessory)));
+  // 광장을 돌아다니는 이웃 주민과 그 펫 (TOWN-12). 같은 모습이면 그림을 같이 쓴다
+  for (const r of data.residents) {
+    for (const view of CHAR_VIEWS) {
+      for (const frame of CHAR_FRAMES) list.set(residentWalkKey(r.look, view, frame), characterViewDataUri(r.look, view, frame, PLAYER_SIZE * 2));
+    }
+    if (r.pet) list.set(residentPetKey(r.pet), toAnimalDataUri(animalSvg(r.pet.assetKey, r.pet.stage, RESIDENT_PET_SIZE * 2, r.pet.accessory)));
+  }
+  if (data.residents.length) {
+    list.set(actPropKey("guitar"), toDataUri(guitarSvg()));
+    list.set(actPropKey("hand"), toDataUri(strumHandSvg()));
+    list.set(actPropKey("marshmallow"), toDataUri(marshmallowSvg()));
+    list.set(actPropKey("can"), toDataUri(wateringCanSvg()));
+    list.set(actPropKey("drop"), toDataUri(dropSvg()));
+    list.set(actPropKey("heart"), toDataUri(heartSvg()));
+    for (const c of NOTE_KINDS) list.set(actPropKey(`note:${c}`), toDataUri(noteSvg(c)));
+  }
   list.set("board", toDataUri(boardSvg(t)));
   list.set("attendance", toDataUri(attendanceSvg(t)));
   list.set("shop", toDataUri(shopSvg(t)));
@@ -270,6 +293,7 @@ function layout(data: TownData, t: T) {
   });
 
   // 집: 내 집 + 이웃집
+  const walking = new Set(data.residents.map((r) => r.slug));
   const addHouse = (h: TownHouse, pos: { x: number; y: number }, mine: boolean) => {
     // 크기·벽 위치는 주인 레벨로 정한 단계를 따른다 (TOWN-11)
     const { width: w, height: hh, wall } = HOUSE_STAGES[h.stage];
@@ -280,8 +304,8 @@ function layout(data: TownData, t: T) {
       // 블로그 이름이 길면 옆집과 겹치지 않게 줄인다 (집 간격 260)
       label: mine ? t("내 집") : t("{nickname}의 집", { nickname: h.nickname }), sub: h.title.length > 16 ? `${h.title.slice(0, 16)}…` : h.title,
     });
-    // 집 주인 캐릭터가 문 옆(벽 오른쪽 끝)에 서 있다
-    structures.push({ texture: charKey(h.characterAsset), x: pos.x + wallW / 2 + 4, y: pos.y + 2, w: 46, h: 46 });
+    // 집 주인 캐릭터가 문 옆(벽 오른쪽 끝)에 서 있다. 광장을 돌아다니는 이웃(TOWN-12)은 집 앞에 서 있지 않는다
+    if (!walking.has(h.slug)) structures.push({ texture: charKey(h.characterAsset), x: pos.x + wallW / 2 + 4, y: pos.y + 2, w: 46, h: 46 });
     // 빨간 우체통: 집 앞 왼쪽 모서리 (문·계단은 비운다). 집이 클수록 조금 크게
     const mk = 0.58 + 0.07 * h.stage;
     structures.push({
@@ -303,10 +327,10 @@ function layout(data: TownData, t: T) {
   });
 
   // 캠프파이어 (예전 분수 자리, 부딪히는 영역도 같다). 불꽃은 createCampfireFlames()가 위에 겹친다
-  structures.push({ texture: "campfire", ...CAMPFIRE_POS, w: CAMPFIRE_SIZE.width, h: CAMPFIRE_SIZE.height, solid: { w: 150, h: 70 } });
-  // 불가의 통나무 의자: 왼쪽·오른쪽·위쪽 양옆 (아래쪽은 캐릭터가 처음 서는 자리라 비운다)
-  for (const [dx, dy] of [[-150, 20], [150, 20], [-100, -95], [100, -95]]) {
-    structures.push({ texture: "bench", x: CENTER.x + dx, y: CENTER.y + dy, w: BENCH_SIZE.width, h: BENCH_SIZE.height, solid: { w: BENCH_SIZE.width * 0.86, h: 14 } });
+  structures.push({ texture: "campfire", ...CAMPFIRE_POS, w: CAMPFIRE_SIZE.width, h: CAMPFIRE_SIZE.height, solid: CAMPFIRE_SOLID });
+  // 불가의 통나무 의자
+  for (const b of BENCH_SPOTS) {
+    structures.push({ texture: "bench", ...b, w: BENCH_SIZE.width, h: BENCH_SIZE.height, solid: { w: BENCH_SIZE.width * 0.86, h: 14 } });
   }
   // 랜턴 기둥 (예전 가로등 자리)
   for (const p of LAMP_POSITIONS) {
@@ -370,6 +394,8 @@ export function createTownScene(
     private stuck: { x: number; y: number; since: number; retried?: boolean } = { x: 0, y: 0, since: 0 }; // 길을 가다 막혔는지 보는 용도
     private touch = false; // 손가락으로 쓰는 화면 (안내 문구를 "탭해서"로)
     private nightSky: ReturnType<typeof createNightSky> | null = null;
+    private residents: ReturnType<typeof createResidents> | null = null; // 광장을 돌아다니는 이웃 주민 (TOWN-12)
+    private ringFlowers: Point[] = []; // 광장 둘레 꽃 (이웃 주민이 물을 준다)
     private dayOnly: PhaserNS.GameObjects.Image[] = []; // 낮에만 보이는 해·구름
     private glows: { image: PhaserNS.GameObjects.Image; kind: "lamp" | "window" | "fire"; base: number }[] = [];
     private entrances: Entrance[] = [];
@@ -405,9 +431,31 @@ export function createTownScene(
       // 길찾기 칸: 발 상자(28×16) 반만큼 + 여유 3px 넓혀서 막는다
       this.grid = new WalkGrid(WORLD.width, WORLD.height, this.solids, { x: 17, y: 11 });
       this.createSky(windows);
+      if (data.residents.length) {
+        const rng = new Phaser.Math.RandomDataGenerator([String(Date.now())]);
+        this.residents = createResidents(this, Phaser, data.residents, {
+          grid: this.grid,
+          benches: BENCH_SPOTS,
+          flowers: this.ringFlowers,
+          campfire: { ...CAMPFIRE_POS, ...CAMPFIRE_SOLID },
+          // 광장 둘레를 주로 걷고, 가끔 길을 따라 멀리 간다
+          roam: (r = rng) => {
+            if (r.frac() < 0.65) {
+              const a = r.realInRange(0, Math.PI * 2), d = r.between(PLAZA_RADIUS - 60, PLAZA_RADIUS + 200);
+              return { x: CENTER.x + Math.cos(a) * d, y: CENTER.y + Math.sin(a) * d * 0.8 };
+            }
+            return { x: r.between(150, WORLD.width - 150), y: r.between(HORIZON + 140, WORLD.height - 60) };
+          },
+          start: PLAYER_START,
+          player: () => ({ x: this.feet?.x ?? PLAYER_START.x, y: this.feet?.y ?? PLAYER_START.y }),
+          font,
+          size: PLAYER_SIZE,
+          petSize: RESIDENT_PET_SIZE,
+        });
+      }
 
       // 플레이어: 발 상자(물리) + 그림
-      this.feet = this.add.zone(CENTER.x, CENTER.y + 160, 28, 16);
+      this.feet = this.add.zone(PLAYER_START.x, PLAYER_START.y, 28, 16);
       this.physics.add.existing(this.feet);
       this.playerBody = this.feet.body as PhaserNS.Physics.Arcade.Body;
       this.playerBody.setCollideWorldBounds(true);
@@ -595,6 +643,7 @@ export function createTownScene(
       this.player.setDepth(this.feet.y + 8);
       this.nameTag.setDepth(this.feet.y + 9);
       this.updatePet(moving);
+      this.residents?.update(this.game.loop.delta / 1000);
 
       this.updatePrompt();
     }
@@ -894,7 +943,7 @@ export function createTownScene(
           .fillEllipse(CENTER.x + Math.cos(a) * r, CENTER.y + Math.sin(a) * r, rng.between(3, 8), rng.between(2, 5));
       }
       // 광장 둘레 꽃 (길이 지나가는 곳은 비운다): 땅을 구운 뒤 분홍·파란 꽃 그림을 땅 바로 위에 심는다
-      const ringFlowers: { x: number; y: number; key: string; s: number }[] = [];
+      const ringFlowers = this.ringFlowers as { x: number; y: number; key: string; s: number }[];
       for (let a = 0; a < 360; a += 8) {
         if (a % 90 < 16 || a % 90 > 74) continue;
         const rad = Phaser.Math.DegToRad(a + rng.between(-2, 2));

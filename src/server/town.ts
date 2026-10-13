@@ -3,9 +3,10 @@ import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { lookSql } from "@/server/look";
-import { attendances, blogs, follows, items, pointLedger, postLikes, posts, profiles } from "@/db/schema";
+import { animalSpecies, attendances, blogs, follows, items, pointLedger, postLikes, posts, profiles, userAnimals } from "@/db/schema";
+import { animalStage } from "@/lib/farm";
 import { houseStageForLevel, levelFromExp, todayKST } from "@/lib/game";
-import type { TownHouse } from "@/components/town/types";
+import type { TownHouse, TownResident } from "@/components/town/types";
 
 const characterItem = alias(items, "character_item");
 const backgroundItem = alias(items, "background_item");
@@ -60,6 +61,38 @@ export async function getNeighbors(userId: string): Promise<TownHouse[]> {
 /** 회원 광장의 집: 즐겨찾기한 이웃의 블로그만, 글이 없어도 기본 집 (TOWN-04·08). 순서는 getNeighbors 그대로 */
 export function favoriteHouses(neighbors: TownHouse[]) {
   return neighbors.filter((h) => h.favorite).slice(0, TOWN_NEIGHBOR_LIMIT);
+}
+
+/**
+ * 광장을 돌아다니는 주민 (TOWN-12): 광장에 집이 있는 즐겨찾기 이웃과 같은 사람들 (같은 순서, 최대 10명).
+ * 이웃이 데리고 다니는 펫과 상태 메시지를 함께 가져온다
+ */
+export async function getResidents(userId: string): Promise<TownResident[]> {
+  const rows = await db
+    .select({
+      slug: blogs.slug,
+      nickname: profiles.nickname,
+      look: lookSql(characterItem.assetKey, profiles.userId),
+      statusMessage: profiles.statusMessage,
+      petAsset: animalSpecies.assetKey,
+      petGrowth: userAnimals.growth,
+      petGrowExp: animalSpecies.growExp,
+      petAccessory: userAnimals.accessory,
+    })
+    .from(blogs)
+    .innerJoin(profiles, eq(profiles.userId, blogs.ownerId))
+    .innerJoin(characterItem, eq(characterItem.id, profiles.characterItemId))
+    .innerJoin(follows, and(eq(follows.followeeId, blogs.ownerId), eq(follows.followerId, userId), eq(follows.isFavorite, true)))
+    .leftJoin(userAnimals, and(eq(userAnimals.userId, blogs.ownerId), eq(userAnimals.carried, true)))
+    .leftJoin(animalSpecies, eq(animalSpecies.id, userAnimals.speciesId))
+    .orderBy(sql`${lastPublicPostAt} DESC NULLS LAST`, desc(follows.createdAt))
+    .limit(TOWN_NEIGHBOR_LIMIT);
+  return rows.map(({ petAsset, petGrowth, petGrowExp, petAccessory, ...r }) => ({
+    ...r,
+    pet: petAsset && petGrowth !== null && petGrowExp !== null && petAccessory
+      ? { assetKey: petAsset, stage: animalStage(petGrowth, petGrowExp), accessory: petAccessory }
+      : null,
+  }));
 }
 
 /**
