@@ -327,7 +327,7 @@ export function FarmView({
           ) : (
             <div className="flex flex-col items-center p-6 text-center">
               <img src={toAnimalDataUri(eggSvg(192))} alt="" width={96} height={96} aria-hidden />
-              <h2 className="mt-2 font-display text-2xl">{t("알")}</h2>
+              <h2 className="mt-2 font-display text-2xl">{opened.eggSpeciesName ? t("{name} 알", { name: t(opened.eggSpeciesName) }) : t("알")}</h2>
               <p className="text-sm text-ink-soft" data-egg-hint>
                 {opened.eggSpeciesName
                   ? t("{name} 나오는 알이에요. 성별은 태어날 때 정해져요.", { name: withJosa(locale, t(opened.eggSpeciesName), "이", "가") })
