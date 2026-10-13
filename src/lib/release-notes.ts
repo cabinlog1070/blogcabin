@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.18.1",
+        title: msg("공지사항 블로그 이름 고정"),
+        changes: [
+          { kind: "improved", text: msg("공지사항 블로그 이름은 이제 고정돼서 블로그 관리에서 바꿀 수 없어요."), admin: true },
+          { kind: "fixed", text: msg("관리자가 블로그 관리 기본 정보를 저장할 때 블로그 이름이 12자를 넘는다며 저장되지 않던 문제를 고쳤어요."), admin: true },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [

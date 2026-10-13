@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { blogs, categories, profiles } from "@/db/schema";
 import { DEFAULT_CATEGORY, msg } from "@/lib/i18n";
 import { parseId } from "@/lib/ids";
-import { ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
+import { ADMIN_BLOG_TITLE, ADMIN_NICKNAME, nicknameSchema } from "@/lib/nickname";
 import { requireMember } from "@/server/dal";
 import { uniqueViolation } from "@/server/db-errors";
 import { getT } from "@/server/i18n";
@@ -25,16 +25,20 @@ const infoSchema = z.object({
 export async function updateBlogInfo(_prev: FormState, formData: FormData): Promise<FormState> {
   const viewer = await requireMember();
   const t = await getT();
+  const isAdmin = viewer.user.role === "admin";
   const parsed = infoSchema.safeParse({
     nickname: formData.get("nickname") ?? "",
-    title: formData.get("title") ?? "",
+    // 관리자 블로그 이름은 고정이라 보낸 값을 받지 않는다. 12자 제한을 넘는 이름이라 검사도 건너뛴다
+    title: isAdmin ? "-" : (formData.get("title") ?? ""),
     description: formData.get("description") ?? "",
     statusMessage: formData.get("statusMessage") ?? "",
   });
   if (!parsed.success) return { error: t(parsed.error.issues[0].message) };
   const { nickname, statusMessage, ...info } = parsed.data;
   // 관리자 닉네임은 관리자만 쓴다 (AUTH-08)
-  if (nickname === ADMIN_NICKNAME && viewer.user.role !== "admin") return { error: t("이 닉네임은 쓸 수 없어요") };
+  if (nickname === ADMIN_NICKNAME && !isAdmin) return { error: t("이 닉네임은 쓸 수 없어요") };
+  // 예전에 바꿔 둔 관리자 블로그 이름도 저장할 때 원래 이름으로 돌린다
+  if (isAdmin) info.title = ADMIN_BLOG_TITLE;
   try {
     await db.transaction(async (tx) => {
       await tx.update(profiles).set({ nickname, statusMessage }).where(eq(profiles.userId, viewer.userId));

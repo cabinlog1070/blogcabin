@@ -7,7 +7,20 @@ import { categoryLabel } from "@/lib/i18n";
 
 const input = "w-full rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun";
 
-export function BlogInfoForm({ nickname, title, description, statusMessage }: { nickname: string; title: string; description: string; statusMessage: string | null }) {
+export function BlogInfoForm({
+  nickname,
+  title,
+  titleLocked,
+  description,
+  statusMessage,
+}: {
+  nickname: string;
+  title: string;
+  /** 관리자 공지 블로그: 이름을 보여 주기만 한다 */
+  titleLocked: boolean;
+  description: string;
+  statusMessage: string | null;
+}) {
   const [state, action, pending] = useActionState<FormState, FormData>(updateBlogInfo, {});
   const t = useT();
   return (
@@ -19,8 +32,17 @@ export function BlogInfoForm({ nickname, title, description, statusMessage }: { 
       </label>
       <label className="block">
         <span className="mb-1 block font-bold">{t("블로그 이름")}</span>
-        <input name="title" defaultValue={title} maxLength={12} required className={input} />
-        <span className="mt-1 block text-sm text-ink-soft">{t("12자까지 쓸 수 있어요")}</span>
+        {titleLocked ? (
+          <>
+            <input value={title} readOnly aria-readonly className="w-full cursor-not-allowed rounded-xl border-2 border-line bg-line/40 px-3 py-2 text-ink-soft outline-none" />
+            <span className="mt-1 block text-sm text-ink-soft">🔒 {t("관리자 블로그 이름은 바꿀 수 없어요")}</span>
+          </>
+        ) : (
+          <>
+            <input name="title" defaultValue={title} maxLength={12} required className={input} />
+            <span className="mt-1 block text-sm text-ink-soft">{t("12자까지 쓸 수 있어요")}</span>
+          </>
+        )}
       </label>
       <label className="block">
         <span className="mb-1 block font-bold">{t("소개")}</span>
