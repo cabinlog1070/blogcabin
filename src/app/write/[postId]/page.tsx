@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { categories } from "@/db/schema";
 import { PostForm } from "@/components/editor/post-form";
 import { parseId } from "@/lib/ids";
+import { toKstInput } from "@/lib/schedule";
 import { getPost, getPostTags } from "@/server/blog";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
@@ -43,7 +44,10 @@ export default async function EditPostPage(props: PageProps<"/write/[postId]">) 
           categoryId: post.categoryId,
           tags: tagNames,
           visibility: post.visibility,
+          publishAt: post.scheduled ? toKstInput(post.createdAt) : undefined, // 아직 안 올라간 예약 글 (POST-11)
+          pinHours: post.pinHours,
         }}
+        isAdmin={viewer.user.role === "admin"}
       />
     </div>
   );

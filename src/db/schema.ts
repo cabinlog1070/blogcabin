@@ -418,12 +418,16 @@ export const posts = pgTable(
     contentText: text("content_text").notNull(), // 태그를 뺀 본문: 요약, 검색, 글자 수 확인용
     visibility: visibility("visibility").notNull().default("public"),
     viewCount: integer("view_count").notNull().default(0),
+    // 관리자 글을 광장 게시판(마을 소식) 맨 위에 걸어 두는 시간. 올라간 때(created_at)부터 센다. 0 = 걸지 않음, 회원 글은 늘 0
+    pinHours: integer("pin_hours").notNull().default(0),
+    // 글이 올라가는(올라간) 시각. 예약 글(POST-11)은 미래 시각이고, 그 시각이 되기 전에는 주인에게만 보인다
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     check("posts_title_check", sql`char_length(${t.title}) BETWEEN 1 AND 100`),
     check("posts_view_count_check", sql`${t.viewCount} >= 0`),
+    check("posts_pin_hours_check", sql`${t.pinHours} BETWEEN 0 AND 720`),
     check("posts_visibility_check", oneOf(t.visibility, VISIBILITIES)),
     index("posts_blog_created_idx").on(t.blogId, t.createdAt.desc()),
     index("posts_visibility_created_idx").on(t.visibility, t.createdAt.desc()),

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, notInArray } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -9,6 +9,7 @@ import { attachments, categories, posts, postTags, tags } from "@/db/schema";
 import { POST_REWARD_MIN_LENGTH } from "@/lib/game";
 import { msg } from "@/lib/i18n";
 import { parseId } from "@/lib/ids";
+import { MAX_PIN_HOURS, parseKstInput, SCHEDULE_MAX_DAYS } from "@/lib/schedule";
 import { requireMember } from "@/server/dal";
 import { growForPost } from "@/server/farm";
 import { getT } from "@/server/i18n";
@@ -22,6 +23,9 @@ const schema = z.object({
   categoryId: z.coerce.number().int().positive().optional(),
   tags: z.string().max(300, msg("태그는 모두 합쳐 300자까지예요")),
   visibility: z.enum(["public", "private"]),
+  publishMode: z.enum(["now", "schedule"]),
+  publishAt: z.string().max(20),
+  pinHours: z.coerce.number().int().min(0).max(MAX_PIN_HOURS),
 });
 
 // 오류가 나면 입력값을 돌려준다. React 19는 폼 액션 뒤 입력칸을 처음 값으로 되돌리므로 (POST-01, #16)
@@ -53,9 +57,26 @@ export async function savePost(_prev: SavePostState, formData: FormData): Promis
     categoryId: formData.get("categoryId") || undefined,
     tags: formData.get("tags") ?? "",
     visibility: formData.get("visibility") ?? "public",
+    publishMode: formData.get("publishMode") ?? "now",
+    publishAt: formData.get("publishAt") ?? "",
+    pinHours: formData.get("pinHours") || 0,
   });
   if (!parsed.success) return { error: t(parsed.error.issues[0].message), values };
   const input = parsed.data;
+  const isAdmin = viewer.user.role === "admin";
+  // 광장 게시판 게시 시간은 관리자 글만. 회원 글은 늘 0 (걸리지 않음)
+  const pinHours = isAdmin ? input.pinHours : 0;
+
+  // 예약 발행 (POST-11): 올라갈 시각을 created_at에 적는다. null이면 지금
+  let publishAt: Date | null = null;
+  if (input.publishMode === "schedule") {
+    publishAt = parseKstInput(input.publishAt);
+    if (!publishAt) return { error: t("예약할 날짜와 시간을 골라 주세요"), values };
+    if (publishAt.getTime() <= Date.now()) return { error: t("예약 시간은 지금보다 뒤로 정해 주세요"), values };
+    if (publishAt.getTime() > Date.now() + SCHEDULE_MAX_DAYS * 86_400_000) {
+      return { error: t("예약은 {n}일 안으로만 할 수 있어요", { n: SCHEDULE_MAX_DAYS }), values };
+    }
+  }
   // 글·카테고리 ID가 DB integer 범위 밖이면 쿼리 오류(500)가 나므로 먼저 막는다 (#21)
   if ((input.postId && parseId(input.postId) === null) || (input.categoryId && parseId(input.categoryId) === null)) {
     return { error: t("잘못된 요청이에요"), values };
@@ -97,9 +118,16 @@ export async function savePost(_prev: SavePostState, formData: FormData): Promis
     let id: number;
     if (input.postId) {
       // 수정: 내 블로그의 글인지 확인
+      const [current] = await tx
+        .select({ scheduled: sql<boolean>`${posts.createdAt} > now()` })
+        .from(posts)
+        .where(and(eq(posts.id, input.postId), eq(posts.blogId, blogId)));
+      if (!current) throw new Error("NOT_FOUND");
+      // 아직 안 올라간 예약 글만 시각을 바꾸거나 지금 올릴 수 있다. 이미 올라간 글의 시각은 그대로
+      const createdAt = current.scheduled ? (publishAt ?? sql`now()`) : undefined;
       const [updated] = await tx
         .update(posts)
-        .set({ title: input.title, contentHtml, contentText, categoryId, visibility: input.visibility })
+        .set({ title: input.title, contentHtml, contentText, categoryId, visibility: input.visibility, createdAt, ...(isAdmin ? { pinHours } : {}) })
         .where(and(eq(posts.id, input.postId), eq(posts.blogId, blogId)))
         .returning({ id: posts.id });
       if (!updated) throw new Error("NOT_FOUND");
@@ -107,11 +135,20 @@ export async function savePost(_prev: SavePostState, formData: FormData): Promis
     } else {
       const [created] = await tx
         .insert(posts)
-        .values({ blogId, title: input.title, contentHtml, contentText, categoryId, visibility: input.visibility })
+        .values({
+          blogId,
+          title: input.title,
+          contentHtml,
+          contentText,
+          categoryId,
+          visibility: input.visibility,
+          pinHours,
+          ...(publishAt ? { createdAt: publishAt } : {}),
+        })
         .returning({ id: posts.id });
       id = created.id;
 
-      // 새 공개 글이 충분히 길면 보상 (하루 상한은 grantReward가 확인)
+      // 새 공개 글이 충분히 길면 보상 (하루 상한은 grantReward가 확인). 예약 글도 예약한 날 저장할 때 준다
       if (input.visibility === "private") rewardResult = "private";
       else if (contentText.length < POST_REWARD_MIN_LENGTH) rewardResult = "short";
       else {

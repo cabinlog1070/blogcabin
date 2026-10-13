@@ -85,7 +85,7 @@ export const getDailyQuests = cache(async (userId: string, today: string = today
       ) AS attend,
       (
         SELECT count(*) FROM ${posts} JOIN ${blogs} ON ${blogs.id} = ${posts.blogId}
-        WHERE ${blogs.ownerId} = ${userId} AND ${posts.createdAt} >= ${since}
+        WHERE ${blogs.ownerId} = ${userId} AND ${posts.createdAt} >= ${since} AND ${posts.createdAt} <= now()
           AND char_length(regexp_replace(${posts.contentText}, '[[:space:]]', '', 'g')) >= ${QUEST_POST_MIN_CHARS}
       ) AS post,
       (
