@@ -1,0 +1,2 @@
+ALTER TABLE "user_items" ADD COLUMN "color" text;--> statement-breakpoint
+ALTER TABLE "user_items" ADD CONSTRAINT "user_items_color_check" CHECK ("user_items"."color" IN ('wood', 'pink', 'sky', 'mint', 'lemon', 'lilac', 'white', 'navy'));

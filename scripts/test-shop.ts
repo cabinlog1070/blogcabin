@@ -2,6 +2,8 @@
 // 실행: npm run test:shop
 import { piecesInOrder } from "../src/lib/art/avatar";
 import { characterSvg, composeLook, parseLook } from "../src/lib/art/characters";
+import { FURNITURE_COLOR_KEYS, furnitureInfo, furnitureSvg, paintedFurnitureKey, parseFurnitureKey } from "../src/lib/art/furniture";
+import { FURNITURE_COLORS as DB_FURNITURE_COLORS } from "../src/db/schema";
 import { clampPct, isForSale, sortItems } from "../src/lib/shop";
 
 let failed = 0;
@@ -33,6 +35,15 @@ expect("싼 순", names("price_asc"), ["화분", "의자", "램프", "책상", "
 expect("최신순", names("newest"), ["침대", "책상", "램프", "의자", "화분"]);
 expect("보유순 (같으면 싼 순)", names("owned"), ["화분", "책상", "의자", "램프", "침대"]);
 expect("원래 배열은 그대로", f[0].name, "침대");
+
+// 가구 색 (SHOP-05, 2026-10-13)
+expect("가구 색 목록이 DB CHECK와 같음", FURNITURE_COLOR_KEYS, [...DB_FURNITURE_COLORS]);
+expect("색 붙인 가구 키", paintedFurnitureKey("furn.chair", "pink"), "furn.chair@pink");
+expect("색이 없거나 모르는 색이면 가구 키 그대로", [paintedFurnitureKey("furn.chair", null), paintedFurnitureKey("furn.chair", "gold")], ["furn.chair", "furn.chair"]);
+expect("색 붙인 가구 키 풀기", parseFurnitureKey("furn.tv@navy"), { assetKey: "furn.tv", color: "navy" });
+expect("색을 붙여도 크기는 같음", furnitureInfo("furn.bed@mint"), furnitureInfo("furn.bed"));
+expect("색을 고르면 그림이 바뀜", furnitureSvg("furn.chair@mint") !== furnitureSvg("furn.chair"), true);
+expect("고른 색(민트, 파스텔로 조금 밝힌 #b2e0c8)이 그림에 들어감", furnitureSvg("furn.chair@mint").includes("#b2e0c8"), true);
 
 // 모습 키
 const look = composeLook("char.girl", ["avatar.hat.straw", "avatar.top.hoodie"]);

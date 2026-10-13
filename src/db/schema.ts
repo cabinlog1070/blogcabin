@@ -36,6 +36,9 @@ const enumText =
 const oneOf = (col: AnyPgColumn, values: readonly string[]) =>
   sql`${col} IN (${sql.raw(values.map((v) => `'${v}'`).join(", "))})`;
 
+/** 가구 색 (src/lib/art/furniture.ts의 FURNITURE_COLORS와 같은 목록) */
+export const FURNITURE_COLORS = ["wood", "pink", "sky", "mint", "lemon", "lilac", "white", "navy"] as const;
+
 export const ITEM_TYPES = [
   "character",
   "background",
@@ -223,8 +226,13 @@ export const userItems = pgTable(
     acquiredAt: timestamp("acquired_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // 가구 색 (SHOP-05, 2026-10-13). 가구에만 쓰고, null이면 그린 그대로의 기본 색
+    color: text("color"),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.itemId] })],
+  (t) => [
+    primaryKey({ columns: [t.userId, t.itemId] }),
+    check("user_items_color_check", oneOf(t.color, FURNITURE_COLORS)),
+  ],
 );
 
 // 아바타 꾸미기 착용 (SHOP-06): 회원마다 부위별로 0~1개

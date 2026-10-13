@@ -30,6 +30,19 @@ const mixHex = (a: string, b: string, t: number) => {
 };
 const PASTEL_LINE = "#7b5a44";
 
+// 가구 색 바꾸기 (SHOP-05): withPaint(색 바꿈표, () => 그림) 안에서 그리면 F·S·L이 표에 있는 색을 바꿔 칠한다
+let PAINT: Record<string, string> | null = null;
+export function withPaint<R>(paint: Record<string, string> | null, draw: () => R): R {
+  const before = PAINT;
+  PAINT = paint;
+  try {
+    return draw();
+  } finally {
+    PAINT = before;
+  }
+}
+const paint = (c: string) => PAINT?.[c.toLowerCase()] ?? c;
+
 let seq = 0;
 /** 그림 하나 안에서만 쓰는 id */
 export const nid = (p: string) => `${p}${(seq++).toString(36)}`;
@@ -55,12 +68,14 @@ export function make(w: number, h: number, draw: () => string, opts: Parameters<
 
 // ───────── 붓 ─────────
 /** 면: 단색 (종이 결은 그림 전체에 한 번에 입힌다 — svg의 grain). op < 1 이면 반투명 덧칠 */
-export const F = (d: string, c: string, op = 1) =>
+export const F = (d: string, c: string, op = 1) => Fill(d, paint(c), op);
+const Fill = (d: string, c: string, op: number) =>
   PASTEL && op >= 1
     ? `<path d="${d}" fill="${mixHex(c, "#ffffff", 0.12)}" opacity=".6"/><path d="${d}" fill="${mixHex(c, "#ffffff", 0.12)}" filter="url(#pz)"/>`
     : op < 1 ? `<path d="${d}" fill="${c}" opacity="${op}" filter="url(#fg)"/>` : `<path d="${d}" fill="${c}"/>`;
 /** 크레용 선: 가는 심(끊기지 않는 선) + 거친 크레용 결 두 번(한 묶음으로 한 번에 거칠게 해 필터 수를 줄인다) */
 export const L = (d: string, w = 5, color = INK) => {
+  color = paint(color);
   if (PASTEL) {
     const c = color === INK ? PASTEL_LINE : color;
     // 가는 선(눈썹·입·무늬)은 결을 넣으면 끊겨서 또렷하게 그린다
@@ -79,7 +94,7 @@ export const S = (d: string, c: string, w = 5, shade?: string) => {
     o += `<clipPath id="${id}"><path d="${d}"/></clipPath><g clip-path="url(#${id})">${F(shade, "#000", PASTEL ? 0.07 : 0.13)}</g>`;
   }
   // 파스텔: 테두리는 면 색을 조금 진하게 한 크레용
-  if (PASTEL) return o + `<path d="${d}" fill="none" stroke="${mixHex(c, "#3a2a1a", 0.28)}" stroke-width="${+(w * 1.5).toFixed(1)}" stroke-linejoin="round" filter="url(#pz)"/>`;
+  if (PASTEL) return o + `<path d="${d}" fill="none" stroke="${mixHex(paint(c), "#3a2a1a", 0.28)}" stroke-width="${+(w * 1.5).toFixed(1)}" stroke-linejoin="round" filter="url(#pz)"/>`;
   return o + L(d, w);
 };
 /** 모양 안에만 그리기 */
@@ -440,12 +455,129 @@ export const nest = () =>
     L("M40 100q28 18 56 22M130 136q46 8 92 6M276 140q54-4 100-22M56 64q18-12 46-18M338 46q28 6 46 18", 3) + L("M22 82l-12-6M418 84l12-8", 3.5), { dw: 220, dh: 80 });
 
 // ───────── 7. 가구 ─────────
-export const FURN_CANVAS: Record<string, [number, number]> = { "furn.plant": [160, 224], "furn.chair": [176, 240], "furn.lamp": [160, 336], "furn.desk": [360, 240], "furn.bed": [440, 256] };
+export const FURN_CANVAS: Record<string, [number, number]> = {
+  "furn.plant": [160, 224], "furn.chair": [176, 240], "furn.lamp": [160, 336], "furn.desk": [360, 240], "furn.bed": [440, 256],
+  // 2026-10-13 새 가구 9종
+  "furn.bookshelf": [240, 320], "furn.tv": [280, 260], "furn.teddy": [200, 220], "furn.rug": [440, 140], "furn.console": [260, 200],
+  "furn.rocket": [220, 360], "furn.basket": [220, 220], "furn.cloud": [320, 200], "furn.rainbow": [400, 240],
+};
+/** 바닥에 닿지 않고 떠 있는 가구 (발밑 그림자·풀밭을 깔지 않는다) */
+const FURN_FLOATING = new Set(["furn.cloud", "furn.rainbow"]);
+/** 바닥에 까는 가구 (그림자 없이 납작하게) */
+export const FURN_FLAT = new Set(["furn.rug"]);
+/** 책 여러 권을 바닥선(yb)에 세워 꽂는다: [너비, 높이, 색] */
+const books = (x: number, yb: number, list: [number, number, string][]) => {
+  let o = "";
+  for (const [w, h, c] of list) {
+    o += S(Rc(x, yb - h, w, h, 3), c, 3.5) + L(`M${x + 4} ${yb - h + 10}h${w - 8}`, 2.5);
+    x += w + 2;
+  }
+  return o;
+};
+/** 뭉게구름 한 덩이 (가운데 아래 cx·cy, 너비 약 2w) */
+const puff = (cx: number, cy: number, w: number) => {
+  const k = w / 56;
+  return S(`M${cx - w} ${cy}q${-20 * k} 0 ${-18 * k} ${-20 * k}q${2 * k} ${-20 * k} ${24 * k} ${-18 * k}q${6 * k} ${-26 * k} ${34 * k} ${-24 * k}q${26 * k} ${2 * k} ${30 * k} ${24 * k}q${24 * k} ${-4 * k} ${28 * k} ${18 * k}q${2 * k} ${20 * k} ${-20 * k} ${20 * k}Z`, "#ffffff", 4.5);
+};
+/** 반지름 R~r 무지개 띠 하나 (가운데 cx, 바닥 cy) */
+const arcBand = (cx: number, cy: number, R: number, r: number, c: string) =>
+  S(`M${cx - R} ${cy}A${R} ${R} 0 0 1 ${cx + R} ${cy}H${cx + r}A${r} ${r} 0 0 0 ${cx - r} ${cy}Z`, c, 3.5);
+/** 반짝이 별 */
+const twinkle = (x: number, y: number, r: number, c = "#f6d54a") => F(`M${x} ${y - r}q${r * 0.2} ${r * 0.8} ${r} ${r}q${-r * 0.8} ${r * 0.2} ${-r} ${r}q${-r * 0.2} ${-r * 0.8} ${-r} ${-r}q${r * 0.8} ${-r * 0.2} ${r} ${-r}Z`, c);
+
+/** 색을 바꿀 수 있는 가구의 칠할 자리: 그림에 쓴 색 → 고른 색의 어느 톤(main 본색·dark 진한 색·light 옅은 색)으로 바꿀지 */
+export const FURN_PAINT: Record<string, Record<string, "main" | "dark" | "light">> = {
+  "furn.plant": { "#e0784a": "main", "#c9603a": "dark" },
+  "furn.chair": { "#f28fa8": "main" },
+  "furn.lamp": { "#fff1b8": "main" },
+  "furn.desk": { "#c98f5a": "main", "#b07a48": "dark" },
+  "furn.bed": { "#8ccfe8": "main", "#4f8fe0": "dark" },
+  "furn.bookshelf": { "#b07a48": "main", "#c98f5a": "light" },
+  "furn.tv": { "#f2a7a0": "main" },
+  "furn.teddy": { "#c98f5a": "main", "#b07a48": "dark" },
+  "furn.rug": { "#f5b8c8": "main", "#b9dcf0": "light" },
+  "furn.console": { "#d9ccf2": "main" },
+  "furn.rocket": { "#f28fa8": "main", "#8ccfe8": "dark" },
+  "furn.basket": { "#e2b47c": "main", "#c98f5a": "dark" },
+  "furn.cloud": { "#ffffff": "main" },
+  "furn.rainbow": { "#ffffff": "main" },
+};
+
+const FURN_DRAW: Record<string, () => string> = {
+  // 책장: 세 칸에 알록달록한 책, 맨 아래 칸엔 작은 화분
+  "furn.bookshelf": () =>
+    S(Rc(20, 20, 200, 288, 10), "#b07a48", 5) + F(Rc(38, 38, 164, 254, 4), "#7a5236") +
+    books(44, 112, [[20, 64, "#f28fa8"], [16, 70, "#8ccfe8"], [22, 58, "#fff1b8"], [18, 66, "#a8d88a"], [20, 62, "#c6b0ec"]]) + S("M168 112l14-60 16 4-14 56Z", "#f5a35a", 3.5) +
+    S(Rc(30, 112, 180, 14, 4), "#c98f5a", 4.5) +
+    books(44, 200, [[18, 60, "#c6b0ec"], [22, 66, "#f59a9a"], [16, 56, "#fbe39a"], [20, 70, "#9fd0f0"]]) + S(E(170, 186, 22, 14), "#f2a7a0", 3.5) + L("M156 182q14-8 28 0", 2.5) +
+    S(Rc(30, 200, 180, 14, 4), "#c98f5a", 4.5) +
+    books(44, 292, [[22, 68, "#a8d88a"], [18, 60, "#f28fa8"], [20, 64, "#8ccfe8"]]) +
+    S("M166 248q-22-18-14-40q16 8 14 40q8-30 30-34q-2 28-30 34Z", "#6fb34f", 4) + S("M146 248h44l-6 44h-32Z", "#e0784a", 4.5) +
+    S(Rc(30, 290, 180, 14, 4), "#c98f5a", 4.5),
+  // 티비: 옛날 텔레비전(더듬이 안테나)과 낮은 나무 장
+  "furn.tv": () =>
+    S(Rc(46, 226, 16, 22, 4), "#9a6a40", 4) + S(Rc(218, 226, 16, 22, 4), "#9a6a40", 4) +
+    S(Rc(30, 168, 220, 64, 10), "#c98f5a", 5, "M190 168h60v64h-60Z") + L("M140 176v48", 2.5) + dot(128, 200, 4) + dot(152, 200, 4) +
+    L("M126 58l-34-40M154 58l30-42", 4) + S(E(92, 18, 7), "#f28fa8", 3.5) + S(E(184, 16, 7), "#f28fa8", 3.5) +
+    S(Rc(54, 56, 172, 116, 20), "#f2a7a0", 5, "M190 56h36v116h-36Z") + S(Rc(70, 70, 116, 88, 16), "#9fd6e8", 4) +
+    L("M84 88q8-8 22-8", 3, "#ffffff") + L("M84 102v-4", 3, "#ffffff") +
+    S(E(206, 92, 9), "#fff1b8", 3.5) + S(E(206, 124, 9), "#fff1b8", 3.5),
+  // 곰인형: 다리를 앞으로 뻗고 앉은 갈색 곰, 목에 작은 분홍 리본
+  "furn.teddy": () =>
+    S(E(60, 44, 20), "#c98f5a", 4.5) + S(E(140, 44, 20), "#c98f5a", 4.5) + S(E(60, 46, 10), "#f6d4b0", 3) + S(E(140, 46, 10), "#f6d4b0", 3) +
+    S(E(100, 152, 50, 50), "#c98f5a", 5) + S(E(100, 162, 26, 28), "#f6d4b0", 3.5) +
+    S("M58.9 121.6A15 26 20 1 0 41.1 170.4A15 26 20 1 0 58.9 121.6Z", "#b07a48", 4.5) + S("M141.1 121.6A15 26 -20 1 1 158.9 170.4A15 26 -20 1 1 141.1 121.6Z", "#b07a48", 4.5) +
+    S(E(66, 190, 22, 22), "#c98f5a", 4.5) + S(E(134, 190, 22, 22), "#c98f5a", 4.5) + S(E(66, 194, 11, 12), "#f6d4b0", 3) + S(E(134, 194, 11, 12), "#f6d4b0", 3) +
+    S(E(100, 80, 52, 44), "#c98f5a", 5) + S(E(100, 96, 20, 14), "#f6d4b0", 3.5) +
+    `<ellipse cx="100" cy="90" rx="7" ry="5" fill="#4a3628"/>` + L("M100 95v5M93 102q7 5 14 0", 2.5) + dot(80, 76, 5) + dot(120, 76, 5) + blush(70, 92, 6, 3.5) + blush(130, 92, 6, 3.5) +
+    S("M100 126l-16-9v18Z", "#f28fa8", 3.5) + S("M100 126l16-9v18Z", "#f28fa8", 3.5) + S(E(100, 126, 6), "#f59ab4", 3),
+  // 러그: 바닥에 까는 동그란 러그 (양 끝에 술)
+  "furn.rug": () =>
+    L("M30 58h-20M26 70h-22M30 82h-20M410 58h20M414 70h22M410 82h20", 3, "#c98f5a") +
+    S(E(220, 70, 192, 54), "#f5b8c8", 5) + S(E(220, 70, 148, 38), "#fde3c0", 4) + S(E(220, 70, 96, 22), "#b9dcf0", 4) +
+    flowers(196, 70, ["#f28fa8", "#ffffff", "#f28fa8"], 7) +
+    [70, 120, 320, 370].map((x) => `<circle cx="${x}" cy="70" r="6" fill="#ffffff" opacity=".9"/>`).join(""),
+  // 게임기: 보라색 게임기와 줄 달린 패드 두 개
+  "furn.console": () =>
+    L("M78 128q-24 8-30 26M182 128q24 8 30 26", 3) +
+    S(Rc(56, 64, 148, 72, 18), "#d9ccf2", 5, "M170 64h34v72h-34Z") + `<circle cx="82" cy="86" r="6" fill="#7bd389"/>` + L("M150 84h32M150 96h32", 2.5) + L("M92 118h76", 3) +
+    S(Rc(12, 148, 84, 42, 20), "#f28fa8", 4.5) + F("M34 162h6v-6h6v6h6v6h-6v6h-6v-6h-6Z", "#4a3628") + dot(70, 164, 4.5) + dot(80, 174, 4.5) +
+    S(Rc(164, 148, 84, 42, 20), "#8ccfe8", 4.5) + F("M186 162h6v-6h6v6h6v6h-6v6h-6v-6h-6Z", "#4a3628") + dot(222, 164, 4.5) + dot(232, 174, 4.5),
+  // 우주선: 동그란 창이 달린 로켓, 아래로 불꽃
+  "furn.rocket": () =>
+    `<ellipse cx="110" cy="318" rx="34" ry="30" fill="#ffd56a" opacity=".5" filter="url(#glow)"/>` +
+    S("M88 300q22 70 44 0Z", "#ffb04a", 4) + S("M99 300q11 38 22 0Z", "#fff1b8", 3) +
+    S("M66 226l-42 64h52Z", "#f28fa8", 5) + S("M154 226l42 64h-52Z", "#f28fa8", 5) +
+    S("M110 20q58 62 50 270H60q-8-208 50-270Z", "#f4efe6", 5, "M134 30q38 80 26 260h-26Z") +
+    S("M110 20q32 34 42 76H68q10-42 42-76Z", "#f28fa8", 5) +
+    S(Rc(62, 216, 96, 18, 6), "#8ccfe8", 4) + S(E(110, 152, 32), "#c9c9d6", 5) + S(E(110, 152, 21), "#9fd6e8", 4) + L("M98 142q6-6 14-6", 3, "#ffffff") +
+    S("M84 290h52l-8 14H92Z", "#9a9aa8", 4.5) +
+    twinkle(30, 60, 12) + twinkle(196, 120, 10) + twinkle(28, 190, 8, "#c6b0ec"),
+  // 꽃바구니: 엮은 바구니에 알록달록한 꽃
+  "furn.basket": () =>
+    S("M40 124q70-150 140 0h-16q-54-122-108 0Z", "#c98f5a", 4.5) +
+    S("M64 124q-24-30-2-54q16 26 2 54Z", "#6fb34f", 4) + S("M156 124q24-30 2-54q-16 26-2 54Z", "#5aa040", 4) +
+    flowers(80, 84, ["#ffffff", "#f28fa8", "#8ccfe8"], 12) + flowers(62, 108, ["#f5a35a", "#f28fa8", "#fff1b8", "#c6b0ec"], 13) +
+    S("M30 120h160l-18 84H48Z", "#e2b47c", 5, "M150 120h40l-18 84h-30Z") + L("M40 148h140M46 176h128", 2.5) + L("M72 126l6 76M110 126v78M148 126l-6 76", 2.5) +
+    S(Rc(22, 110, 176, 18, 8), "#c98f5a", 4.5),
+  // 구름: 방 안에 둥실 떠 있는 웃는 구름
+  "furn.cloud": () =>
+    S("M70 170q-52 0-48-42q4-34 46-32q8-52 62-52q40 0 58 36q16-24 48-16q40 10 34 52q34 6 30 32q-4 22-34 22Z", "#ffffff", 5, "M30 152q130 22 270-6v30H30Z") +
+    dot(134, 124, 5) + dot(190, 124, 5) + L("M152 136q10 10 20 0", 3) + blush(118, 140) + blush(206, 140) +
+    twinkle(40, 40, 12) + twinkle(290, 56, 10, "#c6b0ec"),
+  // 무지개: 양 끝에 뭉게구름
+  "furn.rainbow": () =>
+    arcBand(200, 206, 180, 158, "#f59a9a") + arcBand(200, 206, 158, 136, "#f8c08a") + arcBand(200, 206, 136, 114, "#fbe39a") +
+    arcBand(200, 206, 114, 92, "#a8d88a") + arcBand(200, 206, 92, 70, "#9fd0f0") + arcBand(200, 206, 70, 48, "#c6b0ec") +
+    puff(64, 222, 40) + puff(336, 222, 40),
+};
+
 export function furniture(key: string, grass: boolean): string {
   const [W, H] = FURN_CANVAS[key] ?? [168, 168];
   return make(W, H, () => {
-    let o = grass ? F(`M${W * 0.1} ${H - 4}q${W * 0.4} -22 ${W * 0.8} 0Z`, "#a8d07a") : shadow(W / 2, H - 8, W * 0.4, 8);
-    if (key === "furn.plant") o += S("M80 140q-50-30-56-90q40 6 56 70q10-80 50-104q8 60-40 120Z", "#6fb34f", 5) + S("M80 140q30-40 64-30q-14 40-64 40Z", "#5aa040", 4.5) + S("M34 140h92l-12 76H46Z", "#e0784a", 5, "M100 140h26l-12 76h-18Z") + S(Rc(28, 132, 104, 16, 6), "#c9603a", 4.5);
+    let o = FURN_FLOATING.has(key) || FURN_FLAT.has(key) ? "" : grass ? F(`M${W * 0.1} ${H - 4}q${W * 0.4} -22 ${W * 0.8} 0Z`, "#a8d07a") : shadow(W / 2, H - 8, W * 0.4, 8);
+    if (FURN_DRAW[key]) o += FURN_DRAW[key]();
+    else if (key === "furn.plant") o += S("M80 140q-50-30-56-90q40 6 56 70q10-80 50-104q8 60-40 120Z", "#6fb34f", 5) + S("M80 140q30-40 64-30q-14 40-64 40Z", "#5aa040", 4.5) + S("M34 140h92l-12 76H46Z", "#e0784a", 5, "M100 140h26l-12 76h-18Z") + S(Rc(28, 132, 104, 16, 6), "#c9603a", 4.5);
     else if (key === "furn.chair") o += S(Rc(38, 154, 16, 78, 4), "#9a6a40", 4.5) + S(Rc(122, 154, 16, 78, 4), "#9a6a40", 4.5) + S(Rc(40, 20, 96, 120, 16), "#e2b47c", 5) + S(Rc(56, 36, 64, 84, 10), "#f28fa8", 4) + S(Rc(30, 130, 116, 26, 8), "#c98f5a", 5);
     else if (key === "furn.lamp") o += `<ellipse cx="80" cy="80" rx="60" ry="50" fill="#ffd56a" opacity=".5" filter="url(#glow)"/>` + S(Rc(74, 104, 12, 196, 4), "#7a5236", 4.5) + S(E(80, 312, 44, 12), "#7a5236", 4.5) + S("M40 110l20-90h40l20 90Z", "#fff1b8", 5);
     else if (key === "furn.desk") o += S(Rc(34, 120, 18, 112, 4), "#9a6a40", 4.5) + S(Rc(308, 120, 18, 112, 4), "#9a6a40", 4.5) + S(Rc(210, 120, 98, 76, 4), "#b07a48", 4.5) + dot(259, 160, 5) + S(Rc(20, 100, 320, 26, 6), "#c98f5a", 5) + S(Rc(70, 40, 90, 60, 6), "#4a4a4a", 4.5) + S(Rc(80, 48, 70, 44, 3), "#8ccfe8", 3.5) + S(Rc(240, 60, 40, 40, 4), "#f4efe6", 4) + L("M246 74h28M246 86h20", 2.5);
