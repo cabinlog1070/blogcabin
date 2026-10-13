@@ -50,6 +50,17 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.31.1",
+        title: msg("펫 꾸미기 자리"),
+        changes: [
+          {
+            kind: "improved",
+            text: msg("펫 꾸미기의 꽃이 펫마다 머리 위 귀나 뿔 옆에 꽂혀요. 거북이의 리본·스카프는 얼굴을 가리지 않게 턱 밑으로, 알 속 아기 병아리의 리본은 머리 위로 옮겼어요."),
+            images: [{ src: "/release-notes/1.31.1/pet-accessory-after.webp", alt: msg("거북이·원숭이·여우가 리본·꽃·스카프를 한 모습"), before: "/release-notes/1.31.1/pet-accessory-before.webp" }],
+          },
+        ],
+      },
+      {
         version: "1.31.0",
         title: msg("물가에서 낚시하는 이웃"),
         changes: [

@@ -320,6 +320,37 @@ function parts(kind: AnimalKind, stage: Stage, coat: Coat): { feet: string; body
 
 const K: Record<Stage, number> = { baby: 0.62, teen: 0.82, adult: 1 };
 
+/**
+ * 펫 꾸미기 자리 (머리 좌표, parts()의 머리 모양에서 잰 값).
+ * flower = 머리 위 한쪽, 오른쪽 귀(뿔) 밑동에 꽂은 머리꽃 자리. 없으면 [158, 86].
+ * neck = 리본·스카프 가운데(목), 없으면 머리 아래 [128, 176]. ribbon = 리본만 다른 자리일 때. scarf = 스카프 반폭, tail = 늘어진 끝 길이.
+ */
+type AccFit = { flower?: [number, number]; neck?: [number, number]; ribbon?: [number, number]; scarf?: number; tail?: number };
+const ACC_FIT: Partial<Record<AnimalKind, AccFit>> = {
+  pig: { flower: [160, 88] },
+  chick: { flower: [160, 80] },
+  cow: { flower: [164, 88] },
+  sheep: { flower: [162, 84] },
+  rabbit: { flower: [162, 92] },
+  puppy: { flower: [160, 84] },
+  tiger: { flower: [156, 88] },
+  dragon: { flower: [162, 88] },
+  raccoon: { flower: [160, 90] },
+  monkey: { flower: [158, 80] },
+  cat: { flower: [158, 90] },
+  bear: { flower: [156, 86] },
+  fox: { flower: [158, 88] },
+  hamster: { flower: [156, 84] },
+  unicorn: { flower: [158, 88] },
+  wolf: { flower: [158, 90] },
+  // 거북이는 얼굴이 등딱지 앞 아래에 있어 리본·스카프는 턱 밑, 꽃은 머리 위 오른쪽
+  turtle: { flower: [162, 150], neck: [128, 212], scarf: 30, tail: 14 },
+  dino: { flower: [164, 88] },
+  mole: { flower: [158, 84] },
+};
+/** 알껍질 속 아기 병아리: 리본은 머리 왼쪽에 머리띠 리본, 꽃은 오른쪽, 스카프는 껍질 가장자리에 두른다 */
+const CHICK_IN_SHELL: AccFit = { flower: [156, 128], ribbon: [104, 126], neck: [128, 190], scarf: 50, tail: 16 };
+
 /** 검정 몸이면 눈·코·입을 흰색으로 */
 const lightFace = (head: string) => head.replace(/fill="#4a3628"/g, 'fill="#fffaf2"').replace(/stroke="#7b5a44"/g, 'stroke="#f4efe6"');
 
@@ -329,10 +360,17 @@ function animalBody(kind: AnimalKind, stage: Stage, acc: Acc, coat: Coat = "defa
   const p = parts(kind, stage, coat);
   const head = coat === "black" && kind !== "turtle" ? lightFace(p.head) : p.head; // 거북이는 등딱지만 색이 바뀌고 얼굴은 연두색 그대로
   let o = p.feet + p.body + `<g transform="translate(${128 * (1 - hb)} ${176 * (1 - hb)}) scale(${hb})">${head}</g>`;
-  const nx = 128, ny = kind === "chick" && stage === "baby" ? 190 : 176;
-  if (acc === "ribbon") o += S(`M${nx} ${ny}l-22-14v28Z`, "#f37c9e", 4) + S(`M${nx} ${ny}l22-14v28Z`, "#f37c9e", 4) + S(E(nx, ny, 7), "#d95a80", 3.5);
-  if (acc === "flower") o += flowers(166, 82, ["#fffaf0"], 11);
-  if (acc === "scarf") o += S(`M${nx - 36} ${ny - 6}q36 14 72 0v14q-36 14 -72 0Z`, "#4a9fd8", 4.5) + S(`M${nx + 12} ${ny + 8}l-2 34l16 0l2-30Z`, "#4a9fd8", 4);
+  if (acc !== "none") {
+    // 꾸미기 자리는 머리 좌표로 정해 두고, 아기는 머리처럼 (128,176) 기준 hb배로 옮긴다
+    const at = ([x, y]: readonly number[]) => [128 + (x - 128) * hb, 176 + (y - 176) * hb] as const;
+    const fit = kind === "chick" && stage === "baby" ? CHICK_IN_SHELL : (ACC_FIT[kind] ?? {});
+    const [fx, fy] = at(fit.flower ?? [158, 86]);
+    const [rx, ry] = at(fit.ribbon ?? fit.neck ?? [128, 176]);
+    const [sx, sy] = at(fit.neck ?? [128, 176]), w = (fit.scarf ?? 36) * (fit.neck ? hb : 1), tail = fit.tail ?? 34;
+    if (acc === "ribbon") o += S(`M${rx} ${ry}l-22-14v28Z`, "#f37c9e", 4) + S(`M${rx} ${ry}l22-14v28Z`, "#f37c9e", 4) + S(E(rx, ry, 7), "#d95a80", 3.5);
+    if (acc === "flower") o += flowers(fx, fy, ["#fffaf0"], 11);
+    if (acc === "scarf") o += S(`M${sx - w} ${sy - 6}q${w} 14 ${w * 2} 0v14q-${w} 14 -${w * 2} 0Z`, "#4a9fd8", 4.5) + S(`M${sx + 12} ${sy + 8}l-2 ${tail}l16 0l2-${tail - 4}Z`, "#4a9fd8", 4);
+  }
   return `<g transform="translate(${128 * (1 - k)} ${232 * (1 - k)}) scale(${k})">${o}</g>`;
 }
 
