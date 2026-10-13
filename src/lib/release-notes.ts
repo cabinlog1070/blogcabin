@@ -38,6 +38,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.18.1",
+        title: msg("간결해진 첫 화면"),
+        changes: [
+          { kind: "improved", text: msg("휴대폰 첫 화면이 간결해졌어요. 소개 글 없이 로그인이 맨 위에 있고, 두 주민 사이에 BlogCabin 로고가 있어요.") },
+          { kind: "improved", text: msg("로그인 전 화면 위쪽의 [시작하기] 버튼을 없앴어요.") },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [
