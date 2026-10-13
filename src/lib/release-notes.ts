@@ -53,8 +53,8 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         version: "1.31.0",
         title: msg("물가에서 낚시하는 이웃"),
         changes: [
-          { kind: "new", text: msg("광장을 돌아다니는 이웃이 가끔 아래 물가에 서서 낚시를 해요. 운이 좋으면 물고기를 낚아요.") },
-          { kind: "new", text: msg("저녁에 불꽃놀이가 터지면 이웃 한두 명이 광장 위쪽으로 가서 하늘을 올려다보며 구경해요.") },
+          { kind: "new", text: msg("광장을 돌아다니는 이웃이 가끔 아래 물가에 서서 낚시를 해요. 운이 좋으면 물고기를 낚아요."), images: [{ src: "/release-notes/1.31.0/fishing.webp", alt: msg("물가에서 낚싯대를 드리운 이웃") }] },
+          { kind: "new", text: msg("저녁에 불꽃놀이가 터지면 이웃 한두 명이 광장 위쪽으로 가서 하늘을 올려다보며 구경해요."), images: [{ src: "/release-notes/1.31.0/fireworks.webp", alt: msg("불꽃놀이를 올려다보는 이웃") }] },
           { kind: "improved", text: msg("캠프파이어에서 마시멜로를 굽는 이웃은 한 번에 두 명까지예요.") },
         ],
       },
@@ -62,14 +62,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
         version: "1.30.0",
         title: msg("휴대폰 조이스틱"),
         changes: [
-          { kind: "new", text: msg("휴대폰·태블릿 광장에서 화면을 누르면 그 자리에 반투명 조이스틱이 나타나요. 누른 채 밀면 그쪽으로 걷고, 손을 떼면 조이스틱이 사라져요.") },
+          { kind: "new", text: msg("휴대폰·태블릿 광장에서 화면을 누르면 그 자리에 반투명 조이스틱이 나타나요. 누른 채 밀면 그쪽으로 걷고, 손을 떼면 조이스틱이 사라져요."), images: [{ src: "/release-notes/1.30.0/joystick.webp", alt: msg("누른 자리에 나타난 반투명 조이스틱") }] },
           { kind: "improved", text: msg("끌지 않고 톡 치면 예전처럼 그곳으로 걸어가거나 건물에 들어가요. 태블릿 왼쪽 아래에 늘 떠 있던 조이스틱은 없어졌어요.") },
         ],
       },
       {
         version: "1.29.2",
         title: msg("상점 저장하기 다듬기"),
-        changes: [{ kind: "improved", text: msg("상점에서 [저장하기]를 눌러도 광장으로 나가지 않고 상점에 그대로 있어요. 입어 보거나 머리 색을 골라 본 것은 [저장하기]를 눌러야 저장되고, 누르지 않고 나가면 원래 모습 그대로예요.") }],
+        changes: [{ kind: "improved", text: msg("상점에서 [저장하기]를 눌러도 광장으로 나가지 않고 상점에 그대로 있어요. 입어 보거나 머리 색을 골라 본 것은 [저장하기]를 눌러야 저장되고, 누르지 않고 나가면 원래 모습 그대로예요."), images: [{ src: "/release-notes/1.29.2/shop-saved.webp", alt: msg("저장한 뒤 상점에 그대로 있는 화면") }] }],
       },
       {
         version: "1.29.1",
