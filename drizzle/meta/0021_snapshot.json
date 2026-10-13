@@ -1,6 +1,6 @@
 {
-  "id": "7374d8b8-bac6-4065-8e80-bcfbae33bb5b",
-  "prevId": "5e7dbd46-0d2f-4459-ab3f-5e1b01365d2f",
+  "id": "92ec6886-6238-46c5-8447-9f4072e47bd5",
+  "prevId": "8d5a4164-eb83-4cfc-9633-5eaae653ba3e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -563,7 +563,7 @@
       "checkConstraints": {
         "avatar_equips_slot_check": {
           "name": "avatar_equips_slot_check",
-          "value": "\"avatar_equips\".\"slot\" IN ('hair', 'top', 'bottom', 'hat', 'shoes')"
+          "value": "\"avatar_equips\".\"slot\" IN ('top', 'bottom', 'hat', 'shoes')"
         }
       },
       "isRLSEnabled": false
@@ -705,6 +705,30 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "room_char_x": {
+          "name": "room_char_x",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "room_char_y": {
+          "name": "room_char_y",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "room_pet_x": {
+          "name": "room_pet_x",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "room_pet_y": {
+          "name": "room_pet_y",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -768,6 +792,14 @@
         "blogs_title_check": {
           "name": "blogs_title_check",
           "value": "char_length(\"blogs\".\"title\") BETWEEN 1 AND 40"
+        },
+        "blogs_room_pet_check": {
+          "name": "blogs_room_pet_check",
+          "value": "(\"blogs\".\"room_pet_x\" IS NULL) = (\"blogs\".\"room_pet_y\" IS NULL) AND \"blogs\".\"room_pet_x\" BETWEEN 0 AND 100 AND \"blogs\".\"room_pet_y\" BETWEEN 0 AND 100"
+        },
+        "blogs_room_char_check": {
+          "name": "blogs_room_char_check",
+          "value": "(\"blogs\".\"room_char_x\" IS NULL) = (\"blogs\".\"room_char_y\" IS NULL) AND \"blogs\".\"room_char_x\" BETWEEN 0 AND 100 AND \"blogs\".\"room_char_y\" BETWEEN 0 AND 100"
         }
       },
       "isRLSEnabled": false
@@ -1278,7 +1310,7 @@
         },
         "items_slot_value_check": {
           "name": "items_slot_value_check",
-          "value": "\"items\".\"slot\" IN ('hair', 'top', 'bottom', 'hat', 'shoes')"
+          "value": "\"items\".\"slot\" IN ('top', 'bottom', 'hat', 'shoes')"
         }
       },
       "isRLSEnabled": false
@@ -2151,12 +2183,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "hair_color": {
-          "name": "hair_color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2246,10 +2272,6 @@
         "profiles_status_message_check": {
           "name": "profiles_status_message_check",
           "value": "char_length(\"profiles\".\"status_message\") BETWEEN 1 AND 30"
-        },
-        "profiles_hair_color_check": {
-          "name": "profiles_hair_color_check",
-          "value": "\"profiles\".\"hair_color\" IN ('black', 'brown', 'caramel', 'blonde', 'red', 'pink', 'blue', 'purple', 'mint')"
         },
         "profiles_nickname_check": {
           "name": "profiles_nickname_check",
@@ -2809,7 +2831,7 @@
         },
         "user_animals_color_check": {
           "name": "user_animals_color_check",
-          "value": "\"user_animals\".\"color\" IN ('default', 'brown', 'yellow', 'red', 'black', 'white', 'pink')"
+          "value": "\"user_animals\".\"color\" IN ('default', 'brown', 'yellow', 'red', 'black', 'white', 'pink', 'orange', 'mint', 'sky', 'purple', 'gray', 'green')"
         },
         "user_animals_level_check": {
           "name": "user_animals_level_check",

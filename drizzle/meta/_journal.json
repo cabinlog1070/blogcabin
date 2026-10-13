@@ -145,8 +145,50 @@
     {
       "idx": 20,
       "version": "7",
-      "when": 1791862945179,
+      "when": 1791850467446,
       "tag": "0020_more_pet_colors",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791850468446,
+      "tag": "0021_room_character_pet",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791850469446,
+      "tag": "0022_post_schedule_pin",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791850470446,
+      "tag": "0023_hair_slot",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791850471446,
+      "tag": "0024_hair_color",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791850472446,
+      "tag": "0025_comment_edited",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791850473446,
+      "tag": "0026_admin_gift",
       "breakpoints": true
     }
   ]
