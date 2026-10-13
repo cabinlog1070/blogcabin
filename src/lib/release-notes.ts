@@ -38,6 +38,11 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.18.1",
+        title: msg("블로그 카테고리 한 번에 바뀌게"),
+        changes: [{ kind: "fixed", text: msg("블로그 홈에서 [전체 글]을 보다가 다른 카테고리를 누르면 주소만 바뀌고 글 목록은 그대로라서 두 번 눌러야 하던 문제를 고쳤어요.") }],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [
