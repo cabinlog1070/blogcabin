@@ -73,9 +73,11 @@ await page.getByRole("status").getByText("8마리가 태어났어요").waitFor()
 check("남은 알 8개 모두 부화", (await count("egg")) === 0 && (await count("growing")) === 10);
 
 // ── 펫 색: 꾸미기 창에서 검정색 → DB·그림 ──
-const [pet] = (await db.query("SELECT id FROM user_animals WHERE user_id = $1 AND status = 'growing' ORDER BY id LIMIT 1", [uid])).rows;
+// 거북이는 검정색이어도 얼굴을 흰색으로 바꾸지 않아서 거북이가 아닌 펫으로 본다
+const [pet] = (await db.query("SELECT a.id FROM user_animals a JOIN animal_species s ON s.id = a.species_id WHERE a.user_id = $1 AND a.status = 'growing' AND s.asset_key <> 'animal.turtle' ORDER BY a.id LIMIT 1", [uid])).rows;
 await page.reload();
 await page.getByRole("button", { name: /펫 꾸미기/ }).click();
+await page.locator(`[data-decorate-pick="${pet.id}"]`).click();
 const row = page.locator(`[data-decorate-pet="${pet.id}"]`);
 await row.locator('[data-pet-color="black"]').click();
 await page.getByRole("status").getByText("색을 바꿨어요").waitFor();
@@ -86,6 +88,24 @@ await row.locator('[data-pet-color="pink"]').click();
 await row.locator('img[data-color="pink"]').waitFor();
 check("다른 색으로 다시 바꾸기 (분홍색)", (await one("SELECT color FROM user_animals WHERE id = $1", [pet.id])).color === "pink");
 await page.screenshot({ path: `${outDir}/f3-color-panel.png` });
+// 꾸미기 창에서 이름 바꾸기
+await row.locator("[data-decorate-name]").fill("까망이");
+await row.getByRole("button", { name: "바꾸기", exact: true }).click();
+await page.getByRole("status").getByText("까망이").waitFor();
+check("꾸미기 창에서 이름 바꾸기", (await one("SELECT name FROM user_animals WHERE id = $1", [pet.id])).name === "까망이");
+// 알림은 3초 뒤에 사라진다
+await page.waitForTimeout(3500);
+check("알림이 3초 뒤에 사라진다", (await page.getByRole("status").innerText()).trim() === "");
+await page.keyboard.press("Escape");
+
+// 풀밭의 펫을 눌러 상태창 → [꾸미기] → 그 펫이 골라진 꾸미기 창
+const [pet2] = (await db.query("SELECT id FROM user_animals WHERE user_id = $1 AND status = 'growing' ORDER BY id OFFSET 1 LIMIT 1", [uid])).rows;
+const pet2Name = (await one("SELECT name FROM user_animals WHERE id = $1", [pet2.id])).name;
+await page.getByRole("button", { name: `${pet2Name} 상태 보기` }).first().click({ force: true });
+await page.locator(`[data-pet-status="${pet2.id}"] [data-status-decorate]`).click();
+await page.locator(`[data-decorate-pet="${pet2.id}"]`).waitFor();
+check("상태창 꾸미기 버튼 → 그 펫 꾸미기", (await page.locator(`[data-decorate-pick="${pet2.id}"]`).getAttribute("aria-pressed")) === "true");
+await page.screenshot({ path: `${outDir}/f4-decorate-one.png` });
 await page.keyboard.press("Escape");
 
 // 데리고 다니는 펫 색은 블로그 미니룸에도

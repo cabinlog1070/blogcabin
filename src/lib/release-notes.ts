@@ -38,6 +38,15 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.19.0",
+        title: msg("펫 골라서 꾸미기"),
+        changes: [
+          { kind: "new", text: msg("펫 꾸미기 창에서 농장 펫이나 다 자란 동물 카드를 하나 골라 꾸미기, 색, 이름을 한곳에서 바꿀 수 있어요. 상태창의 [꾸미기 · 이름 · 색 바꾸기] 버튼으로도 바로 열려요.") },
+          { kind: "improved", text: msg("농장 위쪽에 뜨는 알림은 3초 뒤에 저절로 사라져요.") },
+          { kind: "improved", text: msg("알 둥지에 삐져나와 있던 갈색 나뭇가지를 치워 깔끔한 짚 둥지로 바꿨어요.") },
+        ],
+      },
+      {
         version: "1.18.0",
         title: msg("더 넓어진 동물 농장"),
         changes: [

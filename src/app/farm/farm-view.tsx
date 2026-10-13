@@ -100,8 +100,15 @@ export function FarmView({
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<FarmResult | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
-  const [decorating, setDecorating] = useState(false);
+  const [decorId, setDecorId] = useState<number | null>(null); // 꾸미는 펫 (null이면 꾸미기 창이 닫혀 있다)
   const run = (fn: () => Promise<FarmResult>) => start(async () => setMessage(await fn()));
+
+  // 결과 문구는 3초 뒤에 저절로 사라진다 (새 문구가 오면 다시 3초)
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(() => setMessage(null), 3000);
+    return () => clearTimeout(timer);
+  }, [message]);
 
   const eggs = active.filter((a) => a.status === "egg");
   const growing = active.filter(isPet);
@@ -110,6 +117,11 @@ export function FarmView({
   const carried = allPets.find((p) => p.carried) ?? null;
   const fieldPets = growing.filter((p) => !p.carried).map((p) => toField(t, p));
   const opened = [...active, ...grown].find((a) => a.id === openId) ?? null;
+  const decorPet = allPets.find((p) => p.id === decorId) ?? null;
+  const openDecorate = (id?: number) => {
+    setOpenId(null);
+    setDecorId(id ?? carried?.id ?? allPets[0]?.id ?? 0);
+  };
   const [potionsBefore, potionsAfter = ""] = t("가방 속 물약 {n}개").split("{n}");
 
   return (
@@ -132,7 +144,7 @@ export function FarmView({
         onPet={setOpenId}
         onEgg={setOpenId}
         onHatchAll={fieldLeft > 0 && !pending ? () => run(hatchAllEggs) : null}
-        onDecorate={() => setDecorating(true)}
+        onDecorate={() => openDecorate()}
       />
 
       <div className="mx-auto grid max-w-5xl gap-4 px-4 py-6 md:grid-cols-2">
@@ -296,7 +308,15 @@ export function FarmView({
       {opened && (
         <Modal label={isPet(opened) ? t("{name} 상태창", { name: shownName(t, opened) }) : t("알")} onClose={() => setOpenId(null)}>
           {isPet(opened) ? (
-            <PetStatus key={opened.id} pet={opened} pending={pending} potions={potions} displayed={displayedId === opened.id} run={run} />
+            <PetStatus
+              key={opened.id}
+              pet={opened}
+              pending={pending}
+              potions={potions}
+              displayed={displayedId === opened.id}
+              run={run}
+              onDecorate={() => openDecorate(opened.id)}
+            />
           ) : (
             <div className="flex flex-col items-center p-6 text-center">
               <img src={toAnimalDataUri(eggSvg(192))} alt="" width={96} height={96} aria-hidden />
@@ -326,56 +346,25 @@ export function FarmView({
         </Modal>
       )}
 
-      {decorating && (
-        <Modal label={t("펫 꾸미기")} onClose={() => setDecorating(false)}>
+      {decorId !== null && (
+        <Modal label={t("펫 꾸미기")} onClose={() => setDecorId(null)}>
           <div className="p-5" data-decorate-panel>
             <h2 className="font-display text-2xl">
               <Icon name="hat" size={30} className="-mt-1" /> {t("펫 꾸미기")}
             </h2>
-            <p className="text-sm text-ink-soft">{t("무료예요. 펫마다 꾸미기와 색을 골라 주세요. 농장, 상태창, 광장, 카드에 모두 보여요.")}</p>
+            <p className="text-sm text-ink-soft">{t("꾸밀 펫을 골라 주세요. 무료예요. 농장, 상태창, 광장, 카드에 모두 보여요.")}</p>
             {allPets.length === 0 ? (
               <p className="mt-4 rounded-xl bg-cream p-4 text-center text-sm text-ink-soft">{t("아직 꾸밀 펫이 없어요. 알을 부화시켜 보세요!")}</p>
             ) : (
-              <ul className="mt-4 space-y-3">
-                {allPets.map((p) => (
-                  <li key={p.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-cream p-2" data-decorate-pet={p.id}>
-                    <PetArt assetKey={p.assetKey} stage={animalStage(p.growth, p.growExp)} accessory={p.accessory} color={p.color} size={56} />
-                    <span className="min-w-16 font-bold">{shownName(t, p)}</span>
-                    <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("{name} 꾸미기", { name: shownName(t, p) })}>
-                      {PET_ACCESSORIES.map((a) => (
-                        <button
-                          key={a.value}
-                          type="button"
-                          aria-pressed={p.accessory === a.value}
-                          disabled={pending}
-                          onClick={() => run(() => setPetAccessory(p.id, a.value))}
-                          className={`rounded-full border-2 px-2.5 py-1 text-xs font-bold ${p.accessory === a.value ? "border-[#ff8fb0] bg-[#ffe3ec]" : "border-line bg-paper"}`}
-                        >
-                          {t(a.label)}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex w-full flex-wrap items-center gap-1.5 pl-1" role="group" aria-label={t("{name} 색", { name: shownName(t, p) })}>
-                      <span className="text-xs font-bold text-ink-soft">{t("색")}</span>
-                      {PET_COLORS.map((c) => (
-                        <button
-                          key={c.value}
-                          type="button"
-                          aria-pressed={p.color === c.value}
-                          disabled={pending}
-                          onClick={() => run(() => setPetColor(p.id, c.value))}
-                          data-pet-color={c.value}
-                          title={t(c.label)}
-                          className={`flex items-center gap-1 rounded-full border-2 py-0.5 pl-0.5 pr-2 text-xs font-bold ${p.color === c.value ? "border-[#ff8fb0] bg-[#ffe3ec]" : "border-line bg-paper"}`}
-                        >
-                          <span aria-hidden className="inline-block h-4 w-4 rounded-full border border-ink/20" style={{ background: COLOR_SWATCH[c.value] }} />
-                          {t(c.label)}
-                        </button>
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <PetPicker title={t("농장에서 키우는 펫")} pets={growing} selectedId={decorPet?.id ?? null} onPick={setDecorId} />
+                <PetPicker title={t("다 자란 동물 카드")} pets={grownPets} selectedId={decorPet?.id ?? null} onPick={setDecorId} />
+                {decorPet ? (
+                  <PetDecorator key={decorPet.id} pet={decorPet} pending={pending} run={run} />
+                ) : (
+                  <p className="mt-4 rounded-xl bg-cream p-4 text-center text-sm text-ink-soft">{t("위에서 꾸밀 펫을 눌러 주세요")}</p>
+                )}
+              </>
             )}
           </div>
         </Modal>
@@ -391,12 +380,14 @@ function PetStatus({
   potions,
   displayed,
   run,
+  onDecorate,
 }: {
   pet: Pet;
   pending: boolean;
   potions: number;
   displayed: boolean;
   run: (fn: () => Promise<FarmResult>) => void;
+  onDecorate: () => void;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -445,8 +436,8 @@ function PetStatus({
               <span className="truncate" data-pet-name>
                 {shownName(t, pet)}
               </span>
-              <button type="button" onClick={() => setEditing(true)} className="rounded-lg px-1.5 text-base hover:bg-cream" aria-label={t("이름 바꾸기")}>
-                <Icon name="write" size={20} />
+              <button type="button" onClick={() => setEditing(true)} className="flex shrink-0 items-center gap-0.5 rounded-lg border-2 border-line px-1.5 font-sans text-xs font-bold text-ink-soft hover:bg-cream">
+                <Icon name="write" size={16} /> {t("이름 바꾸기")}
               </button>
             </h2>
           )}
@@ -534,6 +525,10 @@ function PetStatus({
         </div>
       )}
 
+      <button type="button" onClick={onDecorate} className="btn mt-3 w-full bg-[#ffe3ec] py-2 text-sm text-ink" data-status-decorate>
+        <Icon name="hat" size={18} /> {t("꾸미기 · 이름 · 색 바꾸기")}
+      </button>
+
       <div className="mt-3 grid grid-cols-2 gap-2">
         <button type="button" disabled={pending || pet.carried} onClick={() => run(() => setCarriedPet(pet.id))} className="btn bg-sky py-2 text-sm text-white">
           <Icon name="pet" size={18} /> {t("데리고 다니기")}
@@ -563,6 +558,106 @@ function PetStatus({
           {displayed ? t("프로필에 전시 중 · 내리기") : t("프로필에 전시하기")}
         </button>
       )}
+    </div>
+  );
+}
+
+/** 꾸미기 창의 펫 고르기 줄 (농장 펫 / 다 자란 카드) */
+function PetPicker({ title, pets, selectedId, onPick }: { title: string; pets: Pet[]; selectedId: number | null; onPick: (id: number) => void }) {
+  const t = useT();
+  if (pets.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <h3 className="text-xs font-bold text-ink-soft">{title}</h3>
+      <ul className="mt-1 flex gap-1.5 overflow-x-auto pb-1">
+        {pets.map((p) => (
+          <li key={p.id} className="shrink-0">
+            <button
+              type="button"
+              onClick={() => onPick(p.id)}
+              aria-pressed={selectedId === p.id}
+              data-decorate-pick={p.id}
+              className={`flex w-16 flex-col items-center rounded-2xl border-2 p-1 text-[11px] font-bold ${selectedId === p.id ? "border-[#ff8fb0] bg-[#ffe3ec]" : "border-line bg-cream"}`}
+            >
+              <PetArt assetKey={p.assetKey} stage={animalStage(p.growth, p.growExp)} accessory={p.accessory} color={p.color} size={44} />
+              <span className="w-full truncate">{shownName(t, p)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** 고른 펫 한 마리 꾸미기: 이름, 꾸미기, 색 */
+function PetDecorator({ pet, pending, run }: { pet: Pet; pending: boolean; run: (fn: () => Promise<FarmResult>) => void }) {
+  const t = useT();
+  const [name, setName] = useState(shownName(t, pet));
+  const label = shownName(t, pet);
+  return (
+    <div className="mt-3 rounded-2xl bg-cream p-3" data-decorate-pet={pet.id}>
+      <div className="flex items-center gap-3">
+        <div className="grid h-24 w-24 shrink-0 place-items-center rounded-full border-4 border-bark/70 bg-gradient-to-b from-[#dff3d2] to-[#b6e09f]">
+          <PetArt assetKey={pet.assetKey} stage={animalStage(pet.growth, pet.growExp)} accessory={pet.accessory} color={pet.color} size={80} />
+        </div>
+        <form
+          className="min-w-0 flex-1"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(() => renamePet(pet.id, name));
+          }}
+        >
+          <label className="text-xs font-bold text-ink-soft" htmlFor={`pet-name-${pet.id}`}>
+            {t("이름")}
+          </label>
+          <div className="mt-0.5 flex gap-1">
+            <input
+              id={`pet-name-${pet.id}`}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={PET_NAME_MAX}
+              data-decorate-name
+              className="w-full min-w-0 rounded-lg border-2 border-line bg-paper px-2 py-1 font-display text-lg"
+            />
+            <button type="submit" disabled={pending || !name.trim() || name.trim() === label} className="btn shrink-0 bg-leaf px-2.5 py-1 text-sm text-white">
+              {t("바꾸기")}
+            </button>
+          </div>
+        </form>
+      </div>
+      <h3 className="mt-3 text-xs font-bold text-ink-soft">{t("꾸미기")}</h3>
+      <div className="mt-1 flex flex-wrap gap-1.5" role="group" aria-label={t("{name} 꾸미기", { name: label })}>
+        {PET_ACCESSORIES.map((a) => (
+          <button
+            key={a.value}
+            type="button"
+            aria-pressed={pet.accessory === a.value}
+            disabled={pending}
+            onClick={() => run(() => setPetAccessory(pet.id, a.value))}
+            className={`rounded-full border-2 px-2.5 py-1 text-xs font-bold ${pet.accessory === a.value ? "border-[#ff8fb0] bg-[#ffe3ec]" : "border-line bg-paper"}`}
+          >
+            {t(a.label)}
+          </button>
+        ))}
+      </div>
+      <h3 className="mt-3 text-xs font-bold text-ink-soft">{t("색")}</h3>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("{name} 색", { name: label })}>
+        {PET_COLORS.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            aria-pressed={pet.color === c.value}
+            disabled={pending}
+            onClick={() => run(() => setPetColor(pet.id, c.value))}
+            data-pet-color={c.value}
+            title={t(c.label)}
+            className={`flex items-center gap-1 rounded-full border-2 py-0.5 pl-0.5 pr-2 text-xs font-bold ${pet.color === c.value ? "border-[#ff8fb0] bg-[#ffe3ec]" : "border-line bg-paper"}`}
+          >
+            <span aria-hidden className="inline-block h-4 w-4 rounded-full border border-ink/20" style={{ background: COLOR_SWATCH[c.value] }} />
+            {t(c.label)}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
