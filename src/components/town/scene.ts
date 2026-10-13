@@ -68,7 +68,7 @@ import { crayonGrain, softBush, softFirework, softFireworkFace, softCloud, softD
 import { findPath, type Point, type Rect, WalkGrid } from "./pathfinding";
 import { createNightSky } from "./night-sky";
 import { actPropKey, createResidents, residentPetKey, residentWalkKey } from "./residents";
-import { dropSvg, guitarSvg, heartSvg, marshmallowSvg, NOTE_KINDS, noteSvg, strumHandSvg, wateringCanSvg } from "@/lib/art/plaza-acts";
+import { bobberSvg, dropSvg, fishSvg, guitarSvg, heartSvg, marshmallowSvg, NOTE_KINDS, noteSvg, rodSvg, starSvg, strumHandSvg, wateringCanSvg } from "@/lib/art/plaza-acts";
 import { lightAt, localHour, mixColor } from "./sky";
 import type { TownData, TownHouse, TownTarget } from "./types";
 
@@ -212,6 +212,10 @@ export function townTextures(data: TownData, t: T) {
     list.set(actPropKey("can"), toDataUri(wateringCanSvg()));
     list.set(actPropKey("drop"), toDataUri(dropSvg()));
     list.set(actPropKey("heart"), toDataUri(heartSvg()));
+    list.set(actPropKey("rod"), toDataUri(rodSvg()));
+    list.set(actPropKey("bobber"), toDataUri(bobberSvg()));
+    list.set(actPropKey("fish"), toDataUri(fishSvg()));
+    list.set(actPropKey("star"), toDataUri(starSvg()));
     for (const c of NOTE_KINDS) list.set(actPropKey(`note:${c}`), toDataUri(noteSvg(c)));
   }
   list.set("board", toDataUri(boardSvg(t)));
@@ -437,6 +441,11 @@ export function createTownScene(
           grid: this.grid,
           benches: BENCH_SPOTS,
           flowers: this.ringFlowers,
+          // 낚시: 아래 물가(걸을 수 있는 맨 아래 줄). 선착장 앞은 비운다
+          fishSpots: this.freeSpots(WORLD.height - 16, 180, 110),
+          // 불꽃놀이 구경: 광장 맨 위쪽, 하늘 바로 아래
+          skySpots: this.freeSpots(HORIZON + 44, 150, 0),
+          fireworks: () => this.nightSky?.fireworks() ?? false,
           campfire: { ...CAMPFIRE_POS, ...CAMPFIRE_SOLID },
           // 광장 둘레를 주로 걷고, 가끔 길을 따라 멀리 간다
           roam: (r = rng) => {
@@ -991,6 +1000,17 @@ export function createTownScene(
         .setDepth(GROUND_DEPTH - 1);
       this.drawHorizonSky();
       this.drawLake();
+    }
+
+    /** 한 줄(y)에서 걸어 설 수 있는 자리들: step 간격으로, 가운데 길에서 skip 안쪽은 뺀다 (이웃 주민의 낚시·불꽃놀이 구경 자리) */
+    private freeSpots(y: number, step: number, skip: number): Point[] {
+      const spots: Point[] = [];
+      for (let x = 160; x <= WORLD.width - 160; x += step) {
+        if (Math.abs(x - CENTER.x) < skip) continue;
+        const { cx, cy } = this.grid.cellOf({ x, y });
+        if ([-2, -1, 0, 1, 2].every((d) => this.grid.isFree(cx + d, cy))) spots.push({ x, y });
+      }
+      return spots;
     }
 
     /** 아래쪽 호수 (크레용 그림체): 물 바탕 + 크레용 결, 위에 모래·갈대 물가 띠, 잔물결·연잎, 가운데 길 끝에는 나무 선착장 */
