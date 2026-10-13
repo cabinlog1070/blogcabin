@@ -99,12 +99,12 @@ try {
   // ── SHOP-06: 아바타 꾸미기 ──
   await page.goto(`${BASE}/closet`);
   const closetHeads = await page.getByRole("heading", { level: 2 }).allInnerTexts();
-  // 🏠 지붕 색(TOWN-07)은 batch D에서, 🎨 가구 색(SHOP-05)은 2026-10-13에 더해졌다
-  check("꾸미기 구역: 👕 아바타 꾸미기 · 🖼 내 배경 · 🪑 가구 · 🎨 가구 색 · 🏠 지붕 색 (캐릭터 1개라 🐾 없음)", closetHeads.join("/") === "👕 아바타 꾸미기/🖼 내 배경/🪑 가구/🎨 가구 색/🏠 지붕 색", closetHeads.join("/"));
+  // 🏠 지붕 색(TOWN-07)은 batch D에서, 🐾 미니룸 펫·🎨 가구 색(SHOP-05)은 2026-10-13에 더해졌다
+  check("꾸미기 구역: 👕 아바타 꾸미기 · 🖼 내 배경 · 🪑 가구 · 🐾 미니룸 펫 · 🎨 가구 색 · 🏠 지붕 색 (캐릭터 1개라 🐾 내 캐릭터 없음)", closetHeads.join("/") === "👕 아바타 꾸미기/🖼 내 배경/🪑 가구/🐾 미니룸 펫/🎨 가구 색/🏠 지붕 색", closetHeads.join("/"));
   check("꾸미기 맨 아래 문구에 '캐릭터' 없음", !(await page.getByText(/상점에서 만날 수 있어요/).innerText()).includes("캐릭터"));
   check("꾸미기에도 고정 안내 문구", await page.getByText("바꿀 수 없어요. 옷과 소품으로 꾸며 보세요.", { exact: false }).isVisible());
   const room = page.locator("[data-mini-room]");
-  const roomChar = () => room.locator("img").last().getAttribute("src");
+  const roomChar = () => room.locator("[data-room-character] img").first().getAttribute("src");
   const btn = (name) => page.getByRole("button", { name: new RegExp(`${name}`) });
   await btn("밀짚모자").click();
   await page.getByRole("status").filter({ hasText: "밀짚모자 장착을 저장했어요 ✓" }).waitFor();
@@ -224,7 +224,7 @@ try {
   const look = await roomChar();
   await page.goto(`${BASE}/@decor01`);
   const blogRoom = page.locator("[data-mini-room]");
-  check("SHOP-06 블로그 미니룸에 같은 모습", (await blogRoom.locator("img").last().getAttribute("src")) === look);
+  check("SHOP-06 블로그 미니룸에 같은 모습", (await blogRoom.locator("[data-room-character] img").first().getAttribute("src")) === look);
   check("SHOP-05 블로그 미니룸에 가구 5개", (await blogRoom.locator("[data-furniture]").count()) === 5);
   const headerFace = await page.getByRole("banner").locator("img").last().getAttribute("src");
   check("SHOP-06 헤더 캐릭터 얼굴도 밀짚모자", headerFace.includes("%23f4d78a"));
@@ -245,6 +245,60 @@ try {
   check("375px 화면에 가로 스크롤 없음", await gp.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   await gp.screenshot({ path: `${outDir}/a5-blog-mobile.png` });
   await guest.close();
+
+  // ── SHOP-05 미니룸 캐릭터 자리·미니룸 펫 (2026-10-13) ──
+  // 미니룸과 아래쪽 펫 카드가 한 화면에 보이게 길게 (화면 밖 좌표에는 마우스 이벤트가 가지 않는다)
+  await page.setViewportSize({ width: 1280, height: 2600 });
+  await page.goto(`${BASE}/closet`);
+  const blogSpot = async () => one("SELECT room_char_x x, room_char_y y, room_pet_x px, room_pet_y py FROM blogs WHERE owner_id = $1", [uid]);
+  check("미니룸 펫: 데리고 다니는 펫이 없으면 농장 안내", await page.locator("[data-room-pet-section]").getByText("동물 농장에서 데리고 다닐 펫을 고르면").isVisible());
+  // 캐릭터를 끌어 왼쪽으로 옮긴다
+  const charEl = room.locator("[data-room-character]");
+  const cb = await charEl.boundingBox();
+  const rb = await room.boundingBox();
+  await page.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rb.x + rb.width * 0.25, cb.y + cb.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await page.getByRole("status").filter({ hasText: "캐릭터 자리를 저장했어요" }).waitFor();
+  let spot = await blogSpot();
+  check("미니룸 캐릭터: 끌면 자리가 저장됨", spot.x !== null && Math.abs(spot.x - 25) < 3 && spot.y !== null, `${spot.x}, ${spot.y}`);
+  await page.reload();
+  check("미니룸 캐릭터: 새로고침해도 그 자리", (await room.locator("[data-room-character]").evaluate((el) => el.style.left)) === `${spot.x}%`);
+  // 데리고 다니는 펫을 만들어 준다
+  await db.query("INSERT INTO user_animals (user_id, species_id, status, growth, source, name, gender, hatched_at, grown_at, carried) SELECT $1, id, 'grown', 999, 'shop', '뭉치', 'female', now(), now(), true FROM animal_species WHERE asset_key = 'animal.bunny'", [uid]);
+  await page.reload({ waitUntil: "networkidle" });
+  const petCard = page.locator("[data-room-pet-card]");
+  check("미니룸 펫: 처음엔 캐릭터 옆", (await petCard.innerText()).includes("캐릭터 옆") && (await room.locator("[data-room-pet-placed]").count()) === 0);
+  const pc = await petCard.boundingBox();
+  await page.mouse.move(pc.x + pc.width / 2, pc.y + pc.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rb.x + rb.width * 0.7, rb.y + rb.height * 0.9, { steps: 12 });
+  await page.mouse.up();
+  await page.getByRole("status").filter({ hasText: "뭉치을(를) 미니룸에 놓았어요" }).waitFor();
+  spot = await blogSpot();
+  check("미니룸 펫: 끌어다 놓으면 그 자리에 저장", spot.px !== null && Math.abs(spot.px - 70) < 3, `${spot.px}, ${spot.py}`);
+  check("미니룸 펫: 꾸미기 미니룸에 놓인 펫", (await room.locator("[data-room-pet-placed]").count()) === 1 && (await petCard.innerText()).includes("미니룸에서 노는 중"));
+  await page.screenshot({ path: `${outDir}/a6-closet-room-pet.png` });
+  // 블로그 홈에서는 돌아다닌다
+  await page.goto(`${BASE}/@decor01`);
+  const roamer = page.locator("[data-mini-room] [data-room-pet-placed]");
+  const left0 = await roamer.evaluate((el) => el.style.left);
+  await page.waitForFunction((l) => document.querySelector("[data-mini-room] [data-room-pet-placed]")?.style.left !== l, left0, { timeout: 15000 }).catch(() => {});
+  check("미니룸 펫: 블로그 홈에서 방 안을 돌아다님", (await roamer.evaluate((el) => el.style.left)) !== left0, `${left0} → ${await roamer.evaluate((el) => el.style.left)}`);
+  check("미니룸 캐릭터: 블로그 홈에서도 옮긴 자리", (await page.locator("[data-mini-room] [data-room-character]").evaluate((el) => el.style.left)) === `${spot.x}%`);
+  await page.screenshot({ path: `${outDir}/a7-blog-room-pet.png` });
+  // 펫 카드를 다시 누르면 캐릭터 옆으로
+  await page.goto(`${BASE}/closet`);
+  await page.locator("[data-room-pet-card]").click();
+  await page.getByRole("status").filter({ hasText: "뭉치이(가) 다시 캐릭터 옆으로 왔어요" }).waitFor();
+  spot = await blogSpot();
+  check("미니룸 펫: 카드를 다시 누르면 캐릭터 옆으로 (자리 지움)", spot.px === null && spot.py === null);
+  const badSpot = await db
+    .query("UPDATE blogs SET room_pet_x = 50 WHERE owner_id = $1", [uid])
+    .then(() => false)
+    .catch((e) => e.message.includes("blogs_room_pet_check"));
+  check("미니룸 펫: x만 있고 y가 없는 자리는 DB가 막음", badSpot);
 
   // ── 온보딩 안내 ──
   const fresh = await browser.newContext({ viewport: { width: 1280, height: 900 } });

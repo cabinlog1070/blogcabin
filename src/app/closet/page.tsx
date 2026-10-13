@@ -4,6 +4,7 @@ import { houseStageForLevel } from "@/lib/game";
 import { getBlogByOwner } from "@/server/blog";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
+import { getCarriedPet } from "@/server/farm";
 import { getEquipped, listItemsWithOwnership } from "@/server/inventory";
 import { getWallet } from "@/server/points";
 import { ClosetView } from "./closet-view";
@@ -16,11 +17,12 @@ export async function generateMetadata() {
 export default async function ClosetPage() {
   const viewer = await requireMember();
   const t = await getT();
-  const [all, equipped, wallet, blog] = await Promise.all([
+  const [all, equipped, wallet, blog, pet] = await Promise.all([
     listItemsWithOwnership(viewer.userId),
     getEquipped(viewer.userId),
     getWallet(viewer.userId),
     getBlogByOwner(viewer.userId),
+    getCarriedPet(viewer.userId), // 미니룸에 놓을 수 있는 펫 (데리고 다니는 펫)
   ]);
   const owned = all.filter((i) => i.owned);
   const [moreBefore, moreAfter = ""] = t("더 많은 옷과 가구, 배경은 {link}에서 만날 수 있어요.").split("{link}");
@@ -55,6 +57,9 @@ export default async function ClosetPage() {
         nickname={viewer.profile.nickname}
         roofColor={blog?.roofColor ?? null}
         houseStage={houseStageForLevel(wallet.level)}
+        pet={pet}
+        characterSpot={blog?.roomCharX != null && blog.roomCharY != null ? { x: blog.roomCharX, y: blog.roomCharY } : null}
+        petSpot={blog?.roomPetX != null && blog.roomPetY != null ? { x: blog.roomPetX, y: blog.roomPetY } : null}
       />
 
       <p className="mt-10 text-center text-ink-soft">

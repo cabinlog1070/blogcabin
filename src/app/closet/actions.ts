@@ -3,10 +3,10 @@
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { avatarEquips, blogs, items, profiles, roomFurniture, userItems } from "@/db/schema";
+import { avatarEquips, blogs, items, profiles, roomFurniture, userAnimals, userItems } from "@/db/schema";
 import { isFurnitureColor } from "@/lib/art/furniture";
 import { isRoofColor } from "@/lib/art/town";
-import { clampPct } from "@/lib/shop";
+import { clampCharacterSpot, clampPct, clampPetSpot } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
 import { getWallet } from "@/server/points";
@@ -83,6 +83,34 @@ export async function placeFurniture(itemId: number, x: number, y: number): Prom
     .insert(roomFurniture)
     .values({ userId: viewer.userId, itemId, x: clampPct(x), y: clampPct(y) })
     .onConflictDoUpdate({ target: [roomFurniture.userId, roomFurniture.itemId], set: { x: clampPct(x), y: clampPct(y) } });
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** 미니룸 안 캐릭터 자리 옮기기 (SHOP-05, 2026-10-13). x·y는 발이 닿는 곳(미니룸 기준 %), 바닥 근처로 맞춘다 */
+export async function moveRoomCharacter(x: number, y: number): Promise<ActionResult> {
+  const viewer = await requireMember();
+  const t = await getT();
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: t("놓을 위치가 올바르지 않아요") };
+  const spot = clampCharacterSpot({ x, y });
+  await db.update(blogs).set({ roomCharX: spot.x, roomCharY: spot.y }).where(eq(blogs.ownerId, viewer.userId));
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** 데리고 다니는 펫을 미니룸에 놓기·옮기기(spot) 또는 빼기(null, 다시 캐릭터 옆으로). 놓은 펫은 그 자리에서부터 방 안을 돌아다닌다 */
+export async function placeRoomPet(spot: { x: number; y: number } | null): Promise<ActionResult> {
+  const viewer = await requireMember();
+  const t = await getT();
+  if (spot === null) {
+    await db.update(blogs).set({ roomPetX: null, roomPetY: null }).where(eq(blogs.ownerId, viewer.userId));
+  } else {
+    if (!Number.isFinite(spot.x) || !Number.isFinite(spot.y)) return { ok: false, error: t("놓을 위치가 올바르지 않아요") };
+    const [carried] = await db.select({ id: userAnimals.id }).from(userAnimals).where(and(eq(userAnimals.userId, viewer.userId), eq(userAnimals.carried, true)));
+    if (!carried) return { ok: false, error: t("데리고 다니는 펫이 없어요. 동물 농장에서 펫을 골라 주세요") };
+    const at = clampPetSpot(spot);
+    await db.update(blogs).set({ roomPetX: at.x, roomPetY: at.y }).where(eq(blogs.ownerId, viewer.userId));
+  }
   revalidatePath("/", "layout");
   return { ok: true };
 }

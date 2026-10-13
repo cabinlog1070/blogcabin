@@ -357,6 +357,12 @@ export const blogs = pgTable(
     backgroundItemId: integer("background_item_id").notNull(),
     // 광장 집 지붕 색 (TOWN-07, 무료). NULL = 장착한 배경 색을 따른다. 색 이름은 src/lib/art/town.ts ROOF_COLORS
     roofColor: text("roof_color"),
+    // 미니룸 안 캐릭터 발 위치 (SHOP-05, 2026-10-13, 미니룸 기준 %). NULL = 가운데 아래 기본 자리
+    roomCharX: real("room_char_x"),
+    roomCharY: real("room_char_y"),
+    // 미니룸에 놓은 펫 (데리고 다니는 펫)의 발 위치. NULL = 놓지 않음(캐릭터 옆에 붙어 다님), 놓으면 이 자리에서부터 방 안을 돌아다닌다
+    roomPetX: real("room_pet_x"),
+    roomPetY: real("room_pet_y"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -367,6 +373,8 @@ export const blogs = pgTable(
       sql`${t.roofColor} IN ('red', 'orange', 'yellow', 'green', 'sky', 'blue', 'purple', 'brown')`,
     ),
     check("blogs_title_check", sql`char_length(${t.title}) BETWEEN 1 AND 40`),
+    check("blogs_room_char_check", sql`(${t.roomCharX} IS NULL) = (${t.roomCharY} IS NULL) AND ${t.roomCharX} BETWEEN 0 AND 100 AND ${t.roomCharY} BETWEEN 0 AND 100`),
+    check("blogs_room_pet_check", sql`(${t.roomPetX} IS NULL) = (${t.roomPetY} IS NULL) AND ${t.roomPetX} BETWEEN 0 AND 100 AND ${t.roomPetY} BETWEEN 0 AND 100`),
     foreignKey({
       name: "blogs_background_owned_fk",
       columns: [t.ownerId, t.backgroundItemId],

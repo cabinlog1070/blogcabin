@@ -108,7 +108,11 @@ erDiagram
         text title
         text description
         int background_item_id FK "장착 배경"
-        text roof_color "광장 집 지붕 색 8가지 (NULL = 배경 색)"
+        text roof_color
+        real room_char_x "미니룸 캐릭터 자리 (null = 기본)"
+        real room_char_y
+        real room_pet_x "미니룸에 놓은 펫 자리 (null = 캐릭터 옆)"
+        real room_pet_y "광장 집 지붕 색 8가지 (NULL = 배경 색)"
         timestamptz created_at
     }
     items {
@@ -350,6 +354,7 @@ FOREIGN KEY (item_id, slot) REFERENCES items (id, slot)                         
 - 가구 배치 `room_furniture (user_id, item_id, x, y)`: 기본 키 `(user_id, item_id)` → 같은 가구는 한 미니룸에 하나(다시 놓으면 위치만 바뀜). `(user_id, item_id) → user_items` 복합 외래 키로 가진 가구만 놓는다. 위치는 미니룸 기준 **비율(0~100%)**, 가구 가운데 좌표라서 화면 크기가 달라도 같은 자리에 보인다 (CHECK `0 ≤ x, y ≤ 100`).
 - 가구 색 `user_items.color` (2026-10-13, 마이그레이션 `0017_furniture_color`): 가진 가구마다 방 테마에 맞춰 고르는 색. CHECK로 8가지(`wood`·`pink`·`sky`·`mint`·`lemon`·`lilac`·`white`·`navy`)만 받고, null이면 그린 그대로의 기본 색이다. 배치(`room_furniture`)가 아니라 보유(`user_items`)에 두어서 미니룸에서 뺐다가 다시 놓아도 고른 색이 남는다. 그림에는 색을 붙인 가구 키(`furn.chair@pink`)를 넘긴다.
 - 미니룸 가구 수는 제한하지 않는다 (2026-10-13 "한 미니룸에 5개까지" 규칙을 없앰). 기본 키 `(user_id, item_id)` 때문에 가진 가구 수가 곧 최대다.
+- 미니룸 캐릭터·펫 자리 `blogs.room_char_x/y`, `blogs.room_pet_x/y` (2026-10-13, 마이그레이션 `0020_room_character_pet`): 미니룸 기준 %의 발 자리. 캐릭터는 NULL이면 가운데 아래, 펫은 NULL이면 미니룸에 놓지 않은 것(캐릭터 옆에 붙어 다님)이다. 미니룸은 블로그 하나에 하나라 `blogs`에 둔다. CHECK로 x·y가 함께 있거나 함께 NULL이고 0~100 안에 있게 한다. 놓은 펫이 돌아다니는 위치는 화면에서만 바뀌고 저장하지 않는다.
 - 캐릭터를 그리는 곳(헤더, 광장, 미니룸, 댓글)은 `lookSql()`(`src/server/look.ts`)이 만든 **모습 키**(`char.boy+avatar.hat.straw` 처럼 캐릭터 키에 입은 꾸미기를 `+`로 붙인 값)를 받는다. 그림 쪽(`src/lib/art/characters.ts`)이 이 키를 풀어서 겹쳐 그린다.
 - 상점에서 빠진 캐릭터(모험가·고양이 등)는 `items` 행을 지우지 않는다. 이미 산 회원의 `user_items`·장착이 그대로 남아야 하기 때문이다. 상점은 `type = 'character'`를 보여주지도 팔지도 않는다 (`isForSale`, `src/lib/shop.ts`).
 

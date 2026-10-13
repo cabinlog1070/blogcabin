@@ -38,9 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
-        version: "1.18.1",
-        title: msg("미니룸 가구 제한 없앰"),
-        changes: [{ kind: "improved", text: msg("미니룸에 놓을 수 있는 가구 수 제한(5개)이 없어졌어요. 가진 가구를 모두 꺼내 방을 꾸며 보세요.") }],
+        version: "1.19.0",
+        title: msg("내 마음대로 꾸미는 미니룸"),
+        changes: [
+          { kind: "new", text: msg("꾸미기 화면의 미니룸에서 내 캐릭터를 끌어 원하는 자리에 세울 수 있어요.") },
+          { kind: "new", text: msg("데리고 다니는 펫을 미니룸에 놓으면 방 안을 자유롭게 돌아다녀요. 미니룸 밖으로 끌어내면 다시 캐릭터 옆으로 와요.") },
+          { kind: "improved", text: msg("미니룸에 놓을 수 있는 가구 수 제한(5개)이 없어졌어요. 가진 가구를 모두 꺼내 방을 꾸며 보세요.") },
+        ],
       },
       {
         version: "1.18.0",
