@@ -47,7 +47,7 @@ export const ITEM_TYPES = [
 ] as const;
 export const itemType = enumText(ITEM_TYPES);
 // 아바타 꾸미기 부위 (SHOP-06): 상의·하의·모자·신발. 그리는 순서는 몸 → 하의 → 상의 → 신발 → 모자 (src/lib/art/avatar.ts)
-export const AVATAR_SLOTS = ["top", "bottom", "hat", "shoes"] as const;
+export const AVATAR_SLOTS = ["hair", "top", "bottom", "hat", "shoes"] as const;
 export const avatarSlot = enumText(AVATAR_SLOTS);
 export const VISIBILITIES = ["public", "private"] as const;
 export const visibility = enumText(VISIBILITIES);

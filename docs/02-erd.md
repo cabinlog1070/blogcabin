@@ -115,7 +115,7 @@ erDiagram
         int id PK
         text code UK
         item_type type "character / background / furniture / avatar"
-        avatar_slot slot "avatar만: top / bottom / hat / shoes"
+        avatar_slot slot "avatar만: hair / top / bottom / hat / shoes"
         text name
         int price "0 이상"
         int required_level "1 이상"
@@ -339,7 +339,7 @@ FOREIGN KEY (owner_id, background_item_id) REFERENCES user_items (user_id, item_
 
 ### 3.3-2 아바타 꾸미기와 가구 배치 (SHOP-06, SHOP-05, 2026-10-08)
 
-- 꾸미기 아이템은 `items.type = 'avatar'`이고 `items.slot`에 부위(`top` 상의, `bottom` 하의, `hat` 모자, `shoes` 신발)를 둔다. CHECK `items_slot_check`: avatar면 부위가 꼭 있고, 다른 종류는 없다.
+- 꾸미기 아이템은 `items.type = 'avatar'`이고 `items.slot`에 부위(`hair` 헤어, `top` 상의, `bottom` 하의, `hat` 모자, `shoes` 신발)를 둔다. CHECK `items_slot_check`: avatar면 부위가 꼭 있고, 다른 종류는 없다.
 - 입은 상태 `avatar_equips (user_id, slot, item_id)`: 기본 키 `(user_id, slot)` → **부위마다 하나**. 외래 키 두 개로 DB가 직접 막는다.
 
 ```sql
@@ -470,7 +470,7 @@ COMMIT
 |---|---|
 | `user_role` | `user`, `admin` |
 | `item_type` | `character`, `background`, `furniture`, `avatar` (마이그레이션 0006) |
-| `avatar_slot` | `top`, `bottom`, `hat`, `shoes` (그리는 순서는 몸 → 하의 → 상의 → 신발 → 모자, `src/lib/art/avatar.ts`) |
+| `avatar_slot` | `hair`, `top`, `bottom`, `hat`, `shoes` (그리는 순서는 몸 → 헤어 → 하의 → 상의 → 신발 → 모자, `src/lib/art/avatar.ts`). `hair`는 2026-10-13(`0020_hair_slot.sql`): 처음 고른 주민의 머리를 헤어 아이템(짧은 머리·긴 머리, 0코인)으로 떼어 냈다. 자기 머리는 가입할 때 갖고 입은 채로 시작하고(`src/db/starter-hair.ts`), 그 전에 가입한 회원은 `npm run db:seed`가 채운다. 헤어를 벗으면 주민의 기본 머리로 그린다 |
 | `visibility` | `public`, `private` |
 | `notification_kind` | `level_up`, `like`, `comment`, `reply`, `pet_level_up` (마이그레이션 0007) |
 | `ledger_reason` | `signup`, `attendance`, `attendance_streak`, `post`, `comment`, `like_received`, `purchase`, `farm_care`, `farm_grown`, `egg_purchase`, `potion_purchase`(0008), `invite`·`invited`(친구 초대, 0009), `admin_grant`(관리자 지급, 0011) |

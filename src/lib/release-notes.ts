@@ -38,6 +38,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-13",
     versions: [
       {
+        version: "1.19.0",
+        title: msg("머리 바꾸기"),
+        changes: [
+          { kind: "new", text: msg("캐릭터 꾸미기에 헤어가 생겼어요. 처음 고른 머리를 그대로 갖고 시작하고, 짧은 머리와 긴 머리는 상점에서 0코인에 받아 언제든 바꿔 쓸 수 있어요.") },
+        ],
+      },
+      {
         version: "1.18.1",
         title: msg("간결해진 첫 화면"),
         changes: [

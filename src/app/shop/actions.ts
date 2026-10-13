@@ -31,12 +31,15 @@ export async function buyItem(itemId: number): Promise<BuyResult> {
 
       // 아이템 지급 (이미 있으면 기본 키 위반 → 전체 취소)
       await tx.insert(userItems).values({ userId: viewer.userId, itemId: item.id });
-      await tx.insert(pointLedger).values({
-        userId: viewer.userId,
-        reason: "purchase",
-        coinDelta: -item.price,
-        refId: String(item.id),
-      });
+      // 0코인 아이템(헤어)은 원장에 남길 코인이 없다 (원장은 0인 줄을 막는다)
+      if (item.price > 0) {
+        await tx.insert(pointLedger).values({
+          userId: viewer.userId,
+          reason: "purchase",
+          coinDelta: -item.price,
+          refId: String(item.id),
+        });
+      }
       return { ok: true, name: item.name };
     });
     if (result.ok) revalidatePath("/", "layout");

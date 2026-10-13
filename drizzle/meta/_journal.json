@@ -141,6 +141,13 @@
       "when": 1791850466446,
       "tag": "0019_pet_color",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791857135231,
+      "tag": "0020_hair_slot",
+      "breakpoints": true
     }
   ]
 }
