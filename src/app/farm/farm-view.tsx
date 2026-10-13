@@ -106,6 +106,7 @@ export function FarmView({
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<FarmResult | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
+  const [speciesOpen, setSpeciesOpen] = useState<string | null>(null); // 카드가 여러 장인 도감 칸
   const [decorId, setDecorId] = useState<number | null>(null); // 꾸미는 펫 (null이면 꾸미기 창이 닫혀 있다)
   const run = (fn: () => Promise<FarmResult>) => start(async () => setMessage(await fn()));
 
@@ -261,54 +262,55 @@ export function FarmView({
               {t("{have} / {total}종 · 카드 {cards}장", { have: new Set(grownPets.map((p) => p.assetKey)).size, total: species.length, cards: grownPets.length })}
             </span>
           </h2>
-          <p className="mt-1 text-xs text-ink-soft">{t("다 키운 동물은 카드가 돼요. 카드를 누르면 데리고 다니거나 블로그 프로필에 전시할 수 있어요.")}</p>
-          <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+          <p className="mt-1 text-xs text-ink-soft">{t("다 키운 동물은 도감 칸에 카드로 들어가요. 칸을 누르면 데리고 다니거나 블로그 프로필에 전시할 수 있어요.")}</p>
+          <ul className="mt-4 grid grid-cols-3 gap-x-2 gap-y-5 sm:grid-cols-5">
             {species.map((sp) => {
               const mine = grownPets.filter((p) => p.assetKey === sp.assetKey);
+              // 칸 앞면: 전시 중 → 산책 중 → 가장 최근에 다 자란 카드
+              const front = mine.find((p) => p.id === displayedId) ?? mine.find((p) => p.carried) ?? mine[mine.length - 1];
               return (
-                <li
-                  key={sp.id}
-                  data-species-slot={sp.assetKey}
-                  data-collected={mine.length > 0}
-                  className={`flex flex-col items-center rounded-2xl border-2 p-2 text-center ${mine.length ? "border-sun bg-honey" : "border-dashed border-line bg-cream"}`}
-                >
-                  {mine.length ? (
-                    <PetArt assetKey={sp.assetKey} stage="adult" size={56} />
+                <li key={sp.id} data-species-slot={sp.assetKey} data-collected={mine.length > 0} className="flex justify-center">
+                  {front ? (
+                    <button
+                      type="button"
+                      onClick={() => (mine.length === 1 ? setOpenId(front.id) : setSpeciesOpen(sp.assetKey))}
+                      className="relative block"
+                      data-card-id={front.id}
+                      aria-label={t("{name} 카드 보기", { name: shownName(t, front) })}
+                    >
+                      <PetCard
+                        pet={{ name: shownName(t, front), assetKey: front.assetKey, accessory: front.accessory, color: front.color, level: front.maxLevel }}
+                        speciesName={t(sp.name)}
+                        size="sm"
+                        locale={locale}
+                      />
+                      {mine.length > 1 && (
+                        <span className="absolute bottom-1 right-1 z-[1] rounded-full bg-ember px-1.5 text-[11px] font-bold text-white" data-card-count>
+                          ×{mine.length}
+                        </span>
+                      )}
+                      {mine.some((p) => p.id === displayedId) && (
+                        <span className="absolute -top-2.5 left-1/2 z-[1] w-max -translate-x-1/2 whitespace-nowrap rounded-full bg-leaf px-2 text-[11px] font-bold text-white">
+                          <Icon name="achievement" size={14} /> {t("전시 중")}
+                        </span>
+                      )}
+                      {mine.some((p) => p.carried) && (
+                        <span className="absolute -bottom-2.5 left-1/2 z-[1] w-max -translate-x-1/2 whitespace-nowrap rounded-full bg-sky px-2 text-[11px] font-bold text-white">
+                          <Icon name="pet" size={14} /> {t("산책 중")}
+                        </span>
+                      )}
+                    </button>
                   ) : (
-                    <img src={toAnimalDataUri(silhouetteSvg(sp.assetKey, 112))} alt="" width={56} height={56} aria-hidden />
+                    <div className="flex w-24 flex-col items-center rounded-2xl border-2 border-dashed border-line bg-cream p-2 text-center">
+                      <img src={toAnimalDataUri(silhouetteSvg(sp.assetKey, 120))} alt="" width={60} height={60} aria-hidden className="mt-2" />
+                      <span className="mt-1 text-xs font-bold">???</span>
+                      <span className="text-[10px] text-ink-soft">{t("Lv.{level}까지", { level: sp.maxLevel })}</span>
+                    </div>
                   )}
-                  <span className="text-xs font-bold">{mine.length ? t(sp.name) : "???"}</span>
-                  <span className="text-[10px] text-ink-soft">{mine.length ? t("{n}장", { n: mine.length }) : t("Lv.{level}까지", { level: sp.maxLevel })}</span>
                 </li>
               );
             })}
           </ul>
-          {grownPets.length > 0 && (
-            <ul className="mt-5 flex flex-wrap gap-3" aria-label={t("내 카드")}>
-              {grownPets.map((p) => (
-                <li key={p.id} data-card-id={p.id}>
-                  <button type="button" onClick={() => setOpenId(p.id)} className="relative block" aria-label={t("{name} 카드 보기", { name: shownName(t, p) })}>
-                    <PetCard
-                      pet={{ name: shownName(t, p), assetKey: p.assetKey, accessory: p.accessory, color: p.color, level: p.maxLevel }}
-                      speciesName={p.speciesName ? t(p.speciesName) : ""}
-                      grownAt={p.grownAt}
-                      locale={locale}
-                    />
-                    {displayedId === p.id && (
-                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-leaf px-2 text-[11px] font-bold text-white">
-                        <Icon name="achievement" size={14} /> {t("전시 중")}
-                      </span>
-                    )}
-                    {p.carried && (
-                      <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-sky px-2 text-[11px] font-bold text-white">
-                        <Icon name="pet" size={14} /> {t("산책 중")}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </section>
       </div>
 
@@ -350,6 +352,48 @@ export function FarmView({
               </div>
             </div>
           )}
+        </Modal>
+      )}
+
+      {speciesOpen && (
+        <Modal label={t("카드 고르기")} onClose={() => setSpeciesOpen(null)}>
+          <div className="p-5" data-species-cards={speciesOpen}>
+            <h2 className="font-display text-2xl">{t("{name} 카드 {n}장", { name: t(species.find((sp) => sp.assetKey === speciesOpen)?.name ?? ""), n: grownPets.filter((p) => p.assetKey === speciesOpen).length })}</h2>
+            <ul className="mt-3 flex flex-wrap justify-center gap-3">
+              {grownPets
+                .filter((p) => p.assetKey === speciesOpen)
+                .map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSpeciesOpen(null);
+                        setOpenId(p.id);
+                      }}
+                      className="relative block"
+                      aria-label={t("{name} 카드 보기", { name: shownName(t, p) })}
+                    >
+                      <PetCard
+                        pet={{ name: shownName(t, p), assetKey: p.assetKey, accessory: p.accessory, color: p.color, level: p.maxLevel }}
+                        speciesName={p.speciesName ? t(p.speciesName) : ""}
+                        grownAt={p.grownAt}
+                        locale={locale}
+                      />
+                      {displayedId === p.id && (
+                        <span className="absolute -top-2.5 left-1/2 z-[1] w-max -translate-x-1/2 whitespace-nowrap rounded-full bg-leaf px-2 text-[11px] font-bold text-white">
+                          <Icon name="achievement" size={14} /> {t("전시 중")}
+                        </span>
+                      )}
+                      {p.carried && (
+                        <span className="absolute -bottom-2.5 left-1/2 z-[1] w-max -translate-x-1/2 whitespace-nowrap rounded-full bg-sky px-2 text-[11px] font-bold text-white">
+                          <Icon name="pet" size={14} /> {t("산책 중")}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </div>
         </Modal>
       )}
 

@@ -134,6 +134,27 @@ const petName = (await one("SELECT name FROM user_animals WHERE id = $1", [pet.i
 await go(`/@${devId.toLowerCase()}`);
 check("미니룸 펫도 고른 색", (await page.locator(`[data-room-pet="${petName}"] img`).getAttribute("data-color")) === "mint");
 
+// ── 카드 도감: 다 자란 카드가 도감 칸에 들어가고, 같은 동물이 여러 장이면 장수 표시와 고르기 창 ──
+const cat = await one("SELECT id, grow_exp FROM animal_species WHERE asset_key = 'animal.cat'");
+for (const name of ["나비", "치즈"])
+  await db.query(
+    "INSERT INTO user_animals (user_id, status, growth, source, species_id, name, gender, hatched_at, grown_at) VALUES ($1,'grown',$2,'shop',$3,$4,'female',now(),now())",
+    [uid, cat.grow_exp, cat.id, name],
+  );
+await go("/farm");
+const catSlot = page.locator('[data-species-slot="animal.cat"]');
+await catSlot.scrollIntoViewIfNeeded();
+const catCards = (await one("SELECT COUNT(*)::int AS n FROM user_animals WHERE user_id = $1 AND status = 'grown' AND species_id = $2", [uid, cat.id])).n;
+check(`도감 칸에 카드 (고양이 ${catCards}장 → ×${catCards})`, (await catSlot.getAttribute("data-collected")) === "true" && (await catSlot.locator("[data-card-count]").innerText()) === `×${catCards}`);
+await catSlot.getByRole("button").click();
+const picker = page.locator('[data-species-cards="animal.cat"]');
+await picker.waitFor();
+check("여러 장이면 카드 고르기 창", (await picker.getByRole("button", { name: /카드 보기/ }).count()) === catCards);
+await picker.getByRole("button", { name: "치즈 카드 보기" }).click();
+await page.locator("[data-pet-status] [data-pet-name]", { hasText: "치즈" }).waitFor();
+check("고른 카드의 상태창", true);
+await page.keyboard.press("Escape");
+
 // ── 휴대폰 375px ──
 const mctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
 await mctx.addCookies(await page.context().cookies());
