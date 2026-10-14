@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -11,14 +11,15 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage/
 
 # next.js
-/.next/
-/out/
+frontend/.next/
+frontend/out/
 
 # production
-/build
+frontend/build/
+backend/dist/
 
 # misc
 .DS_Store
@@ -42,11 +43,11 @@ yarn-error.log*
 next-env.d.ts
 
 # e2e
-/test-results/
-/playwright-report/
+frontend/test-results/
+frontend/playwright-report/
 
 # 글 첨부 파일 (로컬 저장소, POST-07·POST-09)
-/storage/
+frontend/storage/
 
 # e2e 스크린샷
-/e2e-shots/
+frontend/e2e-shots/

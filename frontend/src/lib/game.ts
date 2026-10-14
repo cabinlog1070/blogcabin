@@ -1,4 +1,4 @@
-// 게임 규칙: docs/01-requirements.md 4.5, docs/02-erd.md 3.4
+// 게임 규칙: 문서 저장소 cabinlog1070/docs의 docs/01-requirements.md 4.5, docs/02-erd.md 3.4
 // DB를 쓰지 않는 순수 계산만 둔다 (화면과 서버 어디서나 import 가능)
 import { LOCALE_TAGS, makeT, type Locale, type T } from "@/lib/i18n";
 

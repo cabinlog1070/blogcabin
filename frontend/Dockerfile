@@ -1,11 +1,11 @@
-# BlogCabin 운영 이미지 (Node 24). GitHub Actions(.github/workflows/deploy.yml)가 빌드하고
-# 서버의 deploy/deploy.sh가 실행한다. 포트는 PORT(기본 8440), 첨부 파일은 /data/uploads (볼륨).
+# BlogCabin 화면(frontend) 운영 이미지 (Node 24). GitHub Actions(.github/workflows/deploy.yml)가 빌드하고
+# 서버의 deploy/deploy.sh가 실행한다. 빌드는 frontend/ 폴더에서. 포트는 PORT(기본 8440), 첨부 파일은 /data/uploads (볼륨).
 #
 # 직접 빌드·실행:
-#   docker build -t blogcabin .
-#   docker run --env-file app.env -p 8440:8440 -v $PWD/uploads:/data/uploads blogcabin
+#   cd frontend && docker build -t blogcabin-web .
+#   docker run --env-file app.env -p 8440:8440 -v $PWD/uploads:/data/uploads blogcabin-web
 # DB 마이그레이션 등 npm 스크립트 한 번 실행:
-#   docker run --rm --env-file app.env --entrypoint npm blogcabin run db:migrate
+#   docker run --rm --env-file app.env --entrypoint npm blogcabin-web run db:migrate
 
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
@@ -33,4 +33,4 @@ RUN mkdir -p /data/uploads && chown node:node /data/uploads
 USER node
 EXPOSE 8440
 VOLUME ["/data/uploads"]
-ENTRYPOINT ["sh", "deploy/docker-entrypoint.sh"]
+ENTRYPOINT ["sh", "docker-entrypoint.sh"]
