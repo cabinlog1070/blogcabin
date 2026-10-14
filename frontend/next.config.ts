@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   // 여기 rewrites로 하면 Next.js가 ?category= 같은 쿼리를 빠뜨린 채 브라우저에 알려 줘서,
   // 블로그 홈에서 카테고리를 눌러도 화면이 안 바뀌는 문제가 있었다 (2026-10-13).
   // 개발 서버: 서버(backend) 주소 /api/v1/… 는 backend 개발 서버(기본 4000)로 넘긴다.
-  // 운영에서는 우리 nginx가 먼저 나눠서 이 설정까지 오지 않는다 (deploy/deploy.sh)
+  // 운영에서는 src/app/api/v1/[...path]/route.ts가 backend 앱을 화면 안에서 직접 돌린다 (포트 두 개 구성)
   // 넘길 때 Next.js가 본문을 기본 10MB까지만 담아서 30MB 첨부가 끊겼다. 첨부 상한(30MB) + 여유
   experimental: { proxyClientMaxBodySize: "40mb" },
   async rewrites() {
