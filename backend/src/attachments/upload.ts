@@ -6,6 +6,7 @@ import type { Context } from "hono";
 import { auth } from "../auth";
 import { db } from "../db";
 import { attachments, profiles } from "../db/schema";
+import { BAD_REQUEST, isSameOrigin } from "../http/guard";
 import {
   ATTACH_MESSAGES,
   attachmentKind,
@@ -18,8 +19,6 @@ import {
   IMAGE_TYPES,
 } from "./rules";
 import { saveAttachment } from "./storage";
-
-const BAD_REQUEST = "잘못된 요청이에요";
 
 /** 파일 앞부분으로 진짜 사진인지 확인한다 (확장자만 바꾼 SVG·HTML 등을 막는다) */
 function isRealImage(bytes: Uint8Array, ext: string) {
@@ -35,16 +34,8 @@ export async function uploadAttachment(c: Context) {
   const fail = (status: 400 | 401 | 403 | 411 | 413 | 415 | 500, error: string) => c.json({ error }, status);
   const headers = c.req.raw.headers;
 
-  // 다른 사이트에서 몰래 보낸 요청 막기 (CSRF). 프록시 뒤라면 x-forwarded-host, 아니면 host와 비교한다
-  const expected = headers.get("x-forwarded-host")?.split(",")[0].trim() || headers.get("host");
-  let originHost: string | null = null;
-  try {
-    const origin = headers.get("origin");
-    originHost = origin && origin !== "null" ? new URL(origin).host : null;
-  } catch {
-    originHost = null;
-  }
-  if (!originHost || !expected || originHost !== expected) return fail(403, BAD_REQUEST);
+  // 다른 사이트에서 몰래 보낸 요청 막기 (CSRF)
+  if (!isSameOrigin(headers)) return fail(403, BAD_REQUEST);
 
   // 주민 등록을 마친 회원만 (로그인 쿠키는 화면과 같은 Better Auth 세션)
   const session = await auth.api.getSession({ headers });

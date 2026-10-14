@@ -6,20 +6,15 @@
 // 사전에 빠진 문장은 `npm run test:i18n`이 찾아 준다.
 import { ja } from "./ja";
 
-export const LOCALES = ["ko", "ja"] as const;
-export type Locale = (typeof LOCALES)[number];
-export const DEFAULT_LOCALE: Locale = "ko";
-/** 로그인하지 않은 방문자의 언어를 기억하는 쿠키 */
-export const LOCALE_COOKIE = "lang";
+import type { Locale } from "@backend/i18n/locales";
+
+// 언어 목록·언어 쿠키는 서버(언어 바꾸기 API)와 같은 것을 쓴다
+export { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, LOCALES, type Locale } from "@backend/i18n/locales";
 
 /** 언어 고르기 메뉴에 보이는 이름 (각 언어로 적는다) */
 export const LOCALE_LABELS: Record<Locale, string> = { ko: "한국어", ja: "日本語" };
 /** <html lang>과 날짜 형식에 쓰는 이름 */
 export const LOCALE_TAGS: Record<Locale, string> = { ko: "ko-KR", ja: "ja-JP" };
-
-export function isLocale(v: unknown): v is Locale {
-  return typeof v === "string" && (LOCALES as readonly string[]).includes(v);
-}
 
 export type TVars = Record<string, string | number>;
 export type T = (text: string, vars?: TVars) => string;
