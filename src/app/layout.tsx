@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Jua, Kosugi_Maru, Noto_Sans_JP, Noto_Sans_KR } from "next/font/google";
 import { CrispArt } from "@/components/crisp-art";
 import { LocaleProvider } from "@/components/i18n";
+import { SamsungDarkHint } from "@/components/samsung-dark-hint";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { LOCALE_TAGS } from "@/lib/i18n";
@@ -36,6 +37,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <SiteHeader />
           <main className="flex-1">{children}</main>
           <SiteFooter />
+          <SamsungDarkHint />
         </LocaleProvider>
         <CrispArt />
       </body>
