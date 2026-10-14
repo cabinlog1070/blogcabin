@@ -1,0 +1,9 @@
+{
+  "name": "blogcabin-workspace",
+  "private": true,
+  "description": "BlogCabin: 화면(frontend)과 서버(backend)를 한 저장소에서. 설치는 이 폴더에서 npm install 한 번",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ]
+}

@@ -4,8 +4,8 @@
 #   bash deploy.sh <태그> <image.tar.gz> <deploy.env> [nginx 포트, 기본 8440] [화면 포트 두 개, 기본 "8441 8442"] [서버 포트 두 개, 기본 "8443 8444"]
 #
 # 이미지는 두 종류다 (저장소의 frontend/·backend/ 폴더)
-#   blogcabin-web:<태그>  화면(Next.js). 아직 옮기지 않은 영역은 DB도 직접 쓴다. DB 마이그레이션·시드도 이 이미지로 돌린다
-#   blogcabin-api:<태그>  서버(backend). /api/v1/… 주소를 맡는다
+#   blogcabin-web:<태그>  화면(Next.js). 아직 옮기지 않은 영역은 DB도 직접 쓴다. 시드·관리자 계정도 이 이미지로 돌린다
+#   blogcabin-api:<태그>  서버(backend). /api/v1/… 주소를 맡는다. DB 구조(마이그레이션)는 이 이미지가 맞춘다
 #
 # 하는 일
 #   1. 이미지 파일(두 이미지가 같이 묶여 있다)을 docker에 불러온다
@@ -139,8 +139,9 @@ run_once() {
   -c 'chown -R node:node /data/uploads' >/dev/null
 
 # ── 3. DB 구조 맞추기 + 기본 데이터 ──
-log "DB 마이그레이션"
-run_once run db:migrate:prod
+log "DB 마이그레이션 (서버 이미지)"
+"${DOCKER[@]}" run --rm --env-file "$BASE/app.env" ${ONE_OFF_NET[@]+"${ONE_OFF_NET[@]}"} \
+  "$API_IMAGE" node dist/scripts/migrate.mjs
 log "아이템·동물 목록 (여러 번 해도 안전)"
 run_once run db:seed
 
