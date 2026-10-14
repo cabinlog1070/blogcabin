@@ -1,0 +1,19 @@
+# 두 이미지(frontend/Dockerfile, backend/Dockerfile) 모두 저장소 맨 위에서 빌드한다
+**/node_modules
+**/.next
+**/dist
+**/storage
+**/.env*
+!**/.env.example
+.git
+.github
+.claude
+**/e2e-shots
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+**/next-env.d.ts
+**/.DS_Store
+**/*.pem
+docs
+deploy

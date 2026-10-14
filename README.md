@@ -52,11 +52,11 @@ AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory
 ### 설치
 
 ```bash
+npm install                     # 저장소 맨 위에서 한 번 (화면·서버 둘 다 설치)
 cd frontend
-npm install
 createdb blogcabin
 cp .env.example .env.local      # DATABASE_URL, BETTER_AUTH_SECRET 채우기
-npm run db:migrate              # 테이블 만들기
+npm run db:migrate              # 테이블 만들기 (backend/drizzle/의 마이그레이션)
 npm run db:seed                 # 캐릭터·배경 아이템 넣기
 npm run admin:create            # 관리자 계정 만들기 (.env.local의 ADMIN_USERNAME / ADMIN_PASSWORD)
 npm run dev                     # http://localhost:3000
@@ -66,11 +66,11 @@ npm run dev                     # http://localhost:3000
 
 ```bash
 cd backend                      # 저장소 맨 위 폴더에서
-npm install
 npm run dev                     # http://localhost:4000/api/v1/health
 ```
 
 > 폴더를 나누기 전에 받아 둔 저장소라면 `.env.local`과 `storage/`(첨부 파일)를 `frontend/` 안으로 옮겨 주세요.
+> `frontend/node_modules`·`backend/node_modules`가 남아 있으면 지우고 맨 위에서 `npm install`을 다시 해 주세요.
 
 첫 화면에서 **회원가입** 탭으로 아이디를 만들어 바로 쓸 수 있습니다. 관리자로 로그인하면 헤더에 **👑 관리자** 버튼이 생깁니다.
 
@@ -92,13 +92,13 @@ npm run dev                     # http://localhost:4000/api/v1/health
 
 ## 스크립트
 
-`frontend/` 폴더에서 실행합니다.
+`frontend/` 폴더에서 실행합니다. DB 명령(`db:generate`·`db:migrate`·`db:studio`)은 서버 쪽(`backend/`)으로 넘겨 실행되고, `backend/`에서 직접 실행해도 같습니다.
 
 | 명령 | 설명 |
 |---|---|
 | `npm run dev` | 개발 서버 |
 | `npm run build` | 프로덕션 빌드 |
-| `npm run db:generate` | `src/db/schema.ts` 변경 → 마이그레이션 SQL 생성 |
+| `npm run db:generate` | `backend/src/db/schema.ts` 변경 → `backend/drizzle/`에 마이그레이션 SQL 생성 |
 | `npm run db:migrate` | 마이그레이션 적용 |
 | `npm run db:seed` | 아이템 카탈로그 넣기 (여러 번 실행해도 안전) |
 | `npm run db:reset` | (로컬 전용) 회원·글 데이터 비우기 (관리자도 지워지므로 `admin:create` 다시 실행) |
@@ -123,11 +123,15 @@ npm run dev                     # http://localhost:4000/api/v1/health
 
 ```
 deploy/                   운영 서버 배포 스크립트 (deploy.sh)
+package.json              npm workspaces (맨 위에서 npm install 한 번, package-lock.json도 하나)
 backend/                  서버 API (Hono)
-└── src/                  app.ts 주소 목록, db.ts DB 연결, index.ts 서버 시작
-frontend/                 화면 (Next.js)
 ├── drizzle/              마이그레이션 SQL (자동 생성)
-├── scripts/              시드, 개발 DB 초기화
+├── scripts/              운영 마이그레이션 (migrate.ts)
+└── src/
+    ├── app.ts            주소 목록, index.ts 서버 시작
+    └── db/               DB 연결·스키마 (화면도 @/db로 같이 쓴다)
+frontend/                 화면 (Next.js)
+├── scripts/              시드, 관리자 계정, 개발 DB 초기화
 ├── e2e/                  Playwright 시나리오
 └── src/
     ├── app/              화면과 Server Action

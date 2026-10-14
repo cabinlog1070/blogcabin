@@ -19,6 +19,8 @@
       }
     ],
     "paths": {
+      "@/db": ["../backend/src/db"],
+      "@/db/*": ["../backend/src/db/*"],
       "@/*": ["./src/*"]
     }
   },

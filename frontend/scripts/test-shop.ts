@@ -3,7 +3,7 @@
 import { piecesInOrder } from "../src/lib/art/avatar";
 import { characterSvg, composeLook, parseLook } from "../src/lib/art/characters";
 import { fitRoomSpot, FURNITURE_COLOR_KEYS, furnitureInfo, furnitureSvg, paintedFurnitureKey, parseFurnitureKey } from "../src/lib/art/furniture";
-import { FURNITURE_COLORS as DB_FURNITURE_COLORS } from "../src/db/schema";
+import { FURNITURE_COLORS as DB_FURNITURE_COLORS } from "../../backend/src/db/schema";
 import { clampPct, isForSale, sortItems } from "../src/lib/shop";
 
 let failed = 0;
