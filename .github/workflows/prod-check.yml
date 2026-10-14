@@ -1,4 +1,4 @@
-# 읽기 전용: 운영 주소의 화면들이 몇 번 응답 코드를 주는지 바깥에서 본다 (서버 접속 없음)
+# 읽기 전용 서버 점검: 계정의 ~/nginx 폴더와 서버 nginx가 그걸 읽는지 본다. 아무것도 바꾸지 않는다.
 name: prod-check
 on:
   push:
@@ -8,11 +8,27 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    env:
+      SSHPASS: ${{ secrets.SSH_PASSWORD }}
+      SSH_HOST: ${{ secrets.SSH_ADDRESS }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_ID }}
     steps:
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
       - run: |
-          for p in /@nobodyzz /@admin / /town /api/health; do
-            for i in 1 2; do
-              printf '%-16s %s\n' "$p" "$(curl -s -m 15 -o /tmp/b -w '%{http_code} %{time_total}s' "https://blogcabin.java21.net$p") $(head -c 120 /tmp/b | tr '\n' ' ' | grep -o 'Internal Server Error\|Bad Gateway\|Application error' || true)"
-            done
-          done
+          sshpass -e ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 ${SSH_USER}@${SSH_HOST} 'bash -s' <<'SH'
+          set +e
+          echo "== hostname"; hostname
+          echo "== home"; echo "$HOME"; ls -la ~ | grep -v -E 'secrets|\.ssh|\.env' 
+          echo "== ~/nginx"; ls -laR ~/nginx 2>&1 | head -40
+          for f in ~/nginx/*.conf ~/nginx/conf.d/*.conf ~/nginx/sites/*.conf; do [ -f "$f" ] && { echo "--- $f (writable: $([ -w "$f" ] && echo yes || echo no))"; grep -v -E 'ssl_certificate_key|password' "$f" | head -60; }; done
+          echo "== /etc/nginx/nginx.conf include lines"; grep -n -E 'include' /etc/nginx/nginx.conf 2>&1
+          echo "== other includes mentioning home"; grep -rn -E 'include .*/home' /etc/nginx 2>/dev/null | head
+          echo "== files under /etc/nginx mentioning java21 student paths"; grep -rln -E '/home/' /etc/nginx 2>/dev/null | head
+          echo "== who can reload nginx? sudo -n -l"; sudo -n -l 2>&1 | head -10
+          echo "== nginx master process user / config path"; ps -eo user,args | grep -E 'nginx: master' | grep -v grep
+          echo "== cron/watch for reload"; ls -la /etc/cron.d 2>/dev/null | head; crontab -l 2>&1 | head -5
+          echo "== docker ps (ours)"; docker ps --format '{{.Names}}\t{{.Ports}}' | grep -i blogcabin
+          echo "== listening 844x"; ss -ltn | grep -E ':844[0-9]\b'
+          SH
