@@ -32,6 +32,9 @@ function startSpot(i: number, n: number) {
 }
 
 /** 둥지 속 알 자리 (둥지 그림에 대한 %, x = 알 가운데, y = 알 바닥). 5개까지 한 줄, 더 많으면 뒷줄 5개 + 앞줄 */
+/** 둥지 그림 안에 놓는 알 수 (5개씩 2줄). 선물로 받은 알처럼 그보다 많으면 나머지는 [+N]으로 보여 준다 */
+const NEST_SLOTS = 10;
+
 function eggSlot(i: number, n: number) {
   const two = n > 5;
   const row = two && i >= 5 ? 1 : 0;
@@ -71,6 +74,8 @@ export function FarmField({
   onDecorate: () => void;
 }) {
   const t = useT();
+  const nestEggs = eggs.slice(0, NEST_SLOTS);
+  const moreEggs = eggs.length - nestEggs.length;
   const [quietBefore, quietAfter = ""] = t("아직 농장이 조용해요. 아래 {link}에서 첫 알을 받아 보세요!").split("{link}");
   const fieldRef = useRef<HTMLDivElement>(null);
   const petRefs = useRef(new Map<number, HTMLButtonElement>());
@@ -165,8 +170,8 @@ export function FarmField({
       {/* 알 둥지: 뒤판 → 알 → 앞 테두리 순서로 겹쳐 알 아랫부분이 둥지 안에 들어가 보인다 */}
       <div className="absolute left-[5%] top-[10%] z-[4] w-[clamp(170px,28vw,260px)]" data-nest>
         <img src={svgUri(nestBackSvg())} alt="" aria-hidden className="pointer-events-none w-full" />
-        {eggs.map((e, i) => {
-          const s = eggSlot(i, eggs.length);
+        {nestEggs.map((e, i) => {
+          const s = eggSlot(i, nestEggs.length);
           return (
             <button
               key={e.id}
@@ -182,6 +187,17 @@ export function FarmField({
           );
         })}
         <img src={svgUri(nestFrontSvg())} alt="" aria-hidden className="pointer-events-none absolute inset-0 w-full" />
+        {moreEggs > 0 && (
+          <button
+            type="button"
+            onClick={() => onEgg(eggs[NEST_SLOTS].id)}
+            data-nest-more={moreEggs}
+            aria-label={t("알 {n}개 더 있어요", { n: moreEggs })}
+            className="absolute right-[2%] top-[18%] z-[1] rounded-full bg-sun px-2 py-0.5 text-xs font-bold text-ink shadow"
+          >
+            +{moreEggs}
+          </button>
+        )}
         <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/85 px-2 text-xs font-bold text-ink-soft">
           🥚 {t("알 둥지")} {eggs.length > 0 ? eggs.length : ""}
         </span>

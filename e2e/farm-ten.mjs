@@ -155,6 +155,23 @@ await page.locator("[data-pet-status] [data-pet-name]", { hasText: "치즈" }).w
 check("고른 카드의 상태창", true);
 await page.keyboard.press("Escape");
 
+// ── 선물로 알을 많이 받아 둥지가 넘칠 때: 둥지에는 10개만, 나머지는 [+N] (2026-10-14 핫픽스) ──
+await db.query("DELETE FROM user_animals WHERE user_id = $1 AND status = 'egg'", [uid]);
+const giftSp = await one("SELECT id FROM animal_species ORDER BY id LIMIT 1");
+await db.query("INSERT INTO user_animals (user_id, source, egg_species_id) SELECT $1, 'gift', $2 FROM generate_series(1, 19)", [uid, giftSp.id]);
+await go("/farm");
+const nestBox = await page.locator("[data-nest]").boundingBox();
+const eggBoxes = await Promise.all((await page.locator("[data-nest] [data-egg-id]").all()).map((l) => l.boundingBox()));
+check("넘치는 둥지: 둥지에는 알 10개", eggBoxes.length === 10, String(eggBoxes.length));
+check("넘치는 둥지: 알이 모두 둥지 안에", eggBoxes.every((b) => b.x >= nestBox.x - 1 && b.x + b.width <= nestBox.x + nestBox.width + 1));
+check("넘치는 둥지: 나머지는 [+9]", (await page.locator("[data-nest-more]").innerText()) === "+9");
+await page.locator("[data-nest]").screenshot({ path: `${outDir}/f5-nest-overflow.png` });
+await page.locator("[data-nest-more]").click();
+await page.getByRole("dialog").getByRole("button", { name: "부화시키기", exact: true }).waitFor();
+check("[+9]를 누르면 알 창이 열린다", true);
+await page.keyboard.press("Escape");
+await db.query("DELETE FROM user_animals WHERE user_id = $1 AND status = 'egg'", [uid]);
+
 // ── 휴대폰 375px ──
 const mctx = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
 await mctx.addCookies(await page.context().cookies());
