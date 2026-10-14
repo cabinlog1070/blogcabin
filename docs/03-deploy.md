@@ -8,7 +8,24 @@
 1. 서버에 SSH로 접속해 CPU 종류(amd64/arm64)와 Docker 사용 가능 여부를 확인한다
 2. 그 CPU에 맞는 Docker 이미지(`Dockerfile`)를 빌드해 파일로 묶는다
 3. 이미지 파일·`deploy.env`(DB 주소 등)·`deploy/deploy.sh`를 서버의 `~/blogcabin/releases/`로 보낸다
-4. 서버에서 `deploy/deploy.sh`가 이미지를 불러오고 → `db:migrate` → `db:seed` → (첫 배포만) `admin:create` → 컨테이너를 **포트 8440**으로 교체 실행 → `/api/health`가 200인지 확인한다. 실패하면 직전 이미지로 되돌린다
+4. 서버에서 `deploy/deploy.sh`가 이미지를 불러오고 → `db:migrate` → `db:seed` → (첫 배포만) `admin:create` → **롤링 배포**로 앱 두 개를 하나씩 새 이미지로 바꾼다 (아래). 실패하면 그 앱을 직전 이미지로 되돌린다
+
+### 무중단 롤링 배포 (2026-10-14)
+
+```text
+https://blogcabin.java21.net ─▶ 서버 관리자 nginx(443) ─▶ 우리 nginx(:8440, blogcabin-nginx)
+                                                           ├─▶ 앱 blogcabin-1 (:8441)
+                                                           └─▶ 앱 blogcabin-2 (:8442)   ← 번갈아(라운드로빈)
+```
+
+- 앞의 https nginx는 서버 관리자 것이라 고칠 수 없다. 관리자 nginx가 8440으로 보내 주므로 8440에 **우리 nginx 컨테이너**(`nginx:1.27-alpine`, 서버 네트워크)를 두고, 그 뒤에 앱 두 개를 둔다. 포트는 받은 범위 8440~8449 안에서 8440~8442를 쓴다
+- 앱 두 개는 늘 같이 손님을 받는다(이중화). 한쪽이 응답하지 않으면 nginx가 다른 쪽으로 다시 보낸다 (`proxy_next_upstream`)
+- 배포 순서: ① 1번을 nginx에서 빼고(`down`) 새 버전으로 바꿔 `/api/health` 확인 → ② 손님을 1번(새 버전)으로 넘기고 2번을 빼서 바꾼다 → ③ 둘 다 다시 받는다. 옛 버전과 새 버전이 동시에 손님을 받지 않아서 화면 파일이 섞이지 않는다
+- ①에서 새 버전이 안 뜨면 1번을 직전 이미지로 되돌리고 끝낸다(사이트는 옛 버전 그대로). ②에서 2번이 안 뜨면 1번(새 버전) 하나로 계속 돈다
+- 앱 두 개와 nginx 모두 같은 DB, 같은 `~/blogcabin/uploads`를 쓴다. 로그인은 DB에 저장돼서 어느 앱으로 가도 그대로다
+- **DB 구조 변경 주의**: 마이그레이션은 앱을 바꾸기 전에 한 번 돌고, 바꾸는 동안 옛 버전도 잠깐 그 DB를 쓴다. 칼럼 지우기·이름 바꾸기는 한 번에 하지 말고 "새 칼럼 추가 → 다음 배포에서 옛 칼럼 정리"처럼 두 번에 나눈다
+- 처음 이 방식으로 배포할 때만 예전 앱(`blogcabin`, 8440)을 끄고 nginx를 켜는 사이 1초 안팎 끊길 수 있다. 그 뒤로는 끊기지 않는다
+- nginx 설정은 배포마다 `~/blogcabin/nginx/`에 다시 만든다 (`nginx.conf`, 앱 상태 `upstream.conf`). 직접 고치지 않는다
 
 | 저장소 시크릿 | 쓰임 |
 |---|---|
@@ -19,10 +36,10 @@
 
 서버 쪽 준비와 폴더:
 - Docker가 설치돼 있고, SSH 계정이 `docker`를 쓸 수 있어야 한다 (docker 그룹 또는 비밀번호 없는 sudo)
-- `DB_ADDRESS`가 `localhost`면 컨테이너가 서버 네트워크를 그대로 쓴다(`--network host`). 아니면 `-p 8440:8440`
+- `DB_ADDRESS`가 `localhost`이거나 기본 네트워크로 DB에 닿지 않으면 앱이 서버 네트워크를 그대로 쓴다(`--network host`, 127.0.0.1에서만 들음). 아니면 `-p 127.0.0.1:8441:8441`처럼 서버 안에서만 열린다
 - `~/blogcabin/secrets.env`: 첫 배포 때 서버가 만든 로그인 비밀키(`BETTER_AUTH_SECRET`)와 관리자 비밀번호(`ADMIN_PASSWORD`). 지우면 모든 회원이 로그아웃되니 지우지 않는다. 관리자 비밀번호 보기: `grep ADMIN_PASSWORD ~/blogcabin/secrets.env`
 - `~/blogcabin/uploads/`: 글 첨부 사진·파일 (컨테이너의 `/data/uploads`). 백업 대상
-- 로그 보기: `docker logs --tail 100 blogcabin`
+- 로그 보기: `docker logs --tail 100 blogcabin-1` (`blogcabin-2`, nginx는 `blogcabin-nginx`)
 
 ## 1. 구조: 서버와 프론트가 한 덩어리다
 
