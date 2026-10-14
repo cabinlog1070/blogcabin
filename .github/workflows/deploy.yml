@@ -76,8 +76,8 @@ jobs:
           set -euo pipefail
           TAG="${GITHUB_SHA::12}"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
-          docker buildx build --platform "${{ steps.server.outputs.platform }}" --tag "blogcabin-web:$TAG" --load frontend
-          docker buildx build --platform "${{ steps.server.outputs.platform }}" --tag "blogcabin-api:$TAG" --load backend
+          docker buildx build --platform "${{ steps.server.outputs.platform }}" --tag "blogcabin-web:$TAG" --load --file frontend/Dockerfile .
+          docker buildx build --platform "${{ steps.server.outputs.platform }}" --tag "blogcabin-api:$TAG" --load --file backend/Dockerfile .
           # 두 이미지를 파일 하나로 묶는다 (겹치는 Node 층은 한 번만 들어간다)
           docker save "blogcabin-web:$TAG" "blogcabin-api:$TAG" | gzip -1 > image.tar.gz
           ls -lh image.tar.gz

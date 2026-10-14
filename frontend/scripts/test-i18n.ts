@@ -14,6 +14,7 @@ const walk = (dir: string) => {
   }
 };
 walk("src");
+walk("../backend/src"); // 서버가 돌려주는 문구(msg)도 화면이 번역한다
 
 const CALL = /\b(?:t|msg)\(\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|`((?:\\.|[^`\\$])*)`)/g;
 const unescape = (s: string) => s.replace(/\\(["'`\\])/g, "$1").replace(/\\n/g, "\n");

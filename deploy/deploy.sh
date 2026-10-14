@@ -4,8 +4,8 @@
 #   bash deploy.sh <태그> <image.tar.gz> <deploy.env> [nginx 포트, 기본 8440] [화면 포트 두 개, 기본 "8441 8442"] [서버 포트 두 개, 기본 "8443 8444"]
 #
 # 이미지는 두 종류다 (저장소의 frontend/·backend/ 폴더)
-#   blogcabin-web:<태그>  화면(Next.js). 아직 옮기지 않은 영역은 DB도 직접 쓴다. DB 마이그레이션·시드도 이 이미지로 돌린다
-#   blogcabin-api:<태그>  서버(backend). /api/v1/… 주소를 맡는다
+#   blogcabin-web:<태그>  화면(Next.js). 아직 옮기지 않은 영역은 DB도 직접 쓴다. 시드·관리자 계정도 이 이미지로 돌린다
+#   blogcabin-api:<태그>  서버(backend). /api/v1/… 주소를 맡는다. DB 구조(마이그레이션)는 이 이미지가 맞춘다
 #
 # 하는 일
 #   1. 이미지 파일(두 이미지가 같이 묶여 있다)을 docker에 불러온다
@@ -139,8 +139,9 @@ run_once() {
   -c 'chown -R node:node /data/uploads' >/dev/null
 
 # ── 3. DB 구조 맞추기 + 기본 데이터 ──
-log "DB 마이그레이션"
-run_once run db:migrate:prod
+log "DB 마이그레이션 (서버 이미지)"
+"${DOCKER[@]}" run --rm --env-file "$BASE/app.env" ${ONE_OFF_NET[@]+"${ONE_OFF_NET[@]}"} \
+  "$API_IMAGE" node dist/scripts/migrate.mjs
 log "아이템·동물 목록 (여러 번 해도 안전)"
 run_once run db:seed
 
@@ -203,11 +204,15 @@ image_of() { "${DOCKER[@]}" inspect --format '{{.Config.Image}}' "$1" 2>/dev/nul
 running() { [ "$("${DOCKER[@]}" inspect --format '{{.State.Running}}' "$1" 2>/dev/null)" = "true" ]; }
 
 # nginx 설정: 쉬는 컨테이너에는 down을 붙여 손님을 보내지 않는다
+# 로그인(/api/auth/)은 AUTH_KIND 쪽으로 보낸다. 서버를 바꾸는 동안에는 화면(web)이 받고(화면도 같은 로그인 주소를 갖고 있다),
+# 서버 두 개가 새 버전이 된 뒤에 서버(api)로 넘긴다. 옛 서버 이미지에는 로그인 주소가 없을 수 있어서다
+AUTH_KIND=web
 write_upstream() {
-  local kind i line # local이 없으면 부른 함수(roll)의 kind를 덮어쓴다 (bash는 변수를 부른 쪽과 나눠 쓴다)
+  local kind name i line # local이 없으면 부른 함수(roll)의 kind를 덮어쓴다 (bash는 변수를 부른 쪽과 나눠 쓴다)
   {
-    for kind in web api; do
-      echo "upstream blogcabin_$kind {"
+    for name in web api auth; do
+      kind="$name"; [ "$name" = "auth" ] && kind="$AUTH_KIND"
+      echo "upstream blogcabin_$name {"
       for i in 0 1; do
         line="  server 127.0.0.1:$(slot_port "$kind" "$i") max_fails=1 fail_timeout=5s"
         [ "${STATE[$kind$i]}" = "down" ] && line="$line down"
@@ -224,8 +229,9 @@ write_nginx_conf() {
   cat > "$NGINX_DIR/nginx.conf" <<NGINX
 # BlogCabin 앞단 nginx (deploy/deploy.sh가 배포마다 다시 만든다. 직접 고치지 않는다)
 # 서버 관리자 nginx(https) → 이 nginx(:$PUBLIC_PORT)
-#   /api/v1/ → 서버(backend) 두 개 (:${API_PORT[0]}, :${API_PORT[1]}) 라운드로빈
-#   나머지   → 화면(frontend) 두 개 (:${WEB_PORT[0]}, :${WEB_PORT[1]}) 라운드로빈
+#   /api/v1/   → 서버(backend) 두 개 (:${API_PORT[0]}, :${API_PORT[1]}) 라운드로빈
+#   /api/auth/ → 로그인. 평소엔 서버, 서버를 바꾸는 동안엔 화면 (upstream.conf의 blogcabin_auth)
+#   나머지     → 화면(frontend) 두 개 (:${WEB_PORT[0]}, :${WEB_PORT[1]}) 라운드로빈
 worker_processes 2;
 pid /tmp/nginx.pid;
 error_log /dev/stderr warn;
@@ -250,6 +256,7 @@ http {
     listen $PUBLIC_PORT;
     location = /nginx-health { access_log off; return 200 "ok\n"; }
     location /api/v1/ { proxy_pass http://blogcabin_api; }
+    location /api/auth/ { proxy_pass http://blogcabin_auth; }
     location / { proxy_pass http://blogcabin_web; }
   }
 }
@@ -347,7 +354,7 @@ if [ -z "$PREV_WEB" ] || ! running "$PROXY"; then
   log "처음 준비: 서버 두 개(${API_PORT[*]})와 화면 두 개(${WEB_PORT[*]})를 새 이미지로 켜요"
   start_both api "$API_IMAGE" || fail "서버(backend)가 정상으로 뜨지 않았어요. 위 로그를 확인해 주세요."
   start_both web "$WEB_IMAGE" || fail "화면(frontend)이 정상으로 뜨지 않았어요. 위 로그를 확인해 주세요."
-  STATE[api0]=up; STATE[api1]=up
+  STATE[api0]=up; STATE[api1]=up; AUTH_KIND=api
   write_upstream
   log "포트 $PUBLIC_PORT 를 nginx에게 맡겨요"
   "${DOCKER[@]}" rm -f "$LEGACY_NAME" "$PROXY" >/dev/null 2>&1 || true
@@ -362,11 +369,13 @@ else
     # 폴더를 나눈 뒤 첫 배포: 서버는 아직 없어서 손님 없이 켜고 nginx에 붙인다
     log "서버(backend) 두 개를 처음 켜요 (${API_PORT[*]})"
     start_both api "$API_IMAGE" || fail "서버(backend)가 정상으로 뜨지 않았어요. 사이트는 이전 그대로예요. 위 로그를 확인해 주세요."
-    STATE[api0]=up; STATE[api1]=up
+    STATE[api0]=up; STATE[api1]=up; AUTH_KIND=api
     reload_proxy
   else
     roll api "$API_IMAGE" "$PREV_API" "서버" \
       || fail "서버(backend) 새 버전이 정상으로 뜨지 않았어요. 사이트는 이전 버전으로 계속 돌아요. 위 로그를 확인해 주세요."
+    log "로그인 주소(/api/auth/)를 새 서버로 넘겨요"
+    AUTH_KIND=api; reload_proxy
   fi
   # ── 그다음 화면 ──
   roll web "$WEB_IMAGE" "$PREV_WEB" "화면" \

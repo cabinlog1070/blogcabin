@@ -16,7 +16,7 @@ import { PgTable } from "drizzle-orm/pg-core";
 import { Pool, type PoolClient } from "pg";
 import * as schemaModule from "../src/db/schema";
 
-config({ path: ".env.local", quiet: true });
+config({ path: [".env", "../frontend/.env.local"], quiet: true });
 
 type PgError = Error & { code?: string; errno?: string; cause?: unknown };
 type JournalEntry = { idx: number; when: number; tag: string };

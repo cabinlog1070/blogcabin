@@ -88,7 +88,7 @@ hotfix/* (급한 수정): main에서 만들어 main으로 → 다시 develop에�
 
 처음 한 번은 [README의 실행 방법](README.md#실행-방법)대로 설치합니다.
 
-코드는 두 폴더에 있습니다: 화면은 `frontend/`, 서버 API(`/api/v1/…`)는 `backend/`. `npm` 명령은 고치는 쪽 폴더에 들어가서 실행합니다. PR을 올리면 GitHub가 두 폴더를 각각 검사(CI)합니다.
+코드는 두 폴더에 있습니다: 화면은 `frontend/`, 서버 API(`/api/v1/…`, 로그인 `/api/auth/…`)는 `backend/`. 설치는 저장소 맨 위에서 `npm install` 한 번이고, 그 밖의 `npm` 명령은 고치는 쪽 폴더에 들어가서 실행합니다. DB 구조(`backend/src/db/schema.ts`)와 마이그레이션(`backend/drizzle/`)은 서버 폴더에 있습니다. PR을 올리면 GitHub가 두 폴더를 각각 검사(CI)합니다.
 
 ```bash
 # 작업 시작: 최신 develop에서 내 브랜치 만들기

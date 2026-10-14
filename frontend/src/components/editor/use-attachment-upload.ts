@@ -15,13 +15,13 @@ type Uploaded = { key: string; url: string; kind: "image" | "file"; name: string
 
 export const BUSY_MESSAGE = msg("다른 파일을 올리는 중이에요. 끝난 뒤 다시 넣어 주세요");
 
-/** 파일 하나를 /api/uploads로 올린다. 실패하면 보여줄 문구를 담아 던진다 */
+/** 파일 하나를 서버(/api/v1/uploads)로 올린다. 실패하면 보여줄 문구를 담아 던진다 */
 async function uploadOne(file: File): Promise<Uploaded> {
   const body = new FormData();
   body.append("file", file);
   let res: Response;
   try {
-    res = await fetch("/api/uploads", { method: "POST", body });
+    res = await fetch("/api/v1/uploads", { method: "POST", body });
   } catch {
     throw new Error(ATTACH_MESSAGES.failed);
   }

@@ -4,8 +4,8 @@ import { config } from "dotenv";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { animalSpecies, items } from "../src/db/schema";
-import { giveStarterHair } from "../src/db/starter-hair";
+import { animalSpecies, items } from "../../backend/src/db/schema";
+import { giveStarterHair } from "../../backend/src/db/starter-hair";
 
 config({ path: ".env.local" });
 
@@ -20,7 +20,7 @@ const ITEMS: NewItem[] = [
   // 여기서 빼서 시드가 다시 넣지 않는다
 
   // 아바타 꾸미기 (SHOP-06): 상의·하의·모자·신발 각 3개. 레벨이 오르면 하나씩 풀린다 (Lv.1·2·3·5)
-  // 헤어 (2026-10-13): 처음 고른 주민의 머리. 자기 머리는 처음부터 갖고(src/db/starter-hair.ts), 다른 머리는 0코인에 받는다
+  // 헤어 (2026-10-13): 처음 고른 주민의 머리. 자기 머리는 처음부터 갖고(backend/src/db/starter-hair.ts), 다른 머리는 0코인에 받는다
   { code: "av_hair_short", type: "avatar", slot: "hair", name: "짧은 머리", description: "깔끔하게 다듬은 짧은 머리", price: 0, requiredLevel: 1, isStarter: false, assetKey: "avatar.hair.short" },
   { code: "av_hair_long", type: "avatar", slot: "hair", name: "긴 머리", description: "어깨 아래까지 내려오는 긴 머리", price: 0, requiredLevel: 1, isStarter: false, assetKey: "avatar.hair.long" },
   { code: "av_hair_buzz", type: "avatar", slot: "hair", name: "스포츠 머리", description: "짧고 단정하게 깎은 머리", price: 40, requiredLevel: 1, isStarter: false, assetKey: "avatar.hair.buzz" },
