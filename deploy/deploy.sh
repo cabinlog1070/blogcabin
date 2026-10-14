@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # BlogCabin 서버 배포 스크립트. GitHub Actions(.github/workflows/deploy.yml)가 SSH로 서버에서 실행한다.
 #
-#   bash deploy.sh <태그> <image.tar.gz> <deploy.env> [앱 포트 두 개, 기본 "8440 8441"]
+#   bash deploy.sh <태그> <image.tar.gz> <deploy.env> [앱 포트 두 개, 기본 "8440 8441"] [시험용 포트, 기본 8449]
 #
 # 이미지는 두 종류다 (저장소의 frontend/·backend/ 폴더)
 #   blogcabin-web:<태그>  손님을 받는 앱. 화면(Next.js)이 서버(backend) /api/v1/… 도 안에서 같이 돌린다
@@ -13,7 +13,8 @@
 #   2. 처음 배포면 로그인 비밀키·관리자 비밀번호를 만들어 ~/blogcabin/secrets.env 에 보관한다 (다음 배포부터 재사용)
 #   3. DB 구조를 맞추고(migrate) 아이템·동물 목록을 넣는다(db:seed, 여러 번 해도 안전)
 #   4. 처음 배포면 관리자 계정을 만든다(admin:create)
-#   5. 롤링 배포: 서버 관리자 nginx(https)가 ~/nginx/<사이트 주소>.conf 의 upstream으로 앱 두 개(8440, 8441)에
+#   5. 새 이미지를 시험용 포트(8449)에서 먼저 켜 보고, 정상이면
+#      롤링 배포: 서버 관리자 nginx(https)가 ~/nginx/<사이트 주소>.conf 의 upstream으로 앱 두 개(8440, 8441)에
 #      번갈아(라운드로빈) 보낸다. 앱을 하나씩 멈추고 새 이미지로 바꾼다. 멈춘 쪽은 nginx가 접속 실패를 보고
 #      다른 쪽으로 다시 보내서(proxy_next_upstream) 사이트가 꺼지지 않는다
 #   6. 실패하면 그 앱을 직전 이미지로 되돌린다
@@ -35,6 +36,7 @@ IMAGE_TAR="${2:?이미지 파일 경로가 필요해요}"
 DEPLOY_ENV="${3:?deploy.env 경로가 필요해요}"
 read -r -a APP_PORT <<< "${4:-8440 8441}"
 [ "${#APP_PORT[@]}" -eq 2 ] || { echo "앱 포트는 두 개여야 해요: ${4:-}" >&2; exit 1; }
+CHECK_PORT="${5:-8449}" # 새 이미지를 손님 앱에 넣기 전에 잠깐 켜 보는 시험용 포트 (배포 중에만 쓰고 끈다)
 WEB_IMAGE="blogcabin-web:$TAG"
 API_IMAGE="blogcabin-api:$TAG"
 APP_NAME=("blogcabin-1" "blogcabin-2")   # 앱 두 개 (APP_PORT 순서대로)
@@ -180,8 +182,8 @@ start_app() { # 이름 포트 이미지
 }
 
 # 상태 확인: 화면(/api/health)과 서버(/api/v1/health)가 둘 다 열려야 정상
-healthy() { # 이름 포트
-  for _ in $(seq 1 45); do
+healthy() { # 이름 포트 [시도 횟수, 2초 간격]
+  for _ in $(seq 1 "${3:-45}"); do
     if "${DOCKER[@]}" exec "$1" node -e "
       const u = 'http://127.0.0.1:$2';
       Promise.all([fetch(u + '/api/health'), fetch(u + '/api/v1/health')])
@@ -226,7 +228,7 @@ setup_site_nginx() {
     echo "서버 nginx 설정에 이미 앱 두 개(upstream)가 있어요: $SITE_CONF"
     return 0
   fi
-  if ! grep -Eq "proxy_pass[[:space:]]+http://127\.0\.0\.1:${APP_PORT[0]};" "$SITE_CONF"; then
+  if ! grep -Eq "^[[:space:]]*proxy_pass[[:space:]]+http://127\.0\.0\.1:${APP_PORT[0]};" "$SITE_CONF"; then
     echo "서버 nginx 설정이 예상한 모양(proxy_pass http://127.0.0.1:${APP_PORT[0]};)이 아니라 고치지 않아요: $SITE_CONF"
     return 0
   fi
@@ -263,34 +265,71 @@ setup_site_nginx() {
   echo "선생님(관리자)이 nginx를 다시 읽어야(sudo nginx -t && sudo systemctl reload nginx) 적용돼요."
 }
 
-PREV_APP="$(image_of "${APP_NAME[1]}")"; [ -n "$PREV_APP" ] || PREV_APP="$(image_of "${APP_NAME[0]}")"
+# 지금 도는 이미지 (되돌릴 때 쓴다). 앱마다 따로 기억한다
+PREV0="$(image_of "${APP_NAME[0]}")"; PREV1="$(image_of "${APP_NAME[1]}")"
+PREV0="${PREV0:-$PREV1}"; PREV1="${PREV1:-$PREV0}"
+PREV_APP="$PREV1"
+
+# 예전 nginx 컨테이너가 이 포트로 손님을 보내지 않게 한다 (upstream 줄에 down을 붙이고 다시 읽기)
+old_proxy_avoid() { # 포트
+  local f="$BASE/nginx/upstream.conf"
+  [ -f "$f" ] || return 0
+  sed -i -E "/ down;/! s#^([[:space:]]*server 127\.0\.0\.1:$1 [^;]*);#\1 down;#" "$f"
+  { "${DOCKER[@]}" exec "$OLD_PROXY" nginx -t -q -c /etc/nginx/blogcabin/nginx.conf &&
+    "${DOCKER[@]}" exec "$OLD_PROXY" nginx -s reload -c /etc/nginx/blogcabin/nginx.conf; } >/dev/null 2>&1 || true
+  sleep 1 # 옛 설정으로 처리 중이던 요청이 끝날 시간
+}
+
+# ── 미리 시험: 손님 앱을 건드리기 전에 새 이미지를 시험용 포트에서 켜 본다 ──
+# 서버 nginx는 새 앱이 상태 확인을 통과하기 전에도 손님을 보내므로(우리가 down을 붙일 수 없다),
+# 망가진 이미지가 손님을 받지 않게 여기서 먼저 걸러 낸다
+CHECK_NAME="blogcabin-check"
+log "새 이미지를 시험용 포트 $CHECK_PORT 에서 먼저 켜 봐요 (손님은 받지 않아요)"
+stop_rm "$CHECK_NAME"
+start_app "$CHECK_NAME" "$CHECK_PORT" "$WEB_IMAGE"
+if ! healthy "$CHECK_NAME" "$CHECK_PORT"; then
+  show_logs "$CHECK_NAME"
+  stop_rm "$CHECK_NAME"
+  fail "새 이미지가 시험용 포트에서 정상으로 뜨지 않았어요. 사이트는 하나도 바꾸지 않았어요. 위 로그를 확인해 주세요."
+fi
+stop_rm "$CHECK_NAME"
 
 if exists "$OLD_PROXY"; then
   # ── 예전 구성에서 처음 바꾸기 ──
   # 예전: 우리 nginx(8440) → 화면 blogcabin-1(8441)·blogcabin-2(8442), 서버 blogcabin-api-1/2(8443·8444)
   # 지금: 앱 blogcabin-1(8440)·blogcabin-2(8441). 서버 nginx는 아직 8440만 알아서 8440이 바뀌는 순간 몇 초 끊긴다
+  # 중간에 끊긴 배포(작업 취소 등)를 다시 돌려도 이어서 할 수 있게, 단계마다 이미 된 것은 건너뛴다
   log "예전 구성(우리 nginx + 화면 두 개 + 서버 두 개)을 앱 두 개(${APP_PORT[*]})로 바꿔요"
   for n in "${APP_NAME[@]}"; do
-    if exists "$n"; then "${DOCKER[@]}" rename "$n" "$n-old" >/dev/null; fi
+    if exists "$n"; then
+      if exists "$n-old"; then
+        stop_rm "$n" # 지난번에 끊긴 배포가 켜 둔 새 앱 (예전 것은 이미 -old)
+      else
+        "${DOCKER[@]}" rename "$n" "$n-old" >/dev/null
+      fi
+    fi
   done
-  # 8441을 쓰던 예전 화면을 내리면 우리 nginx가 다른 화면(8442)으로 보낸다
+  # 예전 nginx가 8441로 보내지 않게 한 뒤 8441을 쓰던 예전 화면을 내린다.
+  # 그동안 손님은 예전 화면(8442)과 예전 서버가 받아서, 새 화면이 예전 서버를 부르는 일이 없다
+  old_proxy_avoid "${APP_PORT[1]}"
   for n in "${APP_NAME[@]/%/-old}"; do
     if [ "$(port_of "$n")" = "${APP_PORT[1]}" ]; then stop_rm "$n"; fi
   done
-  log "새 앱 ${APP_NAME[1]} (:${APP_PORT[1]}) 켜기"
+  log "새 앱 ${APP_NAME[1]} (:${APP_PORT[1]}) 켜기 (아직 손님은 받지 않아요)"
   if ! replace_app 1 "$WEB_IMAGE"; then
     show_logs "${APP_NAME[1]}"
     stop_rm "${APP_NAME[1]}"
     fail "새 앱이 정상으로 뜨지 않았어요. 사이트는 예전 구성 그대로예요(화면 하나 줄어든 상태, 다음 배포에서 다시 맞춰요). 위 로그를 확인해 주세요."
   fi
-  log "8440을 우리 nginx에서 새 앱 ${APP_NAME[0]} 로 넘겨요 (이 순간 몇 초 끊길 수 있어요)"
-  stop_rm "$OLD_PROXY"
-  if ! { start_app "${APP_NAME[0]}" "${APP_PORT[0]}" "$WEB_IMAGE" && healthy "${APP_NAME[0]}" "${APP_PORT[0]}"; }; then
+  log "8440을 예전 nginx에서 새 앱 ${APP_NAME[0]} 로 넘겨요 (이 순간 몇 초 끊길 수 있어요)"
+  "${DOCKER[@]}" stop -t 10 "$OLD_PROXY" >/dev/null 2>&1 || true
+  # 같은 이미지가 시험용 포트와 8441에서 이미 떴으니, 여기서 안 뜨면 오래 기다리지 않고(30초) 예전 nginx로 돌아간다
+  if ! { stop_rm "${APP_NAME[0]}"; start_app "${APP_NAME[0]}" "${APP_PORT[0]}" "$WEB_IMAGE" && healthy "${APP_NAME[0]}" "${APP_PORT[0]}" 15; }; then
     show_logs "${APP_NAME[0]}"
-    fail "${APP_NAME[0]} (:${APP_PORT[0]})가 정상으로 뜨지 않았어요. 위 로그를 확인해 주세요."
+    stop_rm "${APP_NAME[0]}"
+    "${DOCKER[@]}" start "$OLD_PROXY" >/dev/null 2>&1 || true
+    fail "${APP_NAME[0]} (:${APP_PORT[0]})가 정상으로 뜨지 않아서 예전 nginx를 다시 켰어요. 사이트는 예전 구성으로 돌아요. 위 로그를 확인해 주세요."
   fi
-  stop_rm "${APP_NAME[@]/%/-old}" "${OLD_API[@]}"
-  rm -rf "$BASE/nginx"
 elif [ -z "$PREV_APP" ]; then
   # ── 처음 켜기 ──
   log "처음 준비: 앱 두 개(${APP_PORT[*]})를 새 이미지로 켜요"
@@ -307,21 +346,28 @@ else
   log "롤링 1/2 ${APP_NAME[1]} (:${APP_PORT[1]}) 를 새 버전으로 바꿔요 (손님은 ${APP_NAME[0]} 가 받아요)"
   if ! replace_app 1 "$WEB_IMAGE"; then
     show_logs "${APP_NAME[1]}"
-    log "새 버전이 정상이 아니라 ${APP_NAME[1]} 를 이전 이미지로 되돌려요: $PREV_APP"
-    replace_app 1 "$PREV_APP" || true
+    log "새 버전이 정상이 아니라 ${APP_NAME[1]} 를 이전 이미지로 되돌려요: $PREV1"
+    replace_app 1 "$PREV1" || true
     fail "새 버전이 정상으로 뜨지 않았어요. 사이트는 이전 버전으로 계속 돌아요. 위 로그를 확인해 주세요."
   fi
   # 서버 nginx는 멈춰 있던 2번을 5초(fail_timeout) 동안 "죽음"으로 기억한다. 그 사이 1번까지 멈추면 갈 곳이 없어
-  # 502가 나니, 2번을 다시 쓰기 시작할 때까지 기다린다 (2026-10-14 시험에서 확인)
+  # 502가 나니, 2번을 다시 쓰기 시작할 때까지 기다린다 (2026-10-14 시험에서 확인).
+  # 이 몇 초 동안은 옛 버전(1번)과 새 버전(2번)이 같이 손님을 받는다
   sleep 8
   log "롤링 2/2 ${APP_NAME[0]} (:${APP_PORT[0]}) 를 새 버전으로 바꿔요 (손님은 새 버전 ${APP_NAME[1]} 가 받아요)"
   if ! replace_app 0 "$WEB_IMAGE"; then
     show_logs "${APP_NAME[0]}"
-    log "${APP_NAME[0]} 를 이전 이미지로 되돌려요 (${APP_NAME[1]} 은 새 버전): $PREV_APP"
-    replace_app 0 "$PREV_APP" || true
-    fail "${APP_NAME[0]} 가 새 버전으로 뜨지 않았어요. 위 로그를 확인해 주세요."
+    # 한 사이트에 두 버전이 계속 섞여 있지 않게 둘 다 이전 이미지로 되돌린다
+    log "두 앱을 모두 이전 이미지로 되돌려요: ${APP_NAME[0]} $PREV0, ${APP_NAME[1]} $PREV1"
+    replace_app 0 "$PREV0" || true
+    sleep 8
+    replace_app 1 "$PREV1" || true
+    fail "${APP_NAME[0]} 가 새 버전으로 뜨지 않아서 두 앱을 이전 버전으로 되돌렸어요. 위 로그를 확인해 주세요."
   fi
 fi
+# 예전 구성의 컨테이너·설정이 남아 있으면 지운다 (끊긴 배포가 남긴 것도 여기서 정리된다)
+stop_rm "$OLD_PROXY" "${APP_NAME[@]/%/-old}" "${OLD_API[@]}"
+rm -rf "$BASE/nginx"
 log "서버 nginx 설정 확인"
 setup_site_nginx
 log "배포 완료: 앱 :${APP_PORT[0]}, :${APP_PORT[1]} ($WEB_IMAGE)"
