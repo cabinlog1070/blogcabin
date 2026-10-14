@@ -50,6 +50,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-14",
     versions: [
       {
+        version: "1.32.8",
+        title: msg("블로그 주소 오류"),
+        changes: [
+          { kind: "fixed", text: msg("블로그 주소(@아이디)로 들어가면 \"Internal Server Error\"가 뜨던 문제를 고쳤어요.") },
+        ],
+      },
+      {
         version: "1.32.7",
         title: msg("알 둥지 넘침"),
         changes: [
