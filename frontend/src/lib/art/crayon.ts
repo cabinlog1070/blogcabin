@@ -462,16 +462,13 @@ export const nestFront = () =>
   }, { dw: 220, dh: 100 });
 
 // ───────── 7. 가구 ─────────
-export const FURN_CANVAS: Record<string, [number, number]> = {
-  "furn.plant": [160, 224], "furn.chair": [176, 240], "furn.lamp": [160, 336], "furn.desk": [360, 240], "furn.bed": [440, 256],
-  // 2026-10-13 새 가구 9종
-  "furn.bookshelf": [240, 320], "furn.tv": [280, 260], "furn.teddy": [200, 220], "furn.rug": [440, 140], "furn.console": [260, 200],
-  "furn.rocket": [220, 360], "furn.basket": [220, 220], "furn.cloud": [320, 200], "furn.rainbow": [400, 240],
-};
+// 가구 그림 상자 크기는 서버의 미니룸 자리 계산(backend/src/shop/room.ts)과 같이 쓴다
+import { FURN_CANVAS } from "@backend/shop/room";
+export { FURN_CANVAS };
 /** 바닥에 닿지 않고 떠 있는 가구 (발밑 그림자·풀밭을 깔지 않는다) */
 const FURN_FLOATING = new Set(["furn.cloud", "furn.rainbow"]);
-/** 바닥에 까는 가구 (그림자 없이 납작하게) */
-export const FURN_FLAT = new Set(["furn.rug"]);
+import { FURN_FLAT } from "@backend/shop/room";
+export { FURN_FLAT };
 /** 책 여러 권을 바닥선(yb)에 세워 꽂는다: [너비, 높이, 색] */
 const books = (x: number, yb: number, list: [number, number, string][]) => {
   let o = "";

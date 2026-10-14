@@ -1,13 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import type { BuyResult } from "@backend/routes/shop";
 import { useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 import { IconEmoji } from "@/components/icon-emoji";
 import { ItemArt } from "@/components/item-art";
 import { SLOT_LABEL, type AvatarSlot } from "@/lib/assets";
+import { api, ApiError, errorText } from "@/lib/api";
 import type { ItemType } from "@/lib/shop";
-import { buyItem } from "./actions";
 import { useAutoClear } from "@/components/use-auto-clear";
 
 export type ShopItem = {
@@ -39,6 +41,7 @@ export function ShopGrid({
   triedIds?: number[];
 }) {
   const t = useT();
+  const router = useRouter();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   useAutoClear(message, () => setMessage(null)); // 산 뒤 뜨는 알림은 3초 뒤에 사라진다
@@ -100,8 +103,14 @@ export function ShopGrid({
                 disabled={item.owned || locked || short || pending}
                 onClick={() =>
                   start(async () => {
-                    const r = await buyItem(item.id);
-                    setMessage(r.ok ? { ok: true, text: t("🎉 {name}을(를) 샀어요! 꾸미기에서 장착해 보세요.", { name: t(r.name) }) } : { ok: false, text: r.error });
+                    try {
+                      const r = await api<Extract<BuyResult, { ok: true }>>("/shop/buy", { method: "POST", body: { itemId: item.id } });
+                      setMessage({ ok: true, text: t("🎉 {name}을(를) 샀어요! 꾸미기에서 장착해 보세요.", { name: t(r.name) }) });
+                      router.refresh(); // 헤더 코인과 보유 표시를 새로
+                    } catch (e) {
+                      if (e instanceof ApiError && e.redirect) return router.push(e.redirect);
+                      setMessage({ ok: false, text: errorText(t, e) });
+                    }
                   })
                 }
                 className="btn mt-3 bg-sun py-1.5 text-sm text-ink"
