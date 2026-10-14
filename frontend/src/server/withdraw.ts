@@ -4,7 +4,7 @@ import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { attachments, comments, users } from "@/db/schema";
 import { lockUser } from "@/server/points";
-import { deleteAttachment } from "@/server/storage";
+import { deleteAttachment } from "@backend/attachments/storage";
 import { anonymizeViewerKey } from "@/server/visits";
 
 /**

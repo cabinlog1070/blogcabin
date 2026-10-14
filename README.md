@@ -64,7 +64,7 @@ npm run admin:create            # 관리자 계정 만들기 (.env.local의 ADMI
 npm run dev                     # http://localhost:3000
 ```
 
-서버(backend)는 다른 터미널에서 켭니다. 접속 정보는 `frontend/.env.local`을 같이 읽습니다(따로 쓰려면 `backend/.env`).
+서버(backend)는 다른 터미널에서 켭니다. 글 첨부 올리기처럼 서버로 옮긴 기능은 화면 개발 서버가 `/api/v1/…`을 서버(4000)로 넘겨서 쓰므로 둘 다 켜 두세요. 접속 정보는 `frontend/.env.local`을 같이 읽습니다(따로 쓰려면 `backend/.env`).
 
 ```bash
 cd backend                      # 저장소 맨 위 폴더에서

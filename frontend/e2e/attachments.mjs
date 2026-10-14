@@ -135,7 +135,7 @@ check("수정 화면: 사진·파일 카드가 그대로", (await editorImages()
 
 // 9) 조작한 요청
 const up = (ctx, name, buffer, headers = {}) =>
-  ctx.post(`${BASE}/api/uploads`, { multipart: { file: { name, mimeType: "application/octet-stream", buffer } }, headers: { Origin: BASE, ...headers } });
+  ctx.post(`${BASE}/api/v1/uploads`, { multipart: { file: { name, mimeType: "application/octet-stream", buffer } }, headers: { Origin: BASE, ...headers } });
 check("다른 사이트에서 보낸 올리기 거부(403)", (await up(page.request, "a.png", PNG, { Origin: "https://evil.example" })).status() === 403);
 check("확장자만 바꾼 SVG 직접 요청 거부(415)", (await up(page.request, "x.png", SVG)).status() === 415);
 check("HTML 파일 직접 요청 거부(415)", (await up(page.request, "x.html", Buffer.from("<script>alert(1)</script>"))).status() === 415);
@@ -147,7 +147,7 @@ check("Origin: null 은 거부(403)", (await up(page.request, "a.png", PNG, { Or
 // 크기를 밝히지 않고 나눠 보내는 요청(chunked)은 본문을 읽기 전에 거부(411)
 const cookie = (await page.context().cookies()).map((c) => `${c.name}=${c.value}`).join("; ");
 const chunked = await new Promise((resolve) => {
-  const req = http.request(`${BASE}/api/uploads`, { method: "POST", headers: { Origin: BASE, Cookie: cookie, "Content-Type": "multipart/form-data; boundary=x", "Transfer-Encoding": "chunked" } }, (res) => resolve(res.statusCode));
+  const req = http.request(`${BASE}/api/v1/uploads`, { method: "POST", headers: { Origin: BASE, Cookie: cookie, "Content-Type": "multipart/form-data; boundary=x", "Transfer-Encoding": "chunked" } }, (res) => resolve(res.statusCode));
   req.on("error", () => resolve(0));
   req.write("--x\r\n");
   req.end();
