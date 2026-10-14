@@ -9,6 +9,16 @@ AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory
 - 배포 방법: [docs/03-deploy.md](docs/03-deploy.md)
 - 협업 가이드(브랜치·PR·리뷰 규칙): [CONTRIBUTING.md](CONTRIBUTING.md)
 
+| 폴더 | 내용 |
+|---|---|
+| `frontend/` | 화면 (Next.js 16, TypeScript). 아직 서버로 옮기지 않은 일(Server Action, DB 마이그레이션)도 여기 있다 |
+| `backend/` | 서버 API (Node 24, Hono, TypeScript). 주소는 모두 `/api/v1/…` |
+| `deploy/` | 운영 서버 배포 스크립트 (우리 nginx + 화면 두 개 + 서버 두 개, 롤링 배포) |
+| `.github/` | PR마다 도는 검사(CI: 화면·서버 따로), `main`에 합치면 도는 배포 |
+| `docs/` | 배포 방법 |
+
+> 2026-10-14부터 화면과 서버를 나누는 중입니다. 지금은 뼈대(폴더·배포·검사)만 나눴고, 출석·상점·농장·블로그처럼 영역을 하나씩 `backend/`로 옮깁니다.
+
 ## 주요 기능
 
 | 분류 | 기능 |
@@ -24,7 +34,8 @@ AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory
 
 | 역할 | 기술 | 선택 이유 |
 |---|---|---|
-| 프레임워크 | Next.js 16 (App Router), TypeScript | 화면과 서버를 한 프로젝트·한 언어로. 혼자 개발하기 좋은 풀스택 구조 |
+| 화면 | Next.js 16 (App Router), TypeScript | 서버에서 미리 그린 화면, 한 언어(TypeScript)로 화면과 서버를 같이 |
+| 서버 API | Node 24 + Hono, TypeScript | 가볍고 주소별 코드가 짧다. 화면과 같은 언어라 게임 규칙 코드를 그대로 옮길 수 있다 |
 | DB | PostgreSQL | 회원·글·보상이 서로 연결된 관계형 데이터. FK·UNIQUE·CHECK로 규칙을 DB가 보장 |
 | ORM | Drizzle | SQL과 거의 같은 문법이라 ERD → 코드 변환이 직관적, 마이그레이션이 SQL 파일로 남음 |
 | 로그인 | Better Auth | 네이버·카카오·구글을 기본 지원하는 안정 버전, Drizzle 연동 |
@@ -43,6 +54,7 @@ AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory
 ### 설치
 
 ```bash
+cd frontend
 npm install
 createdb blogcabin
 cp .env.example .env.local      # DATABASE_URL, BETTER_AUTH_SECRET 채우기
@@ -51,6 +63,16 @@ npm run db:seed                 # 캐릭터·배경 아이템 넣기
 npm run admin:create            # 관리자 계정 만들기 (.env.local의 ADMIN_USERNAME / ADMIN_PASSWORD)
 npm run dev                     # http://localhost:3000
 ```
+
+서버(backend)는 다른 터미널에서 켭니다. 접속 정보는 `frontend/.env.local`을 같이 읽습니다(따로 쓰려면 `backend/.env`).
+
+```bash
+cd backend                      # 저장소 맨 위 폴더에서
+npm install
+npm run dev                     # http://localhost:4000/api/v1/health
+```
+
+> 폴더를 나누기 전에 받아 둔 저장소라면 `.env.local`과 `storage/`(첨부 파일)를 `frontend/` 안으로 옮겨 주세요.
 
 첫 화면에서 **회원가입** 탭으로 아이디를 만들어 바로 쓸 수 있습니다. 관리자로 로그인하면 헤더에 **👑 관리자** 버튼이 생깁니다.
 
@@ -71,6 +93,8 @@ npm run dev                     # http://localhost:3000
 > 카카오는 개인 개발자 앱에서 이메일 동의항목을 쓰기 어려워 닉네임·프로필 사진만 요청하고, 이메일 자리에는 `kakao_<ID>@kakao.blogcabin.invalid` 대체 주소를 저장합니다.
 
 ## 스크립트
+
+`frontend/` 폴더에서 실행합니다.
 
 | 명령 | 설명 |
 |---|---|
@@ -101,20 +125,24 @@ npm run dev                     # http://localhost:3000
 
 ```
 docs/                     배포 방법 (요구사항·ERD는 문서 저장소에)
-drizzle/                  마이그레이션 SQL (자동 생성)
-scripts/                  시드, 개발 DB 초기화
-e2e/                      Playwright 시나리오
-src/
-├── app/                  화면과 Server Action
-│   ├── blog/[slug]/      블로그 홈, 글 상세  (주소는 /@slug 로 rewrite)
-│   ├── town/             중앙 광장
-│   ├── write/            글쓰기·수정
-│   ├── attendance/ shop/ closet/ settings/blog/ feed/ tags/ onboarding/
-│   └── api/auth/         소셜 로그인 엔드포인트
-├── components/           화면 조각 (town/ = Phaser 씬, editor/ = Tiptap)
-├── db/                   Drizzle 스키마, DB 연결
-├── lib/                  게임 규칙(레벨·보상), 그림 정의, 로그인 설정
-└── server/               DB 쿼리, 로그인 확인(DAL), 보상 지급, HTML 정화
+deploy/                   운영 서버 배포 스크립트 (deploy.sh)
+backend/                  서버 API (Hono)
+└── src/                  app.ts 주소 목록, db.ts DB 연결, index.ts 서버 시작
+frontend/                 화면 (Next.js)
+├── drizzle/              마이그레이션 SQL (자동 생성)
+├── scripts/              시드, 개발 DB 초기화
+├── e2e/                  Playwright 시나리오
+└── src/
+    ├── app/              화면과 Server Action
+    │   ├── blog/[slug]/  블로그 홈, 글 상세  (주소는 /@slug 로 rewrite)
+    │   ├── town/         중앙 광장
+    │   ├── write/        글쓰기·수정
+    │   ├── attendance/ shop/ closet/ settings/blog/ feed/ tags/ onboarding/
+    │   └── api/auth/     소셜 로그인 엔드포인트
+    ├── components/       화면 조각 (town/ = Phaser 씬, editor/ = Tiptap)
+    ├── db/               Drizzle 스키마, DB 연결
+    ├── lib/              게임 규칙(레벨·보상), 그림 정의, 로그인 설정
+    └── server/           DB 쿼리, 로그인 확인(DAL), 보상 지급, HTML 정화
 ```
 
 ## 설계 포인트
