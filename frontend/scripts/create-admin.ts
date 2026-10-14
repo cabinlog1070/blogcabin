@@ -10,8 +10,8 @@ import { config } from "dotenv";
 import { and, eq, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { accounts, blogs, categories, follows, items, profiles, sessions, userItems, users } from "../src/db/schema";
-import { giveStarterHair } from "../src/db/starter-hair";
+import { accounts, blogs, categories, follows, items, profiles, sessions, userItems, users } from "../../backend/src/db/schema";
+import { giveStarterHair } from "../../backend/src/db/starter-hair";
 import { generateInviteCode } from "../src/lib/invite";
 import { ADMIN_BLOG_TITLE } from "../src/lib/nickname";
 

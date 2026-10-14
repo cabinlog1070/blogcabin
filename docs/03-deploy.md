@@ -8,7 +8,7 @@
 1. 서버에 SSH로 접속해 CPU 종류(amd64/arm64)와 Docker 사용 가능 여부를 확인한다
 2. 그 CPU에 맞는 Docker 이미지 두 개를 빌드해 파일 하나로 묶는다: 화면 `blogcabin-web`(`frontend/Dockerfile`), 서버 `blogcabin-api`(`backend/Dockerfile`)
 3. 이미지 파일·`deploy.env`(DB 주소 등)·`deploy/deploy.sh`를 서버의 `~/blogcabin/releases/`로 보낸다
-4. 서버에서 `deploy/deploy.sh`가 이미지를 불러오고 → `db:migrate` → `db:seed` → (첫 배포만) `admin:create` (셋 다 화면 이미지로 돌린다) → **롤링 배포**로 서버 두 개, 그다음 화면 두 개를 하나씩 새 이미지로 바꾼다 (아래). 실패하면 그 컨테이너를 직전 이미지로 되돌린다
+4. 서버에서 `deploy/deploy.sh`가 이미지를 불러오고 → DB 마이그레이션(서버 이미지) → `db:seed` → (첫 배포만) `admin:create` (이 둘은 화면 이미지) → **롤링 배포**로 서버 두 개, 그다음 화면 두 개를 하나씩 새 이미지로 바꾼다 (아래). 실패하면 그 컨테이너를 직전 이미지로 되돌린다
 
 ### 무중단 롤링 배포 (2026-10-14)
 
@@ -63,7 +63,7 @@ https://blogcabin.java21.net ─▶ 서버 관리자 nginx(443) ─▶ 우리 ng
 | 서버 로직 | 같은 Node 서버의 **Server Action** (글 저장, 구매, 출석 등) | `src/app/**/actions.ts`, `src/server/` |
 | API | 같은 Node 서버의 Route Handler: 로그인 `/api/auth/*`, 첨부 올리기 `/api/uploads`, 첨부 보기 `/files/[키]` | `src/app/api/`, `src/app/files/` |
 | 요청 앞단 | `src/proxy.ts` (예전 middleware): 초대 링크 쿠키 등 | `src/proxy.ts` |
-| DB | PostgreSQL (Drizzle ORM) | `src/db/schema.ts`, `drizzle/` |
+| DB | PostgreSQL (Drizzle ORM) | `backend/src/db/schema.ts`, `backend/drizzle/` |
 | 첨부 파일 | **서버 디스크** 폴더 (`UPLOAD_DIR`, 기본 `storage/uploads`) | `src/server/storage.ts` |
 
 ```text
@@ -118,17 +118,17 @@ Docker 없이 직접 올릴 때 (지금은 위 0번의 Actions 방식을 쓴다)
 처음 한 번:
 
 ```bash
+npm ci                  # 저장소 맨 위에서 (화면·서버 둘 다)
 cd frontend
-npm ci
 npm run build
-npm run db:migrate      # drizzle/ 마이그레이션을 운영 DB에 적용
+npm run db:migrate      # backend/drizzle/ 마이그레이션을 운영 DB에 적용
 npm run db:seed         # 아이템·동물 카탈로그 (여러 번 해도 안전)
 npm run admin:create    # 관리자 계정·공지 블로그
 npm run start -- -p 3000
-cd ../backend && npm ci && npm run build && PORT=4000 npm start   # 서버 (/api/v1/…)
+cd ../backend && npm run build && PORT=4000 npm start   # 서버 (/api/v1/…)
 ```
 
-그다음 배포마다: `frontend/`에서 `npm ci && npm run build && npm run db:migrate && npm run start`, `backend/`에서 `npm ci && npm run build && npm start`. 앞에 nginx를 두고 `/api/v1/`만 서버(4000)로 보낸다
+그다음 배포마다: 맨 위에서 `npm ci`, `frontend/`에서 `npm run build && npm run db:migrate && npm run start`, `backend/`에서 `npm run build && npm start`. 앞에 nginx를 두고 `/api/v1/`만 서버(4000)로 보낸다
 (아이템을 바꿨으면 `npm run db:seed`도)
 
 - `npm run db:reset`은 **개발 DB를 비우는 명령이라 운영에서 절대 쓰지 않는다.**

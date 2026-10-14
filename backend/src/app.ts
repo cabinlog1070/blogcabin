@@ -1,5 +1,6 @@
+import { sql } from "drizzle-orm";
 import { Hono } from "hono";
-import { pool } from "./db.js";
+import { db } from "./db";
 
 // 서버(backend) API. 주소는 모두 /api/v1/… 로 시작한다.
 // 운영에서는 우리 nginx가 /api/v1/ 로 오는 요청만 이 서버로 보내고, 나머지는 화면(frontend)으로 보낸다.
@@ -13,7 +14,7 @@ const noStore = { "Cache-Control": "no-store" };
 app.get("/health", async (c) => {
   try {
     await Promise.race([
-      pool.query("select 1"),
+      db.execute(sql`select 1`),
       new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000)),
     ]);
     return c.json({ ok: true, service: "backend" }, 200, noStore);
