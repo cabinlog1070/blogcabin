@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { uploadAttachment } from "./attachments/upload";
 import { auth } from "./auth";
 import { db } from "./db";
 
@@ -25,6 +26,9 @@ v1.get("/health", async (c) => {
     return c.json({ ok: false, service: "backend", failed: ["db"] }, 503, noStore);
   }
 });
+
+// 글 첨부 올리기 (사진·파일, 로그인한 주민만)
+v1.post("/uploads", uploadAttachment);
 
 app.route("/api/v1", v1);
 

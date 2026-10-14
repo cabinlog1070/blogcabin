@@ -1,4 +1,6 @@
 // 글 첨부 올리기 (POST-07 사진, POST-09 파일): 파일 하나씩 받아 저장하고 주소를 돌려준다.
+// 2026-10-14 서버의 /api/v1/uploads(backend/src/attachments/upload.ts)로 옮겼다. 배포하는 동안 옛 화면이 부를 수 있어
+// 한 번 더 배포한 뒤 지운다 (API 주소는 두 번에 나눠 바꾼다).
 // 30MB까지 받아야 해서 1MB 상한이 있는 Server Action 대신 Route Handler를 쓴다.
 // 그래서 Server Action이 해 주던 출처(Origin) 확인과 회원 확인을 여기서 직접 한다
 import { randomBytes } from "node:crypto";
@@ -18,7 +20,7 @@ import {
 import { msg } from "@/lib/i18n";
 import { getViewer } from "@/server/dal";
 import { getT } from "@/server/i18n";
-import { saveAttachment } from "@/server/storage";
+import { saveAttachment } from "@backend/attachments/storage";
 
 /** 실패 응답. 문구는 보는 사람의 화면 언어로 바꿔 보낸다 */
 const fail = async (status: number, error: string) => Response.json({ error: (await getT())(error) }, { status });

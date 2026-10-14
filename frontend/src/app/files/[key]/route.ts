@@ -6,7 +6,7 @@ import { ATTACHMENT_KEY_RE } from "@/lib/attachments";
 import { canSeePrivatePosts, isPublished } from "@/server/blog";
 import { getViewer } from "@/server/dal";
 import { getT } from "@/server/i18n";
-import { openAttachment } from "@/server/storage";
+import { openAttachment } from "@backend/attachments/storage";
 
 const notFound = async () => {
   const t = await getT();

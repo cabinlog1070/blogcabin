@@ -1,13 +1,15 @@
-// 첨부 파일 저장소. 지금은 서버 디스크(UPLOAD_DIR, 기본 storage/uploads)에 둔다.
+// 첨부 파일 저장소. 지금은 서버 디스크(UPLOAD_DIR, 기본 frontend/storage/uploads)에 둔다.
+// 서버(올리기)와 화면(내려받기·탈퇴 때 지우기)이 같은 폴더를 쓴다. 운영은 UPLOAD_DIR=/data/uploads (두 컨테이너가 같은 볼륨)
 // 배포 서비스가 정해지면(NF-08) 이 파일만 바꿔서 Vercel Blob 같은 저장소로 옮긴다 (POST-07 열린 질문)
 import "server-only";
 import { createReadStream } from "node:fs";
 import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { ATTACHMENT_KEY_RE } from "@/lib/attachments";
+import { ATTACHMENT_KEY_RE } from "./rules";
 
-const ROOT = path.resolve(process.env.UPLOAD_DIR || "storage/uploads");
+// 기본값은 화면 폴더 기준: frontend/에서 돌든(화면) backend/에서 돌든(서버) 같은 곳을 가리킨다
+const ROOT = path.resolve(process.env.UPLOAD_DIR || "../frontend/storage/uploads");
 
 function filePath(key: string) {
   // 키는 서버가 만든 32자 16진수뿐이라 경로를 벗어날 수 없지만, 한 번 더 막는다
