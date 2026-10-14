@@ -4,9 +4,8 @@
 
 AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory.com/)의 블로그 기능을 기본으로, 캐릭터·광장·보상 같은 게임 요소를 더했습니다.
 
-- 요구사항 명세서·ERD(데이터베이스 설계)·기능 명세는 문서 저장소 [cabinlog1070/docs](https://github.com/cabinlog1070/docs)에 있습니다.
-  - [요구사항 명세서](https://github.com/cabinlog1070/docs/blob/main/docs/01-requirements.md), [ERD](https://github.com/cabinlog1070/docs/blob/main/docs/02-erd.md)
-- 배포 방법: [docs/03-deploy.md](docs/03-deploy.md)
+- 요구사항 명세서·ERD(데이터베이스 설계)·기능 명세·배포 안내는 문서 저장소 [cabinlog1070/docs](https://github.com/cabinlog1070/docs)에 있습니다.
+  - [요구사항 명세서](https://github.com/cabinlog1070/docs/blob/main/docs/01-requirements.md), [ERD](https://github.com/cabinlog1070/docs/blob/main/docs/02-erd.md), [배포 안내](https://github.com/cabinlog1070/docs/blob/main/docs/03-deploy.md)
 - 협업 가이드(브랜치·PR·리뷰 규칙): [CONTRIBUTING.md](CONTRIBUTING.md)
 
 | 폴더 | 내용 |
@@ -15,7 +14,6 @@ AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory
 | `backend/` | 서버 API (Node 24, Hono, TypeScript). 주소는 모두 `/api/v1/…` |
 | `deploy/` | 운영 서버 배포 스크립트 (우리 nginx + 화면 두 개 + 서버 두 개, 롤링 배포) |
 | `.github/` | PR마다 도는 검사(CI: 화면·서버 따로), `main`에 합치면 도는 배포 |
-| `docs/` | 배포 방법 |
 
 > 2026-10-14부터 화면과 서버를 나누는 중입니다. 지금은 뼈대(폴더·배포·검사)만 나눴고, 출석·상점·농장·블로그처럼 영역을 하나씩 `backend/`로 옮깁니다.
 
@@ -124,7 +122,6 @@ npm run dev                     # http://localhost:4000/api/v1/health
 ## 폴더 구조
 
 ```
-docs/                     배포 방법 (요구사항·ERD는 문서 저장소에)
 deploy/                   운영 서버 배포 스크립트 (deploy.sh)
 package.json              npm workspaces (맨 위에서 npm install 한 번, package-lock.json도 하나)
 backend/                  서버 API (Hono)
