@@ -4,8 +4,9 @@
 
 AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory.com/)의 블로그 기능을 기본으로, 캐릭터·광장·보상 같은 게임 요소를 더했습니다.
 
-- 요구사항 명세서: [docs/01-requirements.md](docs/01-requirements.md)
-- ERD(데이터베이스 설계): [docs/02-erd.md](docs/02-erd.md)
+- 요구사항 명세서·ERD(데이터베이스 설계)·기능 명세는 문서 저장소 [cabinlog1070/docs](https://github.com/cabinlog1070/docs)에 있습니다.
+  - [요구사항 명세서](https://github.com/cabinlog1070/docs/blob/main/docs/01-requirements.md), [ERD](https://github.com/cabinlog1070/docs/blob/main/docs/02-erd.md)
+- 배포 방법: [docs/03-deploy.md](docs/03-deploy.md)
 - 협업 가이드(브랜치·PR·리뷰 규칙): [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## 주요 기능
@@ -99,7 +100,7 @@ npm run dev                     # http://localhost:3000
 ## 폴더 구조
 
 ```
-docs/                     요구사항 명세서, ERD
+docs/                     배포 방법 (요구사항·ERD는 문서 저장소에)
 drizzle/                  마이그레이션 SQL (자동 생성)
 scripts/                  시드, 개발 DB 초기화
 e2e/                      Playwright 시나리오

@@ -7,13 +7,13 @@ AI응용프로젝트 개인 프로젝트. 게임형 블로그(Next.js 16 + Postg
 
 ## 먼저 읽을 것
 
-- `docs/01-requirements.md` 요구사항(ID: AUTH-01 등), `docs/02-erd.md` DB 설계와 결정 이유
+- 문서는 코드와 따로 문서 저장소 [cabinlog1070/docs](https://github.com/cabinlog1070/docs)에 있다: `docs/01-requirements.md` 요구사항(ID: AUTH-01 등), `docs/02-erd.md` DB 설계와 결정 이유, `specs/` 기능 명세. 이 저장소의 `docs/`에는 배포 방법(`03-deploy.md`)만 둔다.
 - Next.js 16은 학습 데이터와 다르다: `params`/`searchParams`/`cookies()`는 await, `middleware` → `proxy`, `@` 폴더는 parallel route (블로그는 `/@slug` → `/blog/[slug]` rewrite, `src/proxy.ts`에서. `next.config.ts` rewrites는 쿼리를 빠뜨려 쓰지 않는다)
 - Phaser 4: `node_modules/phaser/skills/`, 마이그레이션 가이드 `node_modules/phaser/changelog/v4/4.0/MIGRATION-GUIDE.md`
 
 ## 규칙
 
-- **스키마 변경**: `src/db/schema.ts` 수정 → `npm run db:generate` → `npm run db:migrate`. `docs/02-erd.md`도 함께 고친다.
+- **스키마 변경**: `src/db/schema.ts` 수정 → `npm run db:generate` → `npm run db:migrate`. 문서 저장소의 `docs/02-erd.md`도 함께 고친다(그 저장소에 PR). 요구사항이 바뀌면 `docs/01-requirements.md`도 마찬가지.
 - **인증**: 페이지와 Server Action마다 `requireMember()` / `requireUser()` (`src/server/dal.ts`). 레이아웃에서 권한 검사를 하지 않는다. 예외는 로그인 전 `signUp`·`signIn`과 방문자도 세는 `recordBlogVisit`·`recordPostView`(주인 여부를 서버에서 다시 확인).
 - **보상·코인**: 잔액 컬럼을 만들지 않는다. `point_ledger`에 기록하고 `getWallet()`으로 계산한다. 지급·차감은 `lockUser(tx, userId)`를 건 트랜잭션 안에서 `grantReward()` 사용 (레벨이 오르면 레벨업 알림도 여기서 생긴다. 원장에 경험치를 직접 넣는 곳은 `recordLevelUps()`를 부른다). 규칙 숫자는 `src/lib/game.ts`.
 - **알림**: `notifications` (GAME-08). 공감·댓글처럼 남에게 알릴 일은 그 Server Action의 트랜잭션에서 `notifySocial()`. 자기 행동은 알리지 않는다.

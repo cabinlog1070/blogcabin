@@ -62,7 +62,9 @@ hotfix/* (급한 수정): main에서 만들어 main으로 → 다시 develop에�
 
 ### 처음 PR 만들기
 
-1. 저장소 화면 왼쪽 위 브랜치 버튼이 **`develop`** 인지 확인하고, 고칠 파일(예: `docs/01-requirements.md`)을 엽니다.
+> 요구사항·ERD 같은 문서는 이 저장소가 아니라 **문서 저장소 [cabinlog1070/docs](https://github.com/cabinlog1070/docs)** 에 있습니다. 문서 저장소는 `develop` 없이 **`main`** 하나로 운영하므로, 아래 순서에서 `develop` 자리를 `main`으로 바꿔 읽으면 됩니다.
+
+1. 저장소 화면 왼쪽 위 브랜치 버튼이 **`develop`** 인지 확인하고(문서 저장소는 `main`), 고칠 파일(예: 문서 저장소의 `docs/01-requirements.md`)을 엽니다.
 2. 오른쪽 위 **✏️ (Edit this file)** 을 누릅니다.
 3. 수정합니다. 위쪽 **Preview** 탭으로 결과를 미리 볼 수 있습니다.
 4. 오른쪽 위 **Commit changes...** 를 누릅니다.
@@ -201,11 +203,11 @@ gh pr create --base main              # merge하면 바로 배포
 
 ## 요구사항 명세서를 쓸 때
 
-- [`docs/01-requirements.md`](docs/01-requirements.md)의 **4.0 작성 양식**을 따릅니다. AUTH-07, AUTH-09, AUTH-02가 작성 예시입니다.
+- 문서 저장소의 [`docs/01-requirements.md`](https://github.com/cabinlog1070/docs/blob/main/docs/01-requirements.md)의 **4.0 작성 양식**을 따릅니다. AUTH-07, AUTH-09, AUTH-02가 작성 예시입니다.
 - 요구사항 **ID는 한 번 정하면 바꾸지 않습니다.** 없앤 요구사항은 지우지 말고 상태를 `❌ 제외`로 바꿉니다.
 - 모르는 것은 지어내지 말고 **열린 질문**에 적어서 회의에서 정합니다.
 - 고치면 문서 위쪽 **변경 이력**에 한 줄 추가합니다.
-- DB와 관련된 내용을 바꾸면 [`docs/02-erd.md`](docs/02-erd.md)도 함께 고칩니다.
+- DB와 관련된 내용을 바꾸면 같은 저장소의 [`docs/02-erd.md`](https://github.com/cabinlog1070/docs/blob/main/docs/02-erd.md)도 함께 고칩니다.
 
 ## 할 일 관리 (Issue)
 

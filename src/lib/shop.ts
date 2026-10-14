@@ -23,7 +23,7 @@ type Sortable = { id: number; price: number; requiredLevel: number; ownerCount: 
 const cheap = (a: Sortable, b: Sortable) => a.price - b.price || a.requiredLevel - b.requiredLevel || a.id - b.id;
 const lowLevel = (a: Sortable, b: Sortable) => a.requiredLevel - b.requiredLevel || a.id - b.id;
 
-/** 상점 정렬 기준 (docs/01-requirements.md SHOP-01 정렬 기준 표) */
+/** 상점 정렬 기준 (문서 저장소 cabinlog1070/docs의 docs/01-requirements.md SHOP-01 정렬 기준 표) */
 export function sortItems<T extends Sortable>(items: T[], sort: SortKey): T[] {
   const list = [...items];
   switch (sort) {
