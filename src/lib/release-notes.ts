@@ -47,6 +47,18 @@ export const RELEASE_KIND_LABEL: Record<ReleaseChangeKind, string> = {
 
 export const RELEASE_NOTES: ReleaseDay[] = [
   {
+    date: "2026-10-14",
+    versions: [
+      {
+        version: "1.32.7",
+        title: msg("알 둥지 넘침"),
+        changes: [
+          { kind: "fixed", text: msg("선물로 알을 많이 받으면 둥지에 다 못 들어간 알이 풀밭과 울타리 위로 줄지어 그려지던 문제를 고쳤어요. 둥지에는 알이 10개까지 보이고, 나머지는 둥지의 [+개수] 표시로 알려 줘요.") },
+        ],
+      },
+    ],
+  },
+  {
     date: "2026-10-13",
     versions: [
       {
