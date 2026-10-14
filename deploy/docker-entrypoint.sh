@@ -1,5 +1,6 @@
 #!/bin/sh
-# 컨테이너 시작: 운영 서버를 PORT(기본 8440)에서 연다. BIND_HOST(기본 0.0.0.0)는 듣는 주소
-# (롤링 배포의 앱 두 개는 서버 네트워크를 쓸 때 127.0.0.1에서만 들어서 nginx를 거쳐야만 들어온다)
+# 컨테이너 시작: 운영 서버를 PORT(기본 8440)에서 연다.
+# -H는 0.0.0.0으로 둔다. 127.0.0.1이면 src/proxy.ts의 /@아이디 rewrite를 Next.js가 바깥 주소로 보고
+# https로 자기에게 다시 요청하다 실패해 블로그 화면이 500이 된다.
 set -e
-exec node_modules/.bin/next start -H "${BIND_HOST:-0.0.0.0}" -p "${PORT:-8440}"
+exec node_modules/.bin/next start -H 0.0.0.0 -p "${PORT:-8440}"
