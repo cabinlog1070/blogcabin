@@ -1,4 +1,4 @@
-// BlogCabin DB 스키마 — docs/02-erd.md 설계를 그대로 옮긴 것
+// BlogCabin DB 스키마 — 문서 저장소 cabinlog1070/docs의 docs/02-erd.md 설계를 그대로 옮긴 것
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
