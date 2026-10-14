@@ -88,6 +88,8 @@ hotfix/* (급한 수정): main에서 만들어 main으로 → 다시 develop에�
 
 처음 한 번은 [README의 실행 방법](README.md#실행-방법)대로 설치합니다.
 
+코드는 두 폴더에 있습니다: 화면은 `frontend/`, 서버 API(`/api/v1/…`)는 `backend/`. `npm` 명령은 고치는 쪽 폴더에 들어가서 실행합니다. PR을 올리면 GitHub가 두 폴더를 각각 검사(CI)합니다.
+
 ```bash
 # 작업 시작: 최신 develop에서 내 브랜치 만들기
 git switch develop
@@ -113,7 +115,7 @@ gh pr create --base develop
 ```bash
 git switch develop && git pull
 git switch -c release/1.33.0          # 이번에 나갈 버전 번호
-# 릴리스 노트(src/lib/release-notes.ts + 일본어) 정리, DB 변경 번호 확인, 검사 실행
+# 릴리스 노트(frontend/src/lib/release-notes.ts + 일본어) 정리, DB 변경 번호 확인, 검사 실행
 git push -u origin release/1.33.0
 gh pr create --base main              # 이 PR을 merge하면 운영 배포
 ```
