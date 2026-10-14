@@ -1,29 +1,38 @@
 #!/usr/bin/env bash
 # BlogCabin 서버 배포 스크립트. GitHub Actions(.github/workflows/deploy.yml)가 SSH로 서버에서 실행한다.
 #
-#   bash deploy.sh <이미지:태그> <image.tar.gz> <deploy.env> [포트, 기본 8440]
+#   bash deploy.sh <이미지:태그> <image.tar.gz> <deploy.env> [nginx 포트, 기본 8440] [앱 포트 두 개, 기본 "8441 8442"]
 #
 # 하는 일
 #   1. 이미지 파일을 docker에 불러온다
 #   2. 처음 배포면 로그인 비밀키·관리자 비밀번호를 만들어 ~/blogcabin/secrets.env 에 보관한다 (다음 배포부터 재사용)
 #   3. DB 구조를 맞추고(db:migrate) 아이템·동물 목록을 넣는다(db:seed, 여러 번 해도 안전)
 #   4. 처음 배포면 관리자 계정을 만든다(admin:create)
-#   5. 기존 컨테이너를 새 이미지로 바꿔 포트에서 실행하고, /api/health 가 정상인지 확인한다
-#   6. 실패하면 직전 이미지로 되돌린다
+#   5. 롤링 배포: nginx(8440)가 앱 두 개(8441, 8442)에 손님을 번갈아 보내는 상태에서,
+#      앱을 하나씩 새 이미지로 바꾸고 /api/health 를 확인한다. 바꾸는 동안 사이트는 꺼지지 않는다
+#   6. 실패하면 그 앱을 직전 이미지로 되돌린다
 #
 # 서버 폴더 (~/blogcabin)
 #   secrets.env  로그인 비밀키·관리자 비밀번호 (지우면 모든 회원이 로그아웃됨)
 #   app.env      컨테이너에 넘기는 환경 변수 (매 배포마다 다시 만듦)
-#   uploads/     글 첨부 사진·파일 (컨테이너의 /data/uploads)
+#   uploads/     글 첨부 사진·파일 (컨테이너의 /data/uploads, 앱 두 개가 같이 쓴다)
+#   nginx/       앞단 nginx 설정 (배포마다 다시 만든다)
 #   releases/    전송받은 이미지와 이 스크립트
 set -euo pipefail
 
 IMAGE_REF="${1:?이미지:태그가 필요해요}"
 IMAGE_TAR="${2:?이미지 파일 경로가 필요해요}"
 DEPLOY_ENV="${3:?deploy.env 경로가 필요해요}"
-PORT="${4:-8440}"
-NAME="blogcabin"
+PUBLIC_PORT="${4:-8440}"
+read -r -a SLOT_PORT <<< "${5:-8441 8442}"
+[ "${#SLOT_PORT[@]}" -eq 2 ] || { echo "앱 포트는 두 개여야 해요: ${5:-}" >&2; exit 1; }
+NAME="blogcabin"                                 # 예전 방식(앱 하나)의 컨테이너 이름
+SLOT_NAME=("blogcabin-1" "blogcabin-2")          # 롤링 배포의 앱 두 개
+PROXY="blogcabin-nginx"
+NGINX_IMAGE="nginx:1.27-alpine"
 BASE="${BLOGCABIN_HOME:-$HOME/blogcabin}"
+NGINX_DIR="$BASE/nginx"
+NGINX_IN="/etc/nginx/blogcabin"
 
 log() { printf '\n▶ %s\n' "$*"; }
 fail() { printf '\n✗ %s\n' "$*" >&2; exit 1; }
@@ -43,6 +52,8 @@ chmod 700 "$BASE"
 # ── 1. 이미지 불러오기 ──
 log "이미지 불러오는 중: $IMAGE_REF"
 gunzip -c "$IMAGE_TAR" | "${DOCKER[@]}" load
+"${DOCKER[@]}" image inspect "$NGINX_IMAGE" >/dev/null 2>&1 || "${DOCKER[@]}" pull -q "$NGINX_IMAGE" >/dev/null \
+  || fail "nginx 이미지($NGINX_IMAGE)를 받지 못했어요. 서버 인터넷 연결을 확인해 주세요."
 
 # ── 2. 비밀 값 (처음 한 번만 만든다) ──
 FIRST_DEPLOY=0
@@ -71,7 +82,6 @@ DB_PORT_VALUE="${DB_PORT_VALUE:-5432}"
     grep -v -e '^DB_HOST=' -e '^DB_PORT=' "$DEPLOY_ENV"
     cat "$BASE/secrets.env"
     echo "NODE_ENV=production"
-    echo "PORT=$PORT"
     echo "UPLOAD_DIR=/data/uploads"
   } > "$BASE/app.env"
 )
@@ -94,7 +104,7 @@ case "$DB_HOST_VALUE" in
   localhost|127.0.0.1|::1) NET=(--network host); echo "DB가 이 서버 안(localhost)에 있어서 서버 네트워크를 그대로 써요" ;;
   *)
     if probe_db; then
-      NET=(-p "$PORT:$PORT"); echo "컨테이너 기본 네트워크로 DB에 닿아요 (포트 $PORT 연결)"
+      NET=(-p "$PUBLIC_PORT:$PUBLIC_PORT"); echo "컨테이너 기본 네트워크로 DB에 닿아요"
     elif probe_db --network host; then
       NET=(--network host); echo "기본 네트워크로는 DB에 닿지 않아 서버 네트워크를 그대로 써요 (--network host)"
     else
@@ -134,23 +144,33 @@ if [ ! -f "$BASE/.admin-created" ] || [ "${RUN_ADMIN_CREATE:-0}" = "1" ]; then
   ADMIN_CREATED_NOW=1
 fi
 
-# ── 5. 컨테이너 교체 ──
-PREV_IMAGE="$("${DOCKER[@]}" inspect --format '{{.Config.Image}}' "$NAME" 2>/dev/null || true)"
-log "컨테이너 교체 (이전: ${PREV_IMAGE:-없음})"
-"${DOCKER[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
+# ── 5. 롤링 배포: 앱 두 개를 하나씩 새 이미지로 바꾼다 ──
+# 손님은 nginx(PUBLIC_PORT)가 받아 앱 두 개(SLOT_PORTS)에 번갈아(라운드로빈) 보낸다.
+# 한쪽을 바꾸는 동안에는 nginx가 다른 쪽으로만 보내서 사이트가 꺼지지 않는다.
+# 옛 버전과 새 버전이 동시에 손님을 받지 않게, 새 버전 쪽을 켠 뒤 한 번에 넘기고 나머지를 바꾼다.
 
-start_container() {
-  "${DOCKER[@]}" run -d --name "$NAME" --restart unless-stopped \
-    --env-file "$BASE/app.env" "${NET[@]}" \
-    -v "$BASE/uploads:/data/uploads" \
-    --log-opt max-size=10m --log-opt max-file=3 \
-    "$1" >/dev/null
+# 앱이 어디서 듣는지: 서버 네트워크(host)를 쓰면 바깥에서 못 들어오게 127.0.0.1에서만 듣는다
+slot_net() {
+  if [ "${NET[0]}" = "--network" ]; then
+    echo "--network host -e BIND_HOST=127.0.0.1"
+  else
+    echo "-p 127.0.0.1:$1:$1 -e BIND_HOST=0.0.0.0"
+  fi
 }
 
-healthy() {
+start_slot() { # 이름 포트 이미지
+  # shellcheck disable=SC2046
+  "${DOCKER[@]}" run -d --name "$1" --restart unless-stopped \
+    --env-file "$BASE/app.env" -e PORT="$2" $(slot_net "$2") \
+    -v "$BASE/uploads:/data/uploads" \
+    --log-opt max-size=10m --log-opt max-file=3 \
+    "$3" >/dev/null
+}
+
+healthy() { # 이름 포트
   for _ in $(seq 1 45); do
-    if "${DOCKER[@]}" exec "$NAME" node -e \
-      "fetch('http://127.0.0.1:$PORT/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
+    if "${DOCKER[@]}" exec "$1" node -e \
+      "fetch('http://127.0.0.1:$2/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
       >/dev/null 2>&1; then
       return 0
     fi
@@ -159,20 +179,152 @@ healthy() {
   return 1
 }
 
-start_container "$IMAGE_REF"
-log "헬스 체크 (/api/health)"
-if healthy; then
-  log "배포 완료: 포트 $PORT 에서 실행 중 ($IMAGE_REF)"
-else
-  echo "--- 최근 로그 ---"
-  "${DOCKER[@]}" logs --tail 80 "$NAME" || true
-  if [ -n "$PREV_IMAGE" ] && [ "$PREV_IMAGE" != "$IMAGE_REF" ]; then
-    log "새 버전이 정상이 아니라 이전 이미지로 되돌려요: $PREV_IMAGE"
-    "${DOCKER[@]}" rm -f "$NAME" >/dev/null 2>&1 || true
-    start_container "$PREV_IMAGE"
+image_of() { "${DOCKER[@]}" inspect --format '{{.Config.Image}}' "$1" 2>/dev/null || true; }
+running() { [ "$("${DOCKER[@]}" inspect --format '{{.State.Running}}' "$1" 2>/dev/null)" = "true" ]; }
+
+# nginx 설정: 쉬는 앱에는 down을 붙여 손님을 보내지 않는다
+write_upstream() { # "up"/"down" 을 SLOT 순서대로
+  local i=0 line
+  {
+    echo "upstream blogcabin_app {"
+    for state in "$@"; do
+      line="  server 127.0.0.1:${SLOT_PORT[$i]} max_fails=1 fail_timeout=5s"
+      [ "$state" = "down" ] && line="$line down"
+      echo "$line;"
+      i=$((i + 1))
+    done
+    echo "  keepalive 16;"
+    echo "}"
+  } > "$NGINX_DIR/upstream.conf.new"
+  mv "$NGINX_DIR/upstream.conf.new" "$NGINX_DIR/upstream.conf"
+}
+
+write_nginx_conf() {
+  cat > "$NGINX_DIR/nginx.conf" <<NGINX
+# BlogCabin 앞단 nginx (deploy/deploy.sh가 배포마다 다시 만든다. 직접 고치지 않는다)
+# 서버 관리자 nginx(https) → 이 nginx(:$PUBLIC_PORT) → 앱 두 개(:${SLOT_PORT[0]}, :${SLOT_PORT[1]}) 라운드로빈
+worker_processes 2;
+pid /tmp/nginx.pid;
+error_log /dev/stderr warn;
+events { worker_connections 1024; }
+http {
+  access_log off;
+  client_max_body_size 40m;
+  # 앞의 관리자 nginx가 알려 준 원래 주소·https 여부를 앱까지 그대로 넘긴다
+  map \$http_x_forwarded_proto \$fwd_proto { default \$http_x_forwarded_proto; "" \$scheme; }
+  map \$http_x_real_ip \$real_ip { default \$http_x_real_ip; "" \$remote_addr; }
+  include $NGINX_IN/upstream.conf;
+  server {
+    listen $PUBLIC_PORT;
+    location = /nginx-health { access_log off; return 200 "ok\n"; }
+    location / {
+      proxy_pass http://blogcabin_app;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_set_header Host \$http_host;
+      proxy_set_header X-Forwarded-Proto \$fwd_proto;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Real-IP \$real_ip;
+      proxy_read_timeout 120s;
+      # 한쪽 앱이 응답하지 않으면 다른 쪽으로 다시 보낸다 (이중화)
+      proxy_next_upstream error timeout http_502 http_503;
+    }
+  }
+}
+NGINX
+}
+
+reload_proxy() {
+  "${DOCKER[@]}" exec "$PROXY" nginx -t -q -c "$NGINX_IN/nginx.conf" && "${DOCKER[@]}" exec "$PROXY" nginx -s reload -c "$NGINX_IN/nginx.conf"
+  sleep 1 # 옛 설정으로 처리 중이던 요청이 끝날 시간
+}
+
+start_proxy() {
+  "${DOCKER[@]}" run -d --name "$PROXY" --restart unless-stopped --network host \
+    -v "$NGINX_DIR:$NGINX_IN:ro" \
+    --log-opt max-size=10m --log-opt max-file=3 \
+    "$NGINX_IMAGE" nginx -c "$NGINX_IN/nginx.conf" -g 'daemon off;' >/dev/null
+}
+
+proxy_healthy() {
+  for _ in $(seq 1 15); do
+    if "${DOCKER[@]}" exec "$PROXY" wget -q -O /dev/null "http://127.0.0.1:$PUBLIC_PORT/api/health" 2>/dev/null; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+show_logs() { echo "--- $1 최근 로그 ---"; "${DOCKER[@]}" logs --tail 80 "$1" 2>&1 || true; }
+
+replace_slot() { # 번호(0/1) 이미지 → 성공하면 0
+  local name="${SLOT_NAME[$1]}" port="${SLOT_PORT[$1]}"
+  "${DOCKER[@]}" rm -f "$name" >/dev/null 2>&1 || true
+  start_slot "$name" "$port" "$2"
+  healthy "$name" "$port"
+}
+
+mkdir -p "$NGINX_DIR"
+write_nginx_conf
+PREV_IMAGE="$(image_of "${SLOT_NAME[1]}")"
+[ -n "$PREV_IMAGE" ] || PREV_IMAGE="$(image_of "${SLOT_NAME[0]}")"
+
+if [ -z "$PREV_IMAGE" ] || ! running "$PROXY"; then
+  # ── 처음 롤링 배포: 예전 앱 하나(포트 PUBLIC_PORT)에서 nginx + 앱 두 개로 옮긴다 ──
+  LEGACY_IMAGE="$(image_of "$NAME")"
+  [ -n "$PREV_IMAGE" ] || PREV_IMAGE="$LEGACY_IMAGE"
+  log "롤링 배포 첫 준비: 앱 두 개(${SLOT_PORT[*]})를 새 이미지로 켜요 (지금 사이트는 그대로)"
+  for i in 0 1; do
+    if ! replace_slot "$i" "$IMAGE_REF"; then
+      show_logs "${SLOT_NAME[$i]}"
+      "${DOCKER[@]}" rm -f "${SLOT_NAME[0]}" "${SLOT_NAME[1]}" >/dev/null 2>&1 || true
+      fail "새 버전이 정상으로 뜨지 않았어요. 사이트는 예전 그대로예요. 위 로그를 확인해 주세요."
+    fi
+  done
+  write_upstream up up
+  log "포트 $PUBLIC_PORT 를 nginx에게 넘겨요 (예전 앱을 끄고 바로 nginx를 켜요)"
+  "${DOCKER[@]}" rm -f "$NAME" "$PROXY" >/dev/null 2>&1 || true
+  start_proxy
+  if ! proxy_healthy; then
+    show_logs "$PROXY"
+    "${DOCKER[@]}" rm -f "$PROXY" >/dev/null 2>&1 || true
+    if [ -n "$LEGACY_IMAGE" ]; then
+      log "nginx가 뜨지 않아 예전 방식(앱 하나)으로 되돌려요: $LEGACY_IMAGE"
+      "${DOCKER[@]}" run -d --name "$NAME" --restart unless-stopped \
+        --env-file "$BASE/app.env" -e PORT="$PUBLIC_PORT" "${NET[@]}" \
+        -v "$BASE/uploads:/data/uploads" \
+        --log-opt max-size=10m --log-opt max-file=3 "$LEGACY_IMAGE" >/dev/null
+    fi
+    "${DOCKER[@]}" rm -f "${SLOT_NAME[0]}" "${SLOT_NAME[1]}" >/dev/null 2>&1 || true
+    fail "nginx가 정상으로 뜨지 않았어요. 위 로그를 확인해 주세요."
   fi
-  fail "새 버전이 정상으로 뜨지 않았어요. 위 로그를 확인해 주세요."
+else
+  # ── 롤링: 1번을 빼고 바꾼 뒤 1번으로 넘기고, 2번을 바꾼 뒤 둘 다 받는다 ──
+  log "1/3 ${SLOT_NAME[0]} 를 쉬게 하고 새 버전으로 바꿔요 (손님은 ${SLOT_NAME[1]} 가 받아요)"
+  write_upstream down up; reload_proxy
+  if ! replace_slot 0 "$IMAGE_REF"; then
+    show_logs "${SLOT_NAME[0]}"
+    log "새 버전이 정상이 아니라 ${SLOT_NAME[0]} 를 이전 이미지로 되돌려요: $PREV_IMAGE"
+    replace_slot 0 "$PREV_IMAGE" || true
+    write_upstream up up; reload_proxy
+    fail "새 버전이 정상으로 뜨지 않았어요. 사이트는 이전 버전으로 계속 돌아요. 위 로그를 확인해 주세요."
+  fi
+  log "2/3 손님을 새 버전(${SLOT_NAME[0]})으로 넘기고 ${SLOT_NAME[1]} 를 바꿔요"
+  write_upstream up down; reload_proxy
+  if ! replace_slot 1 "$IMAGE_REF"; then
+    show_logs "${SLOT_NAME[1]}"
+    "${DOCKER[@]}" rm -f "${SLOT_NAME[1]}" >/dev/null 2>&1 || true
+    fail "${SLOT_NAME[1]} 가 새 버전으로 뜨지 않았어요. 사이트는 ${SLOT_NAME[0]}(새 버전) 하나로 돌고 있어요. 위 로그를 확인해 주세요."
+  fi
+  log "3/3 두 앱이 다시 같이 손님을 받아요"
+  write_upstream up up; reload_proxy
+  if ! proxy_healthy; then
+    show_logs "$PROXY"
+    fail "nginx를 거친 헬스 체크가 실패했어요. 위 로그를 확인해 주세요."
+  fi
 fi
+log "배포 완료: nginx :$PUBLIC_PORT → 앱 :${SLOT_PORT[0]}, :${SLOT_PORT[1]} ($IMAGE_REF)"
 
 # ── 6. 정리: 지금 것과 직전 것만 남기고 예전 이미지는 지운다 ──
 rm -f "$IMAGE_TAR"

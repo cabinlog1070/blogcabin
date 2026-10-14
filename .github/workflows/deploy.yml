@@ -1,5 +1,5 @@
 # main에 올리면(또는 Actions 화면에서 직접 실행하면) Docker 이미지를 만들어 서버에 배포한다.
-# 1) 서버 CPU 종류를 보고 그에 맞는 이미지를 빌드 → 2) 이미지 파일을 SSH로 서버에 보냄 → 3) 서버에서 deploy/deploy.sh 실행
+# 1) 서버 CPU 종류를 보고 그에 맞는 이미지를 빌드 → 2) 이미지 파일을 SSH로 서버에 보냄 → 3) 서버에서 deploy/deploy.sh 실행 (nginx 뒤 앱 두 개를 하나씩 바꾸는 롤링 배포)
 #
 # 필요한 저장소 시크릿 (Settings > Secrets and variables > Actions)
 #   SSH_ADDRESS, SSH_PORT, SSH_ID, SSH_PASSWORD  : 배포 서버 SSH 접속 정보 (비밀번호 방식)
@@ -33,7 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      APP_PORT: "8440"
+      APP_PORT: "8440"            # 손님이 들어오는 nginx 포트 (서버 관리자 nginx가 https 주소를 여기로 보낸다)
+      APP_SLOT_PORTS: "8441 8442" # nginx 뒤의 앱 두 개 (롤링 배포)
       IMAGE: blogcabin
       SSHPASS: ${{ secrets.SSH_PASSWORD }}
       SSH_HOST: ${{ secrets.SSH_ADDRESS }}
@@ -148,7 +149,7 @@ jobs:
         run: |
           set -euo pipefail
           sshpass -e ssh -p "${SSH_PORT:-22}" -o StrictHostKeyChecking=accept-new "${SSH_USER}@${SSH_HOST}" \
-            "bash ~/blogcabin/releases/deploy.sh '$IMAGE:$TAG' ~/blogcabin/releases/image.tar.gz ~/blogcabin/releases/deploy.env $APP_PORT"
+            "bash ~/blogcabin/releases/deploy.sh '$IMAGE:$TAG' ~/blogcabin/releases/image.tar.gz ~/blogcabin/releases/deploy.env $APP_PORT '$APP_SLOT_PORTS'"
 
       - name: Clean up
         if: always()
