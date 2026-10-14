@@ -1,0 +1,18 @@
+# 읽기 전용: 운영 주소의 화면들이 몇 번 응답 코드를 주는지 바깥에서 본다 (서버 접속 없음)
+name: prod-check
+on:
+  push:
+    branches: [chore/prod-check]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          for p in / /login /signup /api/health /town /farm /release-notes /support /@admin; do
+            for i in 1 2 3 4; do
+              printf '%-16s %s\n' "$p" "$(curl -s -m 15 -o /tmp/b -w '%{http_code} %{time_total}s' "https://blogcabin.java21.net$p") $(head -c 120 /tmp/b | tr '\n' ' ' | grep -o 'Internal Server Error\|Bad Gateway\|Application error' || true)"
+            done
+          done
