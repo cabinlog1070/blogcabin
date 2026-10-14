@@ -36,7 +36,7 @@ https://blogcabin.java21.net ─▶ 서버 관리자 nginx(443) ─▶ 우리 ng
 
 서버 쪽 준비와 폴더:
 - Docker가 설치돼 있고, SSH 계정이 `docker`를 쓸 수 있어야 한다 (docker 그룹 또는 비밀번호 없는 sudo)
-- `DB_ADDRESS`가 `localhost`이거나 기본 네트워크로 DB에 닿지 않으면 앱이 서버 네트워크를 그대로 쓴다(`--network host`, 127.0.0.1에서만 들음). 아니면 `-p 127.0.0.1:8441:8441`처럼 서버 안에서만 열린다
+- `DB_ADDRESS`가 `localhost`이거나 기본 네트워크로 DB에 닿지 않으면 앱이 서버 네트워크를 그대로 쓴다(`--network host`). 앱은 늘 0.0.0.0에서 듣는다: 127.0.0.1로 듣게 하면 블로그 주소(`/@아이디`)가 500이 된다(2026-10-14 핫픽스). 아니면 `-p 127.0.0.1:8441:8441`처럼 서버 안에서만 열린다
 - `~/blogcabin/secrets.env`: 첫 배포 때 서버가 만든 로그인 비밀키(`BETTER_AUTH_SECRET`)와 관리자 비밀번호(`ADMIN_PASSWORD`). 지우면 모든 회원이 로그아웃되니 지우지 않는다. 관리자 비밀번호 보기: `grep ADMIN_PASSWORD ~/blogcabin/secrets.env`
 - `~/blogcabin/uploads/`: 글 첨부 사진·파일 (컨테이너의 `/data/uploads`). 백업 대상
 - 로그 보기: `docker logs --tail 100 blogcabin-1` (`blogcabin-2`, nginx는 `blogcabin-nginx`)
