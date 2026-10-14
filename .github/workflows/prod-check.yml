@@ -11,8 +11,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - run: |
-          for p in / /login /signup /api/health /town /farm /release-notes /support /@admin; do
-            for i in 1 2 3 4; do
+          for p in /@jiwon934 /blog/jiwon934 /@nobodyzz /blog/nobodyzz /town@jiwon934 "/?invite=ABCDEF"; do
+            for i in 1 2; do
               printf '%-16s %s\n' "$p" "$(curl -s -m 15 -o /tmp/b -w '%{http_code} %{time_total}s' "https://blogcabin.java21.net$p") $(head -c 120 /tmp/b | tr '\n' ' ' | grep -o 'Internal Server Error\|Bad Gateway\|Application error' || true)"
             done
           done
