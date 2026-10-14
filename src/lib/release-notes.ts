@@ -50,10 +50,17 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-14",
     versions: [
       {
-        version: "1.32.8",
+        version: "1.32.9",
         title: msg("삼성 인터넷 다크 모드 안내"),
         changes: [
           { kind: "improved", text: msg("삼성 인터넷으로 처음 들어오면, 화면이 어둡게 보일 때 다크 모드를 끄는 방법을 한 번 알려 줘요.") },
+        ],
+      },
+      {
+        version: "1.32.8",
+        title: msg("블로그 주소 오류"),
+        changes: [
+          { kind: "fixed", text: msg("블로그 주소(@아이디)로 들어가면 \"Internal Server Error\"가 뜨던 문제를 고쳤어요.") },
         ],
       },
       {
