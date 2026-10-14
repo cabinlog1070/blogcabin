@@ -14,7 +14,7 @@ import { requireAdmin } from "@/server/dal";
 import { sendGifts } from "@/server/gifts";
 import { getT } from "@/server/i18n";
 import { getWallet, lockUser } from "@/server/points";
-import { deleteMember } from "@/server/withdraw";
+import { deleteMember } from "@backend/account/delete-member";
 
 /** 관리자: 어느 블로그의 글이든 삭제 */
 export async function adminDeletePost(postId: number) {

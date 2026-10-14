@@ -6,23 +6,28 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { PopoverPanel, useHeaderPopover } from "@/components/header-popover";
-import {
-  loadNotificationPanel,
-  readAllNotifications,
-  readNotification,
-  refreshNotificationState,
-  seeGift,
-  seeLevelUps,
-} from "@/app/notifications/actions";
 import { useLocale, useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 import { ItemArt } from "@/components/item-art";
 import { GiftPetEgg } from "@/components/pet-art";
+import type { GiftView } from "@backend/gifts/views";
+import type { LevelUpPopup } from "@backend/notifications";
+import { api } from "@/lib/api";
 import { timeAgo } from "@/lib/game";
-import type { GiftView } from "@/server/gifts";
-import type { LevelUpPopup, NotificationView } from "@/server/notifications";
+import { presentNotification, type NotificationRowJson, type NotificationView } from "@/lib/notification-text";
 
-type PanelRow = Omit<NotificationView, "createdAt"> & { createdAt: string };
+type PanelRow = NotificationView;
+type GiftJson = Omit<GiftView, "createdAt"> & { createdAt: string };
+
+// 알림 API (서버 backend/src/routes/notifications.ts). 날짜는 JSON에서 문자열로 온다
+const fromJson = (g: GiftJson): GiftView => ({ ...g, createdAt: new Date(g.createdAt) });
+const refreshNotificationState = () =>
+  api<{ unread: number; popup: LevelUpPopup | null; gifts: GiftJson[] }>("/notifications/state").then((s) => ({ ...s, gifts: s.gifts.map(fromJson) }));
+const loadNotificationPanel = () => api<{ unread: number; rows: NotificationRowJson[]; total: number }>("/notifications/panel");
+const readNotification = (id: number) => api(`/notifications/${id}/read`, { method: "POST" }).catch(() => {});
+const readAllNotifications = () => api("/notifications/read-all", { method: "POST" }).catch(() => {});
+const seeLevelUps = () => api("/notifications/level-ups/seen", { method: "POST" }).catch(() => {});
+const seeGift = (notificationId: number) => api(`/notifications/${notificationId}/gift-seen`, { method: "POST" }).catch(() => {});
 
 export function NotificationBell({
   unread: initialUnread,
@@ -73,8 +78,9 @@ export function NotificationBell({
   const toggle = () => {
     if (togglePanel()) {
       startTransition(async () => {
-        const data = await loadNotificationPanel();
-        setRows(data.rows);
+        const data = await loadNotificationPanel().catch(() => null);
+        if (!data) return setRows([]);
+        setRows(data.rows.map((r) => presentNotification(t, locale, r)));
         setTotal(data.total);
         setUnread(data.unread);
       });
@@ -93,7 +99,10 @@ export function NotificationBell({
   const readAll = () => {
     setUnread(0);
     setRows((list) => list?.map((r) => ({ ...r, read: true })) ?? null);
-    startTransition(() => readAllNotifications());
+    startTransition(async () => {
+      await readAllNotifications();
+      router.refresh(); // 알림 화면을 보고 있었으면 그 목록도 읽음으로
+    });
   };
 
   const badge = unread > 9 ? "9+" : String(unread);
@@ -153,7 +162,7 @@ export function NotificationBell({
                     className={`flex w-full items-start gap-2 px-4 py-2.5 text-left text-sm hover:bg-cream ${r.read ? "" : "bg-honey"}`}
                   >
                     <span className="min-w-0 flex-1 break-words">{r.text}</span>
-                    <span className="shrink-0 text-xs text-ink-soft">{timeAgo(new Date(r.createdAt), now, locale, t)}</span>
+                    <span className="shrink-0 text-xs text-ink-soft">{timeAgo(r.createdAt, now, locale, t)}</span>
                   </button>
                 </li>
               ))}
@@ -366,12 +375,18 @@ export function NotificationLink({
 
 export function MarkAllReadButton({ className = "" }: { className?: string }) {
   const t = useT();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
     <button
       type="button"
       disabled={pending}
-      onClick={() => startTransition(() => readAllNotifications())}
+      onClick={() =>
+        startTransition(async () => {
+          await readAllNotifications();
+          router.refresh(); // 알림 목록과 헤더의 안 읽은 개수를 새로 그린다
+        })
+      }
       className={`btn bg-paper py-1.5 text-sm ${className}`}
     >
       {t("모두 읽음")}

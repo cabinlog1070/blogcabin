@@ -1,11 +1,9 @@
 // 회원 탈퇴 (AUTH-06, spec 001 FR-030·FR-031, spec 004 FR-008)
-import "server-only";
 import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
-import { db } from "@/db";
-import { attachments, comments, users } from "@/db/schema";
-import { lockUser } from "@/server/points";
-import { deleteAttachment } from "@backend/attachments/storage";
-import { anonymizeViewerKey } from "@/server/visits";
+import { deleteAttachment } from "../attachments/storage";
+import { db } from "../db";
+import { attachments, blogVisits, comments, postViews, users } from "../db/schema";
+import { lockUser, type Tx } from "../game/points";
 
 /**
  * 회원과 그 회원의 개인정보·블로그·글·코인 기록·로그인 정보를 지운다.
@@ -58,4 +56,11 @@ export async function deleteMember(userId: string) {
 
   // 저장소의 첨부 파일도 지운다 (DB가 지워진 뒤라 실패해도 다시 열 수 없다)
   await Promise.all(files.map((f) => deleteAttachment(f.key).catch(() => undefined)));
+}
+
+/** 탈퇴한 회원의 방문·조회 기록은 숫자만 남기고 회원과 이어지지 않게 무작위 키로 바꾼다 (AUTH-06, BLOG-06 FR-041) */
+async function anonymizeViewerKey(tx: Tx, userId: string) {
+  const anon = sql`'w:' || md5(random()::text || clock_timestamp()::text)`;
+  await tx.update(blogVisits).set({ visitorKey: anon }).where(eq(blogVisits.visitorKey, `u:${userId}`));
+  await tx.update(postViews).set({ viewerKey: anon }).where(eq(postViews.viewerKey, `u:${userId}`));
 }
