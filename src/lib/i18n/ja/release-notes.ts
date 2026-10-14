@@ -1,5 +1,7 @@
 // 릴리스 노트 (src/lib/release-notes.ts): 새 항목을 넣으면 여기에도 일본어를 넣는다
 export const jaReleaseNotes: Record<string, string> = {
+  "삼성 인터넷 다크 모드 안내": "Samsung Internet のダークモードのご案内",
+  "삼성 인터넷으로 처음 들어오면, 화면이 어둡게 보일 때 다크 모드를 끄는 방법을 한 번 알려 줘요.": "Samsung Internet で初めて来たとき、画面が暗く見える場合にダークモードをオフにする方法を一度だけお知らせします。",
   "블로그 주소 오류": "ブログアドレスのエラー",
   "블로그 주소(@아이디)로 들어가면 \"Internal Server Error\"가 뜨던 문제를 고쳤어요.": "ブログのアドレス（@ID）を開くと「Internal Server Error」が表示されていた問題を直しました。",
   "알 둥지 넘침": "たまごの巣があふれる問題",
