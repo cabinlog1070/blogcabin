@@ -1,9 +1,10 @@
 // 관리자 (users.role = 'admin'): /api/v1/admin/…
-// 글·댓글 지우기(ADMIN), 강제 탈퇴, 코인·경험치 지급, 선물 보내기. 관리자가 아니면 없는 주소(404)로 답한다.
+// 글·댓글 지우기(ADMIN), 강제 탈퇴, 비밀번호 초기화, 코인·경험치 지급, 선물 보내기. 관리자가 아니면 없는 주소(404)로 답한다.
 // 실패 문구는 한국어 문장과 그 안에 넣을 값(vars)으로 돌려주고, 화면이 보는 사람의 언어로 바꾼다
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { deleteMember } from "../account/delete-member";
+import { makeTempPassword, setMemberPassword } from "../account/password";
 import { adminContent, adminMember, adminMembers, adminOverview } from "../admin/read";
 import { db } from "../db";
 import { animalSpecies, comments, GIFT_MESSAGE_MAX, items, notifications, pointLedger, posts, profiles, users } from "../db/schema";
@@ -89,6 +90,22 @@ export const adminRoutes = new Hono<GuardEnv>()
 
     await deleteMember(userId);
     return c.json({ ok: true, name: target.nickname ?? target.username ?? null });
+  })
+  /**
+   * 비밀번호 초기화: 비밀번호를 잊고 소셜도 연동하지 않은 회원이 문의했을 때, 임시 비밀번호를 만들어 돌려준다.
+   * 관리자가 회원에게 알려 주고, 회원은 로그인한 뒤 블로그 관리에서 새 비밀번호로 바꾼다.
+   * 그 회원의 모든 기기는 로그아웃되고 로그인 실패 잠금도 풀린다. 관리자 계정과 나 자신은 여기서 바꿀 수 없다
+   */
+  .post("/members/:userId/password-reset", async (c) => {
+    const userId = c.req.param("userId");
+    if (userId === c.get("viewer").userId) return c.json(fail(msg("내 비밀번호는 환경 설정에서 바꿔 주세요")), 400);
+    const [target] = await db.select({ role: users.role, username: users.username }).from(users).where(eq(users.id, userId));
+    if (!target) return c.json(fail(msg("이미 탈퇴한 회원이에요")), 404);
+    if (target.role === "admin") return c.json(fail(msg("관리자 계정의 비밀번호는 초기화할 수 없어요")), 400);
+
+    const tempPassword = makeTempPassword();
+    if (!(await setMemberPassword(userId, tempPassword))) return c.json(fail(msg("아이디가 없는 회원이에요")), 400);
+    return c.json({ ok: true, username: target.username, tempPassword });
   })
   /**
    * 지급: 회원에게 코인·경험치를 준다 (원장 사유 admin_grant, ref_id = 준 관리자).

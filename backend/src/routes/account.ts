@@ -5,6 +5,7 @@
 // 아이디·비밀번호가 없는 소셜 회원(/account-setup 화면)도 탈퇴할 수 있어야 해서 로그인만 확인한다.
 // 한 회원 = 아이디 하나 (/account-setup): 소셜로 처음 들어와 아이디·비밀번호가 없는 회원이
 // POST /setup/new 로 아이디를 만들거나, POST /setup/link 로 기존 아이디에 합친다. 끝나면 화면이 redirect로 간다
+// 비밀번호 바꾸기: POST /password { currentPassword, newPassword, newPasswordConfirm } (src/account/password.ts)
 import { APIError } from "better-auth/api";
 import { verifyPassword } from "better-auth/crypto";
 import { and, eq } from "drizzle-orm";
@@ -12,6 +13,7 @@ import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie } from "hono/cookie";
 import { deleteMember } from "../account/delete-member";
 import { MergeRefused, mergeSocialOnlyUser } from "../account/merge";
+import { canSkipCurrentPassword, checkNewPassword, setMemberPassword } from "../account/password";
 import { auth, LOGIN_LOCKED_CODE, LOGIN_LOCKED_MESSAGE } from "../auth";
 import { authErrorCode, checkNewLogin, isUsernameRuleCode, USERNAME_RULE_MESSAGE } from "../auth/login-rules";
 import { grantSocialLinkReward, grantSocialLinkRewardsFor } from "../auth/social-link-reward";
@@ -123,6 +125,35 @@ export const accountRoutes = new Hono<GuardEnv>()
     if (merged.skipped.length) q.set("skipped", merged.skipped.join(","));
     if (rewarded.length) q.set("rewarded", rewarded.join(","));
     return c.json({ ok: true, redirect: `/account-setup/done?${q}` });
+  })
+  /**
+   * 비밀번호 바꾸기 (블로그 관리 화면). 지금 비밀번호를 확인하고 새 비밀번호로 바꾼다.
+   * 비밀번호를 잊은 회원: 연동한 소셜로 방금(FRESH_MINUTES 안) 로그인했다면 지금 비밀번호 칸을 비워도 된다.
+   * 바꾸면 이 브라우저만 로그인이 남고 다른 기기는 로그아웃된다
+   */
+  .post("/password", requireViewer("user"), async (c) => {
+    const { userId } = c.get("viewer");
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    if (!session) return c.json(fail(msg("로그인이 필요해요")), 401);
+    const body = await readJson(c);
+    const problem = checkNewPassword(body.newPassword, body.newPasswordConfirm);
+    if (problem) return c.json(fail(problem), 400);
+
+    const current = typeof body.currentPassword === "string" ? body.currentPassword : "";
+    if (current) {
+      const [credential] = await db
+        .select({ password: accounts.password })
+        .from(accounts)
+        .where(and(eq(accounts.userId, userId), eq(accounts.providerId, "credential")));
+      if (!credential?.password || !(await verifyPassword({ hash: credential.password, password: current }))) {
+        return c.json(fail(msg("지금 비밀번호가 맞지 않아요")), 400);
+      }
+    } else if (!(await canSkipCurrentPassword(userId, new Date(session.session.createdAt)))) {
+      return c.json(fail(msg("지금 비밀번호를 적어 주세요")), 400);
+    }
+
+    await setMemberPassword(userId, body.newPassword as string, session.session.id);
+    return c.json({ ok: true });
   })
   .post("/withdraw", requireViewer("signedIn"), async (c) => {
   const { userId } = c.get("viewer");

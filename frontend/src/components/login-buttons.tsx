@@ -41,6 +41,17 @@ function SignInForm() {
       <button disabled={pending} className="btn w-full bg-leaf py-3 text-white">
         {pending ? t("들어가는 중...") : t("로그인")}
       </button>
+      {/* 가입할 때 이메일을 받지 않아서 재설정 메일이 없다: 연동한 소셜로 들어가 바꾸거나 관리자에게 문의 (backend/src/account/password.ts) */}
+      <details className="text-sm" data-forgot-password>
+        <summary className="cursor-pointer text-center text-ink-soft underline">{t("비밀번호를 잊었나요?")}</summary>
+        <div className="mt-2 space-y-1 break-keep rounded-xl bg-cream p-3 text-ink-soft">
+          <p>{t("카카오·구글을 연동해 두었다면 아래 간편 로그인으로 들어간 뒤, 내 얼굴 메뉴의 [환경 설정] → [비밀번호 바꾸기]에서 새 비밀번호를 정할 수 있어요.")}</p>
+          <p>
+            {t("연동하지 않았다면 문의하기로 아이디를 알려 주세요. 관리자가 임시 비밀번호를 만들어 드려요.")}{" "}
+            <a href="/support" className="font-bold text-leaf-dark underline">{t("문의하기")}</a>
+          </p>
+        </div>
+      </details>
     </form>
   );
 }
@@ -60,6 +71,10 @@ function SignUpForm() {
       <button disabled={pending} className="btn w-full bg-sun py-3 text-ink">
         {pending ? t("가입하는 중...") : t("회원가입")}
       </button>
+      {/* 비밀번호를 잊으면 연동한 소셜로만 혼자 되찾을 수 있어서, 가입하는 사람에게 연동을 부탁한다 */}
+      <p className="break-keep rounded-xl bg-cream p-3 text-sm text-ink-soft" data-signup-link-hint>
+        {t("가입한 뒤 오른쪽 위 내 얼굴 메뉴의 [로그인 수단]에서 카카오나 구글을 꼭 연동해 주세요. 비밀번호를 잊어도 연동한 계정으로 로그인해서 새 비밀번호를 정할 수 있어요. (연동하면 🪙 100도 받아요)")}
+      </p>
     </form>
   );
 }
