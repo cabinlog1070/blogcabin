@@ -2,13 +2,12 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 
 // 표 칸에 한글을 치면 글자 순서가 뒤집히던 문제 ("종류" → "류종").
-// 사파리는 칸 안에서 조합이 끝나면 조합한 글자를 칸 밖(표의 행)으로 옮겨 버리고,
-// ProseMirror는 그 글자를 칸의 맨 앞에 다시 넣는다. 한글은 글자(음절)마다 조합이 끝나므로
-// 두 번째 글자부터 매번 칸 맨 앞에 들어가 순서가 뒤집힌다.
-// 조합 무렵에 커서가 칸 맨 앞으로 튀면 원래 자리로 돌리고,
-// 커서 바로 앞 글자가 칸 맨 앞으로 옮겨지거나 다른 자리에 끼어들었으면 커서 자리로 옮긴다.
-// 이벤트 순서가 브라우저마다 달라서(조합 끝 알림이 글자 이동보다 늦게 오기도 한다) 조합 시작·끝 무렵 모두 보고,
-// 모양이 아주 좁아(표 칸 안, 커서 바로 앞 글자가 맨 앞으로) 모든 브라우저에서 켠다.
+// 맥 사파리(2026-10-15 사용자 기록): 빈 칸에서 첫 글자 조합이 끝날 때 칸 속 문단을 지우고
+// 조합한 글자를 굵은 글씨(<b>)로 칸 밖(표의 행)에 넣는다. ProseMirror가 그 글자를 칸에 되돌리지만
+// 굵은 글씨가 붙고 커서는 칸 맨 앞에 남아, 다음 글자부터 앞에 들어가 순서가 뒤집힌다.
+// 그래서 조합이 막 끝났는데 칸의 글자는 그대로이고 모양(문단·굵기)이나 커서만 바뀌었으면 조합 전 칸으로 되돌린다.
+// 예전에 짐작한 다른 모양(글자가 칸 맨 앞으로 옮겨지거나 커서만 튀는 것)도 그대로 고친다.
+// 이벤트 순서가 브라우저마다 달라서 조합 시작·끝 무렵 모두 보고, 모양이 아주 좁아(표 칸 안) 모든 브라우저에서 켠다.
 
 const key = new PluginKey("cellComposition");
 const CELL_TYPES = new Set(["tableCell", "tableHeader"]);
@@ -37,6 +36,24 @@ function move(state: EditorState, blockStart: number, from: number, length: numb
   const text = state.doc.textBetween(blockStart + from, blockStart + from + length);
   const tr = state.tr.delete(blockStart + from, blockStart + from + length).insertText(text, blockStart + to);
   tr.setSelection(TextSelection.create(tr.doc, blockStart + caretAfter));
+  return tr.setMeta(key, true);
+}
+
+/** 조합이 끝나며 칸의 글자는 그대로인데 문단·굵기·커서가 바뀌었으면 조합 전 칸으로 (맥 사파리) */
+export function fixCommitReshape(oldState: EditorState, newState: EditorState): Transaction | null {
+  const was = cellCaret(oldState);
+  if (!was || was.caret === 0) return null;
+  const cellPos = oldState.selection.$from.before(-1);
+  const oldCell = oldState.doc.nodeAt(cellPos);
+  const newCell = cellPos < newState.doc.content.size ? newState.doc.nodeAt(cellPos) : null;
+  if (!oldCell || !newCell || newCell.type !== oldCell.type || newCell.textContent !== oldCell.textContent) return null;
+  const sameCaret = newState.selection.empty && newState.selection.from === oldState.selection.from;
+  if (newCell.eq(oldCell) && sameCaret) return null;
+  // 새 칸 안에 커서가 있어야 (다른 칸으로 옮겨 간 것은 건드리지 않는다)
+  const { from } = newState.selection;
+  if (from <= cellPos || from >= cellPos + newCell.nodeSize) return null;
+  const tr = newState.tr.replaceWith(cellPos + 1, cellPos + newCell.nodeSize - 1, oldCell.content);
+  tr.setSelection(TextSelection.create(tr.doc, oldState.selection.from));
   return tr.setMeta(key, true);
 }
 
@@ -111,7 +128,7 @@ export const CellComposition = Extension.create({
           if (trs.some((tr) => tr.getMeta(key)) || trs.some((tr) => tr.getMeta("pointer"))) return null;
           if (!trs.some((tr) => tr.docChanged)) return nearComposition(500) ? fixCaretJump(oldState, newState) : null;
           if (!nearComposition(1000)) return null;
-          return fixMisplacedInsert(oldState, newState) ?? fixMovedToStart(oldState, newState);
+          return fixCommitReshape(oldState, newState) ?? fixMisplacedInsert(oldState, newState) ?? fixMovedToStart(oldState, newState);
         },
       }),
     ];
