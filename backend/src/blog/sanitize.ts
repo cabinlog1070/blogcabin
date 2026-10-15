@@ -33,7 +33,7 @@ function options(known?: KnownAttachments): sanitizeHtml.IOptions {
       "table", "thead", "tbody", "tr", "th", "td",
     ],
     allowedAttributes: {
-      a: ["href", "target", "rel", "data-file", "data-name", "data-size", "data-size-label", "data-ext", "aria-label"],
+      a: ["href", "target", "rel", "data-mention", "data-file", "data-name", "data-size", "data-size-label", "data-ext", "aria-label"],
       img: ["src", "alt"],
       div: ["data-slider", "data-row"], // 사진 슬라이드 <div data-slider>, 나란히 놓기 <div data-row> (에디터의 image-slider.ts)
       p: ["style"],
@@ -71,6 +71,10 @@ function options(known?: KnownAttachments): sanitizeHtml.IOptions {
               "aria-label": fileCardLabel(name, size),
             },
           };
+        }
+        // @주소 언급 (backend/src/blog/mentions.ts): 우리 블로그로 가는 링크라 같은 탭에서
+        if ("data-mention" in attribs && /^\/@[a-z0-9_]{3,20}$/.test(attribs.href ?? "")) {
+          return { tagName, attribs: { href: attribs.href!, "data-mention": "" } };
         }
         // 외부 링크는 새 탭으로, 원래 페이지에 접근하지 못하게
         return { tagName, attribs: { ...attribs, target: "_blank", rel: "noopener noreferrer nofollow" } };

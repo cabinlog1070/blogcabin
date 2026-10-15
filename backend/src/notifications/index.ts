@@ -2,7 +2,7 @@
 // 알림은 사건이 일어난 동작의 같은 트랜잭션에서 만든다. 자기 행동은 알리지 않는다.
 // 서버는 알림의 재료(종류·레벨·회원 이름·글 제목…)만 돌려주고, 보는 사람의 언어로 문장을 만드는 건 화면이 한다
 // (frontend/src/lib/notification-text.ts)
-import { and, asc, desc, eq, gte, isNull, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db";
 import { animalSpecies, blogs, gifts, items, notifications, pointLedger, posts, profiles, userAnimals } from "../db/schema";
@@ -50,6 +50,31 @@ export async function notifySocial(
   });
 }
 
+/**
+ * 글·댓글 속 @주소 언급 알림. 글이면 refId 없이, 댓글이면 refId = 댓글 ID.
+ * 같은 글(같은 댓글)에서 같은 사람을 이미 언급했으면 다시 보내지 않는다 (고쳐 저장할 때 새로 언급한 사람에게만)
+ */
+export async function notifyMentions(tx: Tx, n: { userIds: string[]; actorId: string; postId: number; refId?: number }) {
+  const targets = n.userIds.filter((id) => id !== n.actorId);
+  if (!targets.length) return;
+  const refId = n.refId === undefined ? null : String(n.refId);
+  const already = await tx
+    .select({ userId: notifications.userId })
+    .from(notifications)
+    .where(
+      and(
+        inArray(notifications.userId, targets),
+        eq(notifications.actorId, n.actorId),
+        eq(notifications.postId, n.postId),
+        eq(notifications.kind, "mention"),
+        refId === null ? isNull(notifications.refId) : eq(notifications.refId, refId),
+      ),
+    );
+  const sent = new Set(already.map((r) => r.userId));
+  const rows = targets.filter((id) => !sent.has(id)).map((userId) => ({ userId, actorId: n.actorId, kind: "mention" as const, postId: n.postId, refId }));
+  if (rows.length) await tx.insert(notifications).values(rows);
+}
+
 /** 이 사람이 이 글에 공감했다는 알림을 이미 보냈는지 (취소 후 다시 공감할 때 또 보내지 않게) */
 export async function hasLikeNotification(tx: Tx, userId: string, actorId: string, postId: number) {
   const [row] = await tx
@@ -91,6 +116,8 @@ export type NotificationRow = {
   petName: string | null;
   speciesName: string | null;
   giftMessage: string | null;
+  /** 언급(mention)이 댓글에서였다 */
+  inComment: boolean;
   createdAt: Date;
   readAt: Date | null;
 };
@@ -113,6 +140,7 @@ export async function listNotificationRows(userId: string, page = 1, size = NOTI
       petName: userAnimals.name,
       speciesName: animalSpecies.name,
       giftMessage: gifts.message,
+      inComment: sql<boolean>`${notifications.refId} IS NOT NULL`,
       createdAt: notifications.createdAt,
       readAt: notifications.readAt,
     })

@@ -4,6 +4,7 @@ import { and, count, eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { canSeePrivatePosts, findVisiblePost, isPublished } from "../blog/access";
 import { getMemberBlog } from "../blog/member";
+import { findMentionedBlogs, mentionsIn, mentionTargets } from "../blog/mentions";
 import { addBlogVisit, addPostView, currentViewerKey, getBlogVisitStats } from "../blog/visits";
 import { db } from "../db";
 import { blogs, comments, follows, pointLedger, postLikes, posts } from "../db/schema";
@@ -11,7 +12,7 @@ import { grantReward, lockUser } from "../game/points";
 import { MAX_FAVORITES } from "../game/rules";
 import { BAD_REQUEST, isSameOrigin, readJson, requireViewer, type GuardEnv } from "../http/guard";
 import { parseId } from "../lib/ids";
-import { hasLikeNotification, notifySocial } from "../notifications";
+import { hasLikeNotification, notifyMentions, notifySocial } from "../notifications";
 
 const msg = <S extends string>(text: S): S => text;
 type Vars = Record<string, string | number>;
@@ -24,6 +25,12 @@ function readComment(raw: unknown): { content: string } | { error: string } {
   if (!content) return { error: msg("댓글을 적어 주세요") };
   if (content.length > COMMENT_MAX) return { error: msg("댓글은 1000자까지예요") };
   return { content };
+}
+
+/** 댓글 속 @주소로 언급한 회원 가운데 그 글을 볼 수 있는 사람 */
+async function commentMentions(content: string, post: Parameters<typeof mentionTargets>[0]) {
+  const owners = await findMentionedBlogs(mentionsIn(content));
+  return mentionTargets(post, [...owners.values()]);
 }
 
 const member = requireViewer("member");
@@ -79,6 +86,7 @@ export const blogRoutes = new Hono<GuardEnv>()
 
     const post = await findVisiblePost(postId, userId);
     if (!post) return c.json(fail(msg("글을 찾을 수 없어요")), 404);
+    const mentioned = await commentMentions(content, post);
 
     const id = await db.transaction(async (tx) => {
       // 답글은 같은 글의 원댓글에만 (답글의 답글은 원댓글에 붙인다)
@@ -115,6 +123,9 @@ export const blogRoutes = new Hono<GuardEnv>()
       if (post.ownerId !== repliedTo) {
         await notifySocial(tx, { userId: post.ownerId, actorId: userId, kind: "comment", postId, refId: created.id });
       }
+      // @주소로 언급한 회원에게도 (댓글·답글 알림을 이미 받는 사람은 빼고)
+      const others = mentioned.filter((id) => id !== post.ownerId && id !== repliedTo);
+      await notifyMentions(tx, { userIds: others, actorId: userId, postId, refId: created.id });
 
       if (post.ownerId !== userId) {
         await lockUser(tx, userId);
@@ -138,17 +149,21 @@ export const blogRoutes = new Hono<GuardEnv>()
       .from(comments)
       .where(and(eq(comments.id, commentId), isNull(comments.deletedAt)));
     // 비공개로 바뀌어 더는 볼 수 없는 글의 댓글도 고칠 수 없다
-    if (!row || row.authorId !== userId || !(await findVisiblePost(row.postId, userId))) {
-      return c.json(fail(msg("댓글을 찾을 수 없어요")), 404);
-    }
+    const post = row && row.authorId === userId ? await findVisiblePost(row.postId, userId) : null;
+    if (!row || !post) return c.json(fail(msg("댓글을 찾을 수 없어요")), 404);
     // 그대로면 "수정됨"을 붙이지 않는다 (줄바꿈 모양 \r\n·\n은 비교하지 않는다)
     const lf = (s: string) => s.replace(/\r\n/g, "\n");
     if (lf(row.content) === lf(content)) return c.json({ ok: true });
 
-    await db
-      .update(comments)
-      .set({ content, editedAt: new Date() })
-      .where(and(eq(comments.id, commentId), eq(comments.authorId, userId), isNull(comments.deletedAt)));
+    const mentioned = (await commentMentions(content, post)).filter((id) => id !== post.ownerId);
+    await db.transaction(async (tx) => {
+      await tx
+        .update(comments)
+        .set({ content, editedAt: new Date() })
+        .where(and(eq(comments.id, commentId), eq(comments.authorId, userId), isNull(comments.deletedAt)));
+      // 고치면서 새로 언급한 회원에게만 알림 (이미 받은 사람에게는 다시 보내지 않는다)
+      await notifyMentions(tx, { userIds: mentioned, actorId: userId, postId: row.postId, refId: commentId });
+    });
     return c.json({ ok: true });
   })
   /** 댓글 지우기: 작성자, 그 글의 블로그 주인, 관리자 (spec 004 결정, SOC-01) */
