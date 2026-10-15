@@ -1,4 +1,4 @@
-# 읽기 전용 운영 점검: 포트 두 개 배포(#93) 뒤 사이트와 앱 두 개가 정상인지 본다. 아무것도 바꾸지 않는다.
+# 읽기 전용 운영 점검: 서버 nginx가 바뀐 설정을 다시 읽었는지(reload) 보고, 손님이 8440·8441 둘 다로 가는지 본다. 아무것도 바꾸지 않는다.
 name: prod-check
 on:
   push:
@@ -15,25 +15,15 @@ jobs:
       SSH_PORT: ${{ secrets.SSH_PORT }}
       SSH_USER: ${{ secrets.SSH_ID }}
     steps:
-      - name: Public site
-        run: |
-          for p in / /api/health /api/v1/health /api/auth/get-session /@jiwon934 /town; do
-            echo "$p $(curl -s -o /dev/null -m 20 -w '%{http_code} %{time_total}s' https://blogcabin.java21.net$p)"
-          done
-      - name: Real blog addresses
-        run: |
-          slugs=$(curl -s -m 20 https://blogcabin.java21.net/feed | grep -oE 'href="/@[A-Za-z0-9_.-]+' | sed 's#href="/@##' | sort -u | head -5)
-          echo "found: $slugs"
-          for s in $slugs admin; do echo "/@$s $(curl -s -o /dev/null -m 20 -w '%{http_code}' https://blogcabin.java21.net/@$s)"; done
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
       - name: Server (read only)
         run: |
           sshpass -e ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 ${SSH_USER}@${SSH_HOST} 'bash -s' <<'SH'
           set +e
-          echo "== docker ps (ours)"; docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}' | grep -i blogcabin
-          echo "== app health"; for p in 8440 8441; do for u in /api/health /api/v1/health; do echo "$p$u $(curl -s -o /dev/null -m 10 -w '%{http_code}' http://127.0.0.1:$p$u)"; done; done
-          echo "== 8442-8449 listening"; ss -ltn | grep -E ':844[2-9]\b' || echo none
-          echo "== site nginx conf (no keys)"; grep -v -E 'ssl_certificate_key' ~/nginx/blogcabin.java21.net.conf | head -40
-          echo "== backup"; ls -la ~/blogcabin/nginx-backup/ ~/blogcabin/nginx 2>&1 | head
-          echo "== recent errors"; for c in blogcabin-1 blogcabin-2; do echo "-- $c"; docker logs --since 10m "$c" 2>&1 | grep -iE 'error|fail|unhandled' | head -10; done
+          echo "== now"; date
+          echo "== our nginx file changed at"; stat -c '%y' ~/nginx/blogcabin.java21.net.conf
+          echo "== nginx master / worker start times (reload restarts workers)"; ps -eo lstart,args | grep -E 'nginx: (master|worker)' | grep -v grep | sort | uniq -c | head -8
+          echo "== connections to our apps before"; ss -tan | grep -E '127\.0\.0\.1:844[01]\b' | awk '{print $1, $4, $5}' | sort | uniq -c
+          echo "== 30 requests through https"; for i in $(seq 1 30); do curl -s -o /dev/null -m 10 -w '%{http_code} ' https://blogcabin.java21.net/api/health; done; echo
+          echo "== connections to our apps after (TIME_WAIT shows which ports got requests)"; ss -tan | grep -E '127\.0\.0\.1:844[01]\b' | awk '{print $1, $4, $5}' | sed -E 's/:[0-9]+ / /' | sort | uniq -c
           SH
