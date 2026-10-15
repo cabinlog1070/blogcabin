@@ -3,15 +3,25 @@ import { Hono } from "hono";
 import { uploadAttachment } from "./attachments/upload";
 import { auth } from "./auth";
 import { db } from "./db";
+import { accountRoutes } from "./routes/account";
+import { attendance } from "./routes/attendance";
+import { localeRoutes } from "./routes/locale";
+import { notificationRoutes } from "./routes/notifications";
 
 // 서버(backend) API. 새 주소는 모두 /api/v1/… 로 시작한다.
 // 예외: 로그인(/api/auth/…)은 소셜 로그인 콜백 주소가 카카오·구글 개발자 센터에 이 주소로 등록돼 있어 그대로 둔다.
-// 운영에서는 우리 nginx가 /api/v1/·/api/auth/ 로 오는 요청만 이 서버로 보내고, 나머지는 화면(frontend)으로 보낸다.
+// 운영에서는 화면(frontend)이 /api/v1/… 요청을 이 앱에 그대로 넘긴다 (frontend/src/app/api/v1/[...path]/route.ts).
 // 화면이 하던 일을 영역별로 하나씩 옮겨 온다 (순서는 CLAUDE.md의 "폴더").
 export const app = new Hono();
 
 const v1 = new Hono();
 const noStore = { "Cache-Control": "no-store" };
+
+// 회원마다 다른 답이라 브라우저·중간 서버가 저장해 두지 않게 한다
+v1.use(async (c, next) => {
+  await next();
+  c.res.headers.set("Cache-Control", "no-store");
+});
 
 // 배포 확인용 (deploy/deploy.sh). 로그인 없이 열리고, DB가 응답하면 200, 아니면 503.
 // 내부 정보(오류 내용, 주소)는 돌려주지 않는다.
@@ -29,6 +39,12 @@ v1.get("/health", async (c) => {
 
 // 글 첨부 올리기 (사진·파일, 로그인한 주민만)
 v1.post("/uploads", uploadAttachment);
+
+// 출석 체크, 알림함·레벨업·선물 팝업, 화면 언어, 회원 탈퇴
+v1.route("/attendance", attendance);
+v1.route("/notifications", notificationRoutes);
+v1.route("/locale", localeRoutes);
+v1.route("/account", accountRoutes);
 
 app.route("/api/v1", v1);
 

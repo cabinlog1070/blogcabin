@@ -72,11 +72,3 @@ export async function addPostView(postId: number, viewerKey: string) {
     return row?.viewCount ?? 0;
   });
 }
-
-/** 탈퇴한 회원의 방문·조회 기록은 숫자만 남기고 회원과 이어지지 않게 무작위 키로 바꾼다 (AUTH-06, BLOG-06 FR-041) */
-export async function anonymizeViewerKey(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], userId: string) {
-  const anon = sql`'w:' || md5(random()::text || clock_timestamp()::text)`;
-  await tx.update(blogVisits).set({ visitorKey: anon }).where(eq(blogVisits.visitorKey, `u:${userId}`));
-  await tx.update(postViews).set({ viewerKey: anon }).where(eq(postViews.viewerKey, `u:${userId}`));
-}
-

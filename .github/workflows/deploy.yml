@@ -1,6 +1,6 @@
 # main에 올리면(또는 Actions 화면에서 직접 실행하면) Docker 이미지를 만들어 서버에 배포한다.
 # 1) 서버 CPU 종류를 보고 그에 맞는 이미지 두 개(화면 frontend/, 서버 backend/)를 빌드 → 2) 이미지 파일을 SSH로 서버에 보냄
-# → 3) 서버에서 deploy/deploy.sh 실행 (nginx 뒤 서버 두 개, 화면 두 개를 하나씩 바꾸는 롤링 배포)
+# → 3) 서버에서 deploy/deploy.sh 실행 (앱 두 개 8440·8441을 하나씩 바꾸는 롤링 배포, 서버 nginx가 둘에 번갈아 보낸다)
 #
 # 필요한 저장소 시크릿 (Settings > Secrets and variables > Actions)
 #   SSH_ADDRESS, SSH_PORT, SSH_ID, SSH_PASSWORD  : 배포 서버 SSH 접속 정보 (비밀번호 방식)
@@ -34,9 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      APP_PORT: "8440"            # 손님이 들어오는 nginx 포트 (서버 관리자 nginx가 https 주소를 여기로 보낸다)
-      APP_SLOT_PORTS: "8441 8442" # nginx 뒤의 화면(frontend) 두 개 (롤링 배포)
-      API_SLOT_PORTS: "8443 8444" # nginx 뒤의 서버(backend) 두 개, /api/v1/ 을 맡는다
+      APP_PORT: "8440"            # 첫 번째 앱 포트 (APP_URL이 없을 때 주소에 쓴다)
+      APP_PORTS: "8440 8441"      # 앱 두 개 (화면+서버). 서버 관리자 nginx가 ~/nginx 설정의 upstream으로 번갈아 보낸다
       SSHPASS: ${{ secrets.SSH_PASSWORD }}
       SSH_HOST: ${{ secrets.SSH_ADDRESS }}
       SSH_PORT: ${{ secrets.SSH_PORT }}
@@ -149,7 +148,7 @@ jobs:
         run: |
           set -euo pipefail
           sshpass -e ssh -p "${SSH_PORT:-22}" -o StrictHostKeyChecking=accept-new "${SSH_USER}@${SSH_HOST}" \
-            "bash ~/blogcabin/releases/deploy.sh '$TAG' ~/blogcabin/releases/image.tar.gz ~/blogcabin/releases/deploy.env $APP_PORT '$APP_SLOT_PORTS' '$API_SLOT_PORTS'"
+            "bash ~/blogcabin/releases/deploy.sh '$TAG' ~/blogcabin/releases/image.tar.gz ~/blogcabin/releases/deploy.env '$APP_PORTS'"
 
       - name: Clean up
         if: always()

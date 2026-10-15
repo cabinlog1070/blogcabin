@@ -2,8 +2,8 @@
 // 언어 고르기: 한국어 | 日本語. 내 정보 메뉴와 아래쪽 푸터에 있다
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { setLocale } from "@/app/locale-actions";
 import { useLocale } from "@/components/i18n";
+import { api } from "@/lib/api";
 import { LOCALE_LABELS, LOCALES } from "@/lib/i18n";
 
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
@@ -23,7 +23,8 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
           onClick={() => {
             if (l === current) return;
             start(async () => {
-              await setLocale(l);
+              // 서버가 언어 쿠키를 바꾸고(로그인했으면 회원 정보에도 기억) 화면을 그 언어로 다시 그린다
+              await api("/locale", { method: "PUT", body: { locale: l } }).catch(() => {});
               router.refresh();
             });
           }}

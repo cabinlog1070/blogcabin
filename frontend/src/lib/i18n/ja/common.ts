@@ -30,4 +30,7 @@ export const jaCommon: Record<string, string> = {
   "문의하기": "お問い合わせ",
   "릴리스 노트": "リリースノート",
   "BlogCabin이 업데이트될 때마다 바뀐 점을 여기에 올려요.": "BlogCabinがアップデートされるたびに、変わったことをここでお知らせします。",
+  // 서버 API를 부르다 실패했을 때 (src/lib/api.ts, backend/src/http/guard.ts)
+  "잠시 뒤 다시 시도해 주세요": "しばらくしてからもう一度お試しください",
+  "로그인이 필요해요": "ログインが必要です",
 };

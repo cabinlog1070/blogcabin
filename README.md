@@ -12,7 +12,7 @@ AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory
 |---|---|
 | `frontend/` | 화면 (Next.js 16, TypeScript). 아직 서버로 옮기지 않은 일(Server Action, DB 마이그레이션)도 여기 있다 |
 | `backend/` | 서버 API (Node 24, Hono, TypeScript). 주소는 `/api/v1/…`, 로그인은 `/api/auth/…` |
-| `deploy/` | 운영 서버 배포 스크립트 (우리 nginx + 화면 두 개 + 서버 두 개, 롤링 배포) |
+| `deploy/` | 운영 서버 배포 스크립트 (앱 두 개 8440·8441, 서버 nginx upstream, 롤링 배포) |
 | `.github/` | PR마다 도는 검사(CI: 화면·서버 따로), `main`에 합치면 도는 배포 |
 
 > 2026-10-14부터 화면과 서버를 나누는 중입니다. 지금은 뼈대(폴더·배포·검사)만 나눴고, 출석·상점·농장·블로그처럼 영역을 하나씩 `backend/`로 옮깁니다.

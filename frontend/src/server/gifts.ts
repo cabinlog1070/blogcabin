@@ -2,10 +2,9 @@
 // 받은 주민은 알림(gift)과 다음 화면의 선물 팝업으로 알고, 선물은 보내는 순간 그 주민 것이 된다.
 // 펫은 그 펫이 태어나는 알로 보낸다 (농장 둥지에 들어가고, 둥지가 꽉 차 있어도 넣는다).
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { animalSpecies, giftItems, giftPets, gifts, items, notifications, pointLedger, profiles, userAnimals, userItems } from "@/db/schema";
+import { giftItems, giftPets, gifts, notifications, pointLedger, profiles, userAnimals, userItems } from "@/db/schema";
 import { lockUser, type Tx } from "@/server/points";
 
 export type GiftInput = { senderId: string; recipientIds: string[]; message: string; coins: number; itemIds: number[]; speciesIds: number[] };
@@ -72,74 +71,5 @@ async function notOwned(tx: Tx, userId: string, itemIds: number[]) {
   return itemIds.filter((id) => !ownedSet.has(id));
 }
 
-export type GiftView = {
-  id: number;
-  notificationId: number | null;
-  senderName: string | null;
-  message: string;
-  coins: number;
-  items: { id: number; name: string; type: string; assetKey: string }[];
-  /** 펫 알: 태어날 펫 종류 */
-  pets: { id: number; name: string; assetKey: string }[];
-  createdAt: Date;
-};
-
-const senderProfile = alias(profiles, "sender_profile");
-
-/** 선물 ID 목록 → 화면에 보일 선물 (보낸 사람 이름, 함께 보낸 말, 코인, 아이템) */
-async function giftViews(recipientId: string, where: ReturnType<typeof and>, limit: number, notificationIds?: Map<number, number>) {
-  const rows = await db
-    .select({
-      id: gifts.id,
-      senderName: senderProfile.nickname,
-      message: gifts.message,
-      coins: gifts.coins,
-      createdAt: gifts.createdAt,
-    })
-    .from(gifts)
-    .leftJoin(senderProfile, eq(senderProfile.userId, gifts.senderId))
-    .where(and(eq(gifts.recipientId, recipientId), where))
-    .orderBy(desc(gifts.createdAt), desc(gifts.id))
-    .limit(limit);
-  if (!rows.length) return [];
-  const itemRows = await db
-    .select({ giftId: giftItems.giftId, id: items.id, name: items.name, type: items.type, assetKey: items.assetKey })
-    .from(giftItems)
-    .innerJoin(items, eq(items.id, giftItems.itemId))
-    .where(inArray(giftItems.giftId, rows.map((r) => r.id)))
-    .orderBy(asc(items.type), asc(items.id));
-  const petRows = await db
-    .select({ giftId: giftPets.giftId, id: animalSpecies.id, name: animalSpecies.name, assetKey: animalSpecies.assetKey })
-    .from(giftPets)
-    .innerJoin(animalSpecies, eq(animalSpecies.id, giftPets.speciesId))
-    .where(inArray(giftPets.giftId, rows.map((r) => r.id)))
-    .orderBy(asc(animalSpecies.id));
-  return rows.map<GiftView>((r) => ({
-    ...r,
-    notificationId: notificationIds?.get(r.id) ?? null,
-    items: itemRows.filter((it) => it.giftId === r.id).map((it) => ({ id: it.id, name: it.name, type: it.type, assetKey: it.assetKey })),
-    pets: petRows.filter((p) => p.giftId === r.id).map((p) => ({ id: p.id, name: p.name, assetKey: p.assetKey })),
-  }));
-}
-
-/** 받은 선물 최신순 (받은 선물 화면) */
-export async function listReceivedGifts(userId: string, limit = 50) {
-  return giftViews(userId, undefined, limit);
-}
-
-/**
- * 아직 안 읽은 선물 알림의 선물 (다음 화면에서 팝업으로 하나씩 보여준다, 오래된 것부터).
- * 팝업을 닫으면 그 알림을 읽음으로 바꾼다 (seeGift)
- */
-export async function getUnseenGifts(userId: string): Promise<GiftView[]> {
-  const unseen = await db
-    .select({ id: notifications.id, refId: notifications.refId })
-    .from(notifications)
-    .where(and(eq(notifications.userId, userId), eq(notifications.kind, "gift"), isNull(notifications.readAt)))
-    .orderBy(asc(notifications.createdAt))
-    .limit(10);
-  if (!unseen.length) return [];
-  const byGift = new Map(unseen.map((n) => [Number(n.refId), n.id]));
-  const views = await giftViews(userId, inArray(gifts.id, [...byGift.keys()]), 10, byGift);
-  return views.reverse();
-}
+// 받은 선물 보기는 서버 코드(알림 API)와 같은 것을 쓴다
+export { getUnseenGifts, listReceivedGifts, type GiftView } from "@backend/gifts/views";
