@@ -16,14 +16,20 @@ jobs:
       SSH_USER: ${{ secrets.SSH_ID }}
     steps:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
-      - name: Server (read only)
+      - name: send 40 requests from outside, then look at which app ports got them
         run: |
+          echo "== 40 requests from the internet"
+          for i in $(seq 1 40); do curl -s -o /dev/null -m 10 -w '%{http_code} ' https://blogcabin.java21.net/api/health; done; echo
           sshpass -e ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 ${SSH_USER}@${SSH_HOST} 'bash -s' <<'SH'
           set +e
           echo "== now"; date
+          echo "== connections to our apps right after (TIME_WAIT lasts ~60s, so this shows which ports just got requests)"
+          ss -tan | grep -E ':844[01]\b' | awk '{print $1, $4, $5}' | sed -E 's/:[0-9]+$//' | sort | uniq -c
           echo "== our nginx file changed at"; stat -c '%y' ~/nginx/blogcabin.java21.net.conf
-          echo "== nginx master / worker start times (reload restarts workers)"; ps -eo lstart,args | grep -E 'nginx: (master|worker)' | grep -v grep | sort | uniq -c | head -8
-          echo "== connections to our apps before"; ss -tan | grep -E '127\.0\.0\.1:844[01]\b' | awk '{print $1, $4, $5}' | sort | uniq -c
-          echo "== 30 requests through https"; for i in $(seq 1 30); do curl -s -o /dev/null -m 10 -w '%{http_code} ' https://blogcabin.java21.net/api/health; done; echo
-          echo "== connections to our apps after (TIME_WAIT shows which ports got requests)"; ss -tan | grep -E '127\.0\.0\.1:844[01]\b' | awk '{print $1, $4, $5}' | sed -E 's/:[0-9]+ / /' | sort | uniq -c
+          echo "== nginx masters and when their newest worker started (reload starts new workers)"
+          ps -eo pid,args | grep -E 'nginx: master' | grep -v grep | while read -r pid rest; do
+            m=$(ps -o lstart= -p "$pid")
+            w=$(ps -eo ppid,lstart | awk -v p="$pid" '$1==p {$1=""; print}' | sort -u | tr '\n' '|')
+            echo "master $pid started $m | workers started: $w | $rest"
+          done
           SH
