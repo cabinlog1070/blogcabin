@@ -83,3 +83,6 @@ export function houseStageForLevel(level: number): 1 | 2 | 3 {
   if (level >= HOUSE_STAGE_LEVELS[2]) return 2;
   return 1;
 }
+
+/** 초대 보상: 초대한 사람과 친구 둘 다 코인 50, 경험치 없음 (GAME-09) */
+export const INVITE_REWARD_COINS = 50;
