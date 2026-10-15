@@ -39,13 +39,21 @@ const WALL_BLOCKS = [
   { x0: 78.5, x1: 91.5, y0: 12, y1: 37 }, // 액자
 ];
 const WALL_BOTTOM = 71;
+/** 바닥 가구의 아래 선(다리·밑면)은 바닥선보다 조금 아래부터 (2026-10-15: 벽까지 올라가 보이지 않게) */
+const FLOOR_FEET_MIN = 74;
+/** 러그처럼 까는 가구는 통째로 바닥 위에 */
+const FLOOR_TOP = 72;
 
-/** 벽 장식 자리 맞추기: 벽 안에 들어가고 창문·액자와 겹치지 않는 곳 중에서 놓은 자리에 가장 가까운 곳.
- *  다른 가구는 그대로 돌려준다. 서버 저장과 그리기(예전에 놓은 자리) 모두 이것을 거친다 */
+/** 가구 자리 맞추기. 서버 저장과 그리기(예전에 놓은 자리) 모두 이것을 거친다.
+ *  - 벽 장식: 벽 안에 들어가고 창문·액자와 겹치지 않는 곳 중에서 놓은 자리에 가장 가까운 곳
+ *  - 바닥 가구: 아래 선이 바닥 위에 오게 위아래만 맞춘다 (2026-10-15). 러그는 통째로 바닥 위에 */
 export function fitRoomSpot(key: string, x: number, y: number): { x: number; y: number } {
-  if (!isWallFurniture(key)) return { x, y };
-  const { heightPct, aspect } = furnitureInfo(key);
+  const { heightPct, aspect, flat } = furnitureInfo(key);
   const hh = heightPct / 2;
+  if (!isWallFurniture(key)) {
+    const minY = flat ? FLOOR_TOP + hh : FLOOR_FEET_MIN - hh;
+    return { x, y: Math.round(Math.min(100 - hh, Math.max(minY, y)) * 10) / 10 };
+  }
   const hw = (heightPct * aspect) / 4; // 미니룸은 2:1이라 너비 % = 높이 % × 비율 ÷ 2
   const fits = (cx: number, cy: number) =>
     cx - hw >= 0 && cx + hw <= 100 && cy - hh >= 0 && cy + hh <= WALL_BOTTOM &&

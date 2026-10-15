@@ -16,13 +16,13 @@ export function lookSql(characterAsset: AnyColumn, userId: AnyColumn): SQL<strin
   ), ''))`;
 }
 
-export type PlacedFurniture = { itemId: number; assetKey: string; x: number; y: number };
+export type PlacedFurniture = { itemId: number; assetKey: string; x: number; y: number; flipped: boolean };
 
 /** 미니룸에 놓인 가구 (SHOP-05) */
 export async function getRoomFurniture(userId: string): Promise<PlacedFurniture[]> {
   return db
     // 고른 색은 가구 키 뒤에 붙인다 ("furn.chair@pink", frontend/src/lib/art/furniture.ts의 paintedFurnitureKey)
-    .select({ itemId: roomFurniture.itemId, assetKey: sql<string>`${items.assetKey} || COALESCE('@' || ${userItems.color}, '')`, x: roomFurniture.x, y: roomFurniture.y })
+    .select({ itemId: roomFurniture.itemId, assetKey: sql<string>`${items.assetKey} || COALESCE('@' || ${userItems.color}, '')`, x: roomFurniture.x, y: roomFurniture.y, flipped: roomFurniture.flipped })
     .from(roomFurniture)
     .innerJoin(items, eq(items.id, roomFurniture.itemId))
     .innerJoin(userItems, and(eq(userItems.userId, roomFurniture.userId), eq(userItems.itemId, roomFurniture.itemId)))

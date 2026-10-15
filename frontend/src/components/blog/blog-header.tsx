@@ -101,7 +101,7 @@ export async function BlogHeader({
           characterAsset={blog.characterAsset}
           backgroundAsset={blog.backgroundAsset}
           nickname={blog.nickname}
-          furniture={furniture.map((f) => ({ id: f.itemId, assetKey: f.assetKey, x: f.x, y: f.y }))}
+          furniture={furniture.map((f) => ({ id: f.itemId, assetKey: f.assetKey, x: f.x, y: f.y, flipped: f.flipped }))}
           pet={pet}
           characterSpot={blog.roomCharX != null && blog.roomCharY != null ? { x: blog.roomCharX, y: blog.roomCharY } : null}
           petSpot={blog.roomPetX != null && blog.roomPetY != null ? { x: blog.roomPetX, y: blog.roomPetY } : null}
