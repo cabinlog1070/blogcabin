@@ -106,7 +106,7 @@ export default async function AdminMemberPage(props: { params: Promise<{ id: str
         ) : member.username ? (
           <>
             <p className="mb-4 text-sm text-ink-soft">
-              {t("비밀번호를 잊은 회원이 문의했을 때 써요. 본인인지 먼저 확인한 뒤 임시 비밀번호를 알려 주세요. 그 회원은 모든 기기에서 로그아웃되고, 임시 비밀번호로 로그인한 뒤 환경 설정에서 새 비밀번호로 바꾸면 돼요.")}
+              {t("비밀번호를 잊은 회원이 메일로 문의했을 때 써요. 메일은 아무나 보낼 수 있으니, 적어 준 닉네임·블로그 이름·최근 글 제목이 위 정보와 맞는지 먼저 확인하고 그 메일로 답장해 주세요. 그 회원은 모든 기기에서 로그아웃되고, 임시 비밀번호로 로그인한 뒤 환경 설정에서 새 비밀번호로 바꾸면 돼요.")}
             </p>
             <AdminPasswordReset userId={member.id} name={name} />
           </>

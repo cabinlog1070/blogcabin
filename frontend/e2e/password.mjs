@@ -33,7 +33,7 @@ const guestCtx = await browser.newContext({ viewport: { width: 390, height: 844 
 const guest = await guestCtx.newPage();
 await guest.goto(BASE);
 await guest.getByText("비밀번호를 잊었나요?").click();
-check("로그인 화면: 비밀번호를 잊었을 때 안내가 펼쳐짐", await guest.getByText("관리자가 임시 비밀번호를 만들어 드려요").isVisible());
+check("로그인 화면: 비밀번호를 잊었을 때 안내가 펼쳐짐", await guest.getByText("임시 비밀번호를 답장해 드려요").isVisible());
 await guest.locator("[data-forgot-password]").screenshot({ path: `${outDir}/password-1-forgot.png` });
 await guest.getByRole("tab", { name: "회원가입" }).click();
 check("회원가입 화면: 소셜 연동 부탁 문구", await guest.locator("[data-signup-link-hint]").isVisible());

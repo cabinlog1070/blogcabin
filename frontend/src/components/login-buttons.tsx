@@ -47,7 +47,7 @@ function SignInForm() {
         <div className="mt-2 space-y-1 break-keep rounded-xl bg-cream p-3 text-ink-soft">
           <p>{t("카카오·구글을 연동해 두었다면 아래 간편 로그인으로 들어간 뒤, 내 얼굴 메뉴의 [환경 설정] → [비밀번호 바꾸기]에서 새 비밀번호를 정할 수 있어요.")}</p>
           <p>
-            {t("연동하지 않았다면 문의하기로 아이디를 알려 주세요. 관리자가 임시 비밀번호를 만들어 드려요.")}{" "}
+            {t("연동하지 않았다면 문의하기의 메일로 아이디·닉네임·블로그 이름을 알려 주세요. 관리자가 본인인지 확인한 뒤 임시 비밀번호를 답장해 드려요.")}{" "}
             <a href="/support" className="font-bold text-leaf-dark underline">{t("문의하기")}</a>
           </p>
         </div>
