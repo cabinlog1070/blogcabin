@@ -204,6 +204,13 @@
       "when": 1791873254279,
       "tag": "0028_remove_old_characters",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792060609436,
+      "tag": "0029_mention_notification",
+      "breakpoints": true
     }
   ]
 }

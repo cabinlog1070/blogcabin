@@ -109,6 +109,8 @@ export const NOTIFICATION_KINDS = [
   "pet_level_up",
   // 관리자가 보낸 선물 (ref_id = 선물 ID, actor_id = 보낸 관리자, 2026-10-13)
   "gift",
+  // 글·댓글에서 @블로그주소로 나를 언급함 (actor_id = 쓴 회원, post_id = 글, 댓글이면 ref_id = 댓글 ID, 2026-10-15)
+  "mention",
 ] as const;
 export const notificationKind = enumText(NOTIFICATION_KINDS);
 

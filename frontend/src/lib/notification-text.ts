@@ -46,6 +46,10 @@ export function presentNotification(
       return { ...base, text: t("💬 {who}님이 {title}에 댓글을 달았어요", { who, title }), href: `${postHref}#comments` };
     case "reply":
       return { ...base, text: t("💬 {who}님이 내 댓글에 답글을 달았어요", { who }), href: `${postHref}#comments` };
+    case "mention":
+      return r.inComment
+        ? { ...base, text: t("📣 {who}님이 {title}의 댓글에서 나를 언급했어요", { who, title }), href: `${postHref}#comments` }
+        : { ...base, text: t("📣 {who}님이 {title}에서 나를 언급했어요", { who, title }), href: postHref };
     case "gift":
       // 관리자가 함께 보낸 말은 쓴 그대로 (번역하지 않는다)
       return {

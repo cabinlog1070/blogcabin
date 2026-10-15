@@ -4,6 +4,7 @@ import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { getMemberBlog } from "../blog/member";
 import { attachmentKeysIn, htmlToText, sanitizePostHtml, type KnownAttachments } from "../blog/sanitize";
+import { findMentionedBlogs, linkMentions, mentionsInHtml, mentionTargets } from "../blog/mentions";
 import { MAX_PIN_HOURS, parseKstInput, SCHEDULE_MAX_DAYS } from "../blog/schedule";
 import { db } from "../db";
 import { attachments, categories, posts, postTags, tags } from "../db/schema";
@@ -13,6 +14,7 @@ import { grantReward, lockUser } from "../game/points";
 import { POST_REWARD_MIN_LENGTH } from "../game/rules";
 import { BAD_REQUEST, readJson, requireViewer, type GuardEnv } from "../http/guard";
 import { parseId } from "../lib/ids";
+import { notifyMentions } from "../notifications";
 
 const msg = <S extends string>(text: S): S => text;
 type Vars = Record<string, string | number>;
@@ -93,8 +95,11 @@ async function cleanContent(html: string) {
       : []
     ).map((a) => [a.key, { kind: a.kind as "image" | "file", name: a.name, size: a.size }]),
   );
-  const contentHtml = sanitizePostHtml(html, known);
-  return { contentHtml, contentText: htmlToText(contentHtml) };
+  // @주소 언급은 있는 블로그만 링크로 바꾸고, 그 주인들을 알림 받을 후보로 돌려준다
+  const sanitized = sanitizePostHtml(html, known);
+  const mentioned = await findMentionedBlogs(mentionsInHtml(sanitized));
+  const contentHtml = linkMentions(sanitized, new Set(mentioned.keys()));
+  return { contentHtml, contentText: htmlToText(contentHtml), mentionedUsers: [...mentioned.values()] };
 }
 
 /** 새 글 저장 또는 내 글 고치기 (postId). 없거나 내 글이 아니면 null */
@@ -107,7 +112,7 @@ async function savePost(userId: string, postId: number | null, body: Record<stri
   // 광장 게시판 게시 시간은 관리자 글만. 회원 글은 늘 0 (걸리지 않음)
   const pinHours = isAdmin ? input.pinHours : 0;
 
-  const { contentHtml, contentText } = await cleanContent(input.contentHtml);
+  const { contentHtml, contentText, mentionedUsers } = await cleanContent(input.contentHtml);
   if (!contentText) return fail(msg("본문을 적어 주세요"));
 
   const blogId = me.blogId;
@@ -128,6 +133,7 @@ async function savePost(userId: string, postId: number | null, body: Record<stri
     }
 
     let id: number;
+    let published = !input.publishAt; // 언급 알림은 지금 올라가 있는 글만
     if (postId) {
       // 수정: 내 블로그의 글인지 확인
       const [current] = await tx
@@ -137,6 +143,7 @@ async function savePost(userId: string, postId: number | null, body: Record<stri
       if (!current) return null;
       // 아직 안 올라간 예약 글만 시각을 바꾸거나 지금 올릴 수 있다. 이미 올라간 글의 시각은 그대로
       const createdAt = current.scheduled ? (input.publishAt ?? sql`now()`) : undefined;
+      if (!current.scheduled) published = true;
       const [updated] = await tx
         .update(posts)
         .set({ title: input.title, contentHtml, contentText, categoryId, visibility: input.visibility, createdAt, ...(isAdmin ? { pinHours } : {}) })
@@ -172,6 +179,10 @@ async function savePost(userId: string, postId: number | null, body: Record<stri
         await grantInviteReward(tx, userId);
       }
     }
+
+    // 본문에서 @주소로 언급한 회원에게 알림 (고쳐 저장하면 새로 언급한 사람에게만)
+    const mentionUsers = await mentionTargets({ visibility: input.visibility, ownerId: userId, published }, mentionedUsers);
+    await notifyMentions(tx, { userIds: mentionUsers, actorId: userId, postId: id });
 
     // 태그: 없는 태그는 만들고, 글과의 연결을 새로 맞춘다
     if (tagNames.length) {

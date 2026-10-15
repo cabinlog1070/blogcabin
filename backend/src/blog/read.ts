@@ -5,6 +5,7 @@ import { db } from "../db";
 import { blogs, categories, comments, follows, items, postLikes, posts, postTags, profiles, tags } from "../db/schema";
 import { isPublished } from "./access";
 import { lookSql } from "./look";
+import { findMentionedBlogs, mentionsIn } from "./mentions";
 
 const characterItem = alias(items, "character_item");
 const backgroundItem = alias(items, "background_item");
@@ -144,11 +145,21 @@ export async function getComments(postId: number) {
     .orderBy(asc(comments.createdAt), asc(comments.id));
 
   const liveReplyParents = new Set(rows.filter((c) => c.parentId && !c.deletedAt).map((c) => c.parentId));
+  // 댓글 속 @주소 가운데 실제로 있는 블로그 (화면이 이것만 링크로 보여 준다)
+  const live = rows.filter((c) => !c.deletedAt);
+  const known = await findMentionedBlogs([...new Set(live.flatMap((c) => mentionsIn(c.content)))]);
   type Row = (typeof rows)[number];
-  type Visible = Omit<Row, "authorId" | "nickname" | "blogSlug"> & { deleted: false; authorId: string; nickname: string; blogSlug: string };
+  type Visible = Omit<Row, "authorId" | "nickname" | "blogSlug"> & {
+    deleted: false;
+    authorId: string;
+    nickname: string;
+    blogSlug: string;
+    mentions: string[];
+  };
   return rows.flatMap((c): (Visible | { id: number; parentId: null; deleted: true })[] => {
     if (!c.deletedAt && c.authorId && c.nickname) {
-      return [{ ...c, deleted: false as const, authorId: c.authorId, nickname: c.nickname, blogSlug: c.blogSlug ?? "" }];
+      const mentions = mentionsIn(c.content).filter((slug) => known.has(slug));
+      return [{ ...c, deleted: false as const, authorId: c.authorId, nickname: c.nickname, blogSlug: c.blogSlug ?? "", mentions }];
     }
     // 삭제된 자리: 답글이 남은 원댓글만. 지운 내용·작성자·시각은 화면으로 보내지 않는다
     if (c.parentId || !liveReplyParents.has(c.id)) return [];
