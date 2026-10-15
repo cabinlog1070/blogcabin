@@ -286,6 +286,7 @@ export const roomFurniture = pgTable(
     itemId: integer("item_id").notNull(),
     x: real("x").notNull(),
     y: real("y").notNull(),
+    flipped: boolean("flipped").notNull().default(false), // 좌우로 뒤집어 놓았는지 (2026-10-15)
     placedAt: createdAt(),
   },
   (t) => [
