@@ -126,31 +126,56 @@ async function typeKoreanInCells(context, login) {
   await page.locator(".ProseMirror td").first().click();
   await word([["ㄱ", "가"], ["ㄴ", "나"], ["ㄷ", "다"]]);
   const got = [await page.locator(".ProseMirror th").first().innerText(), await page.locator(".ProseMirror td").first().innerText()];
+  // 굵은 글씨가 저절로 붙으면 안 된다 (맥 사파리는 칸 밖에 <b>로 넣는다)
+  const bold = await page.locator(".ProseMirror th, .ProseMirror td").locator("strong, b").count();
   await page.close();
-  return got.map((t) => t.trim()).join("|");
+  return got.map((t) => t.trim()).join("|") + (bold ? " (굵게)" : "");
 }
 const chromeTyped = await typeKoreanInCells(ctx, false);
 if (chromeTyped !== "종류|가나다") throw new Error(`표 칸 한글 입력이 이상해요: ${chromeTyped}`);
-const safari = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-await safari.addInitScript(() => {
-  Object.defineProperty(Navigator.prototype, "vendor", { get: () => "Apple Computer, Inc." });
-  document.addEventListener(
-    "compositionend",
-    (e) => {
-      const sel = getSelection();
-      const node = sel.focusNode;
-      const end = sel.focusOffset;
-      const cell = node?.nodeType === 3 && e.data ? node.parentElement.closest("td,th") : null;
-      if (!cell || end < e.data.length) return;
-      if (end < node.length) node.splitText(end);
-      const piece = end > e.data.length ? node.splitText(end - e.data.length) : node;
-      cell.parentNode.insertBefore(piece, cell);
-    },
-    true,
-  );
-});
-const safariTyped = await typeKoreanInCells(safari, true);
-if (safariTyped !== "종류|가나다") throw new Error(`사파리에서 표 칸 한글 순서가 뒤집혀요: ${safariTyped}`);
+// mode "mac": 맥 사파리 (2026-10-15 사용자 기록) — 빈 칸에서 첫 글자 조합이 끝나면 칸 속 문단을 지우고
+//   조합한 글자를 <span><b>로 감싸 칸 밖(행)에 넣은 뒤 조합 끝 알림을 보낸다
+// mode "move": 처음 짐작한 모양 — 조합한 글자만 칸 밖(행)으로 옮긴다
+async function safariLike(mode) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await context.addInitScript((mode) => {
+    Object.defineProperty(Navigator.prototype, "vendor", { get: () => "Apple Computer, Inc." });
+    document.addEventListener(
+      "compositionend",
+      (e) => {
+        const sel = getSelection();
+        const node = sel.focusNode;
+        const end = sel.focusOffset;
+        const cell = node?.nodeType === 3 && e.data ? node.parentElement.closest("td,th") : null;
+        if (!cell || end < e.data.length) return;
+        if (mode === "mac") {
+          const block = node.parentElement.closest("p");
+          if (block?.textContent !== e.data) return;
+          block.remove();
+          const b = document.createElement("b");
+          b.textContent = e.data;
+          const span = document.createElement("span");
+          span.append(b);
+          cell.parentNode.insertBefore(document.createElement("br"), cell);
+          cell.parentNode.insertBefore(span, cell);
+          sel.collapse(b.firstChild, e.data.length);
+          return;
+        }
+        if (end < node.length) node.splitText(end);
+        const piece = end > e.data.length ? node.splitText(end - e.data.length) : node;
+        cell.parentNode.insertBefore(piece, cell);
+      },
+      true,
+    );
+  }, mode);
+  const typed = await typeKoreanInCells(context, true);
+  await context.close();
+  return typed;
+}
+for (const mode of ["mac", "move"]) {
+  const typed = await safariLike(mode);
+  if (typed !== "종류|가나다") throw new Error(`사파리 흉내(${mode})에서 표 칸 한글 순서가 뒤집혀요: ${typed}`);
+}
 
 const all = [...errors, ...errorsP];
 if (all.length) throw new Error(all.join("\n"));
