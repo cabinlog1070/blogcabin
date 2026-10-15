@@ -16,21 +16,18 @@ jobs:
       SSH_USER: ${{ secrets.SSH_ID }}
     steps:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
-      - name: look for an automatic reload (read only)
+      - name: when did server nginx last reload (read only)
         run: |
           sshpass -e ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 ${SSH_USER}@${SSH_HOST} 'bash -s' <<'SH'
           set +e
           echo "== now"; date
-          echo "== nginx workers now"; ps -eo ppid,lstart,args | grep -E 'nginx: worker' | grep -v grep | awk '{print $2,$3,$4,$5,$6}' | sort | uniq -c | sort -k5 | tail -5
-          echo "== /etc/crontab and /etc/cron.d lines mentioning nginx"; grep -n -i -E 'nginx|reload' /etc/crontab /etc/cron.d/* 2>&1 | head -20
-          echo "== cron.hourly/daily names"; ls /etc/cron.hourly /etc/cron.daily 2>&1 | tr '\n' ' '; echo
-          echo "== systemd timers"; systemctl list-timers --all --no-pager 2>&1 | head -30
-          echo "== systemd path units (file watchers)"; systemctl list-units --type=path --all --no-pager 2>&1 | head -20
-          echo "== unit files mentioning nginx reload"; grep -rl -i -E 'nginx.*(reload|-s)' /etc/systemd/system /lib/systemd/system 2>/dev/null | head -10
-          for f in $(grep -rl -i -E 'nginx.*(reload|-s)' /etc/systemd/system 2>/dev/null | head -5); do echo "--- $f"; grep -v -i -E 'password|token|secret' "$f" | head -25; done
-          echo "== watcher-looking processes"; ps -eo user,lstart,args | grep -i -E 'inotify|incron|watch|reload|entr ' | grep -v -E 'grep|kworker|watchdog' | head -10
-          echo "== nginx logs readable?"; ls -la /var/log/nginx 2>&1 | head -8
-          tail -n 400 /var/log/nginx/error.log 2>/dev/null | grep -E 'signal|reconfigur|reload' | tail -15
-          echo "== ~/nginx files of all accounts changed in the last 3 hours"; find /home/*/nginx -maxdepth 1 -name '*.conf' -mmin -180 -printf '%TY-%Tm-%Td %TH:%TM:%TS %p\n' 2>/dev/null | sort | sed -E 's#/home/([^/]{2})[^/]*/#/home/\1***/#' | tail -15
-          echo "== journal for nginx (if readable)"; journalctl -u nginx --since '-3h' --no-pager 2>&1 | tail -10
+          echo "== server nginx (/usr/sbin/nginx) master and worker start times"
+          for pid in $(pgrep -f '^nginx: master process /usr/sbin/nginx'); do
+            echo "master $pid $(ps -o lstart= -p $pid)"
+            ps -eo ppid,lstart | awk -v p="$pid" '$1==p {$1=""; print "worker" $0}' | sort | uniq -c
+          done
+          echo "== our home and ~/nginx path"; echo "$HOME"; readlink -f ~/nginx
+          echo "== other accounts' nginx files changed in the last 3 hours (names hidden)"
+          base=$(dirname "$HOME"); find "$base"/*/nginx -maxdepth 1 -name '*.conf' -mmin -180 -printf '%TY-%Tm-%Td %TH:%TM:%.2TS\n' 2>/dev/null | sort
+          echo "count of readable nginx dirs: $(ls -d "$base"/*/nginx 2>/dev/null | wc -l)"
           SH
