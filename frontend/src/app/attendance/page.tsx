@@ -1,15 +1,13 @@
-import { and, desc, eq, gte } from "drizzle-orm";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
-import { db } from "@/db";
-import { attendances } from "@/db/schema";
 import type { IconName } from "@/lib/art/icons";
 import { formatDate } from "@/lib/format";
-import { ATTENDANCE_STREAK_BONUS_EVERY, currentStreak, REWARD_RULES, todayKST } from "@/lib/game";
+import { ATTENDANCE_STREAK_BONUS_EVERY, currentStreak, REWARD_RULES } from "@/lib/game";
 import { msg } from "@/lib/i18n";
 import { requireMember } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
-import { getDailyQuests, questProgress } from "@/server/quests";
+import { presentQuests, questProgress } from "@/server/quests";
+import { readApi } from "@/server/read-api";
 import { AttendButton } from "./attend-button";
 
 export async function generateMetadata() {
@@ -23,28 +21,12 @@ const QUEST_ICON: Record<string, IconName> = { attend: "calendar", post: "write"
 const WEEKDAYS = [msg("일"), msg("월"), msg("화"), msg("수"), msg("목"), msg("금"), msg("토")];
 
 export default async function AttendancePage() {
-  const viewer = await requireMember();
+  await requireMember();
   const t = await getT();
   const locale = await getLocale();
-  const today = todayKST();
-  const monthStart = `${today.slice(0, 7)}-01`;
-
-  const [rows, [last], quests] = await Promise.all([
-    // 달력용: 이번 달 출석
-    db
-      .select({ date: attendances.date, streak: attendances.streak })
-      .from(attendances)
-      .where(and(eq(attendances.userId, viewer.userId), gte(attendances.date, monthStart)))
-      .orderBy(desc(attendances.date)),
-    // 연속 일수용: 달과 상관없이 가장 최근 출석 1건 (GAME-04)
-    db
-      .select({ date: attendances.date, streak: attendances.streak })
-      .from(attendances)
-      .where(eq(attendances.userId, viewer.userId))
-      .orderBy(desc(attendances.date))
-      .limit(1),
-    getDailyQuests(viewer.userId, today),
-  ]);
+  // 이번 달 출석(달력), 가장 최근 출석(연속 일수, GAME-04), 오늘의 퀘스트 횟수. 오늘 날짜도 서버 기준
+  const { today, month: rows, last, questCounts } = await readApi.attendance();
+  const quests = presentQuests(t, questCounts);
   const attendedDates = new Set(rows.map((r) => r.date));
   const attendedToday = attendedDates.has(today);
 

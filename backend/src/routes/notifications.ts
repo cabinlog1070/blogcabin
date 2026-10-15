@@ -3,7 +3,9 @@
 import { Hono } from "hono";
 import { requireViewer, type GuardEnv } from "../http/guard";
 import { parseId } from "../lib/ids";
+import { listReceivedGifts } from "../gifts/views";
 import {
+  countUnread,
   getNotificationState,
   listNotificationRows,
   markAllNotificationsRead,
@@ -15,6 +17,14 @@ import {
 
 export const notificationRoutes = new Hono<GuardEnv>()
   .use(requireViewer("member"))
+  /** 알림함 화면: ?page= 쪽의 알림과 안 읽은 개수 */
+  .get("/", async (c) => {
+    const { userId } = c.get("viewer");
+    const [list, unread] = await Promise.all([listNotificationRows(userId, parseId(c.req.query("page")) ?? 1), countUnread(userId)]);
+    return c.json({ ...list, unread });
+  })
+  /** 받은 선물 화면: 최신 50개 */
+  .get("/gifts", async (c) => c.json({ gifts: await listReceivedGifts(c.get("viewer").userId) }))
   /** 쪽지를 열 때: 최신 알림 20개와 안 읽은 개수 */
   .get("/panel", async (c) => {
     const { userId } = c.get("viewer");

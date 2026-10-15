@@ -1,8 +1,8 @@
-import "server-only";
+// 상점·꾸미기 화면이 읽는 아이템 목록과 지금 입은 것 (읽기 API routes/shop.ts·closet.ts가 쓴다)
 import { and, asc, eq, sql } from "drizzle-orm";
-import { db } from "@/db";
-import { avatarEquips, blogs, items, profiles, userItems } from "@/db/schema";
-import { getRoomFurniture } from "@/server/look";
+import { getRoomFurniture } from "../blog/look";
+import { db } from "../db";
+import { avatarEquips, blogs, items, profiles, userItems } from "../db/schema";
 
 /** 전체 아이템 + 내가 가졌는지 + 가진 회원 수(인기순 정렬, SHOP-01) */
 export async function listItemsWithOwnership(userId: string) {
@@ -38,4 +38,10 @@ export async function getEquipped(userId: string) {
     getRoomFurniture(userId),
   ]);
   return { ...row, worn, furniture };
+}
+
+/** 고른 머리 색 (없으면 null) */
+export async function getHairColor(userId: string): Promise<string | null> {
+  const [row] = await db.select({ color: profiles.hairColor }).from(profiles).where(eq(profiles.userId, userId));
+  return row?.color ?? null;
 }

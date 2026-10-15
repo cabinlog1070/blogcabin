@@ -7,6 +7,8 @@ import { avatarEquips, blogs, items, profiles, roomFurniture, userAnimals, userI
 import { getWallet } from "../game/points";
 import { readJson, requireViewer, type GuardEnv } from "../http/guard";
 import { isFurnitureColor, isHairColor, isRoofColor } from "../shop/colors";
+import { getCarriedShowcase } from "../farm/read";
+import { getEquipped, getHairColor, listItemsWithOwnership } from "../shop/inventory";
 import { clampCharacterSpot, clampPct, clampPetSpot, fitRoomSpot } from "../shop/room";
 
 const msg = <S extends string>(text: S): S => text;
@@ -114,7 +116,35 @@ export async function saveCloset(userId: string, draft: ClosetDraft): Promise<Cl
   return { ok: true };
 }
 
-export const closetRoutes = new Hono<GuardEnv>().put("/", requireViewer("member"), async (c) => {
+/** 꾸미기 화면: 가진 아이템, 지금 입은 것, 지갑, 미니룸(지붕 색·캐릭터·펫 자리), 데리고 다니는 펫, 머리 색 */
+export async function closetPage(userId: string) {
+  const [all, equipped, wallet, [blog], pet, hairColor] = await Promise.all([
+    listItemsWithOwnership(userId),
+    getEquipped(userId),
+    getWallet(userId),
+    db
+      .select({ roofColor: blogs.roofColor, roomCharX: blogs.roomCharX, roomCharY: blogs.roomCharY, roomPetX: blogs.roomPetX, roomPetY: blogs.roomPetY })
+      .from(blogs)
+      .where(eq(blogs.ownerId, userId)),
+    getCarriedShowcase(userId), // 미니룸에 놓을 수 있는 펫 (데리고 다니는 펫)
+    getHairColor(userId),
+  ]);
+  return {
+    items: all.filter((i) => i.owned),
+    equipped,
+    wallet,
+    roofColor: blog?.roofColor ?? null,
+    characterSpot: blog?.roomCharX != null && blog.roomCharY != null ? { x: blog.roomCharX, y: blog.roomCharY } : null,
+    petSpot: blog?.roomPetX != null && blog.roomPetY != null ? { x: blog.roomPetX, y: blog.roomPetY } : null,
+    pet,
+    hairColor,
+  };
+}
+
+export const closetRoutes = new Hono<GuardEnv>()
+  /** 꾸미기 화면 읽기 */
+  .get("/", requireViewer("member"), async (c) => c.json(await closetPage(c.get("viewer").userId)))
+  .put("/", requireViewer("member"), async (c) => {
   const result = await saveCloset(c.get("viewer").userId, (await readJson(c)) as ClosetDraft);
   return c.json(result, result.ok ? 200 : 400);
 });

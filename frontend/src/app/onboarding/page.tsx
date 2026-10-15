@@ -1,11 +1,9 @@
-import { and, asc, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { db } from "@/db";
-import { items } from "@/db/schema";
 import { INVITE_COOKIE, normalizeInviteCode } from "@/lib/invite";
 import { requireUser } from "@/server/dal";
 import { getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 import { OnboardingForm } from "./onboarding-form";
 
 export async function generateMetadata() {
@@ -18,11 +16,7 @@ export default async function OnboardingPage() {
   if (viewer.profile) redirect("/town");
   const t = await getT();
 
-  const starters = await db
-    .select({ id: items.id, name: items.name, description: items.description, assetKey: items.assetKey })
-    .from(items)
-    .where(and(eq(items.type, "character"), eq(items.isStarter, true)))
-    .orderBy(asc(items.id));
+  const { starters } = await readApi.onboarding();
   // 초대 링크로 들어왔으면 그 코드로 칸을 미리 채운다 (GAME-09, src/proxy.ts가 쿠키에 남김)
   const invited = normalizeInviteCode((await cookies()).get(INVITE_COOKIE)?.value) ?? "";
 

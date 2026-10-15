@@ -7,6 +7,7 @@ import { Hono, type Context } from "hono";
 import { db } from "../db";
 import { animalCares, animalSpecies, farmItems, pointLedger, profiles, userAnimals } from "../db/schema";
 import { addGrowth, countAnimals, type GrowthResult } from "../farm/growth";
+import { getFarm } from "../farm/read";
 import {
   CARE_ACTIONS,
   type CareAction,
@@ -97,8 +98,16 @@ async function isGrowing(tx: Tx, userId: string, id: number) {
 
 class NotMine extends Error {}
 
+/** 농장 화면: 지갑과 알·동물·물약·도감 */
+export async function farmPage(userId: string) {
+  const wallet = await getWallet(userId);
+  return { wallet, farm: await getFarm(userId, wallet.level) };
+}
+
 export const farmRoutes = new Hono<GuardEnv>()
   .use(requireViewer("member"))
+  /** 농장 화면 읽기 */
+  .get("/", async (c) => c.json(await farmPage(c.get("viewer").userId)))
   /** 무료 알 받기: { kind: "starter" } 농장 첫 알, { kind: "level", level } 레벨 보상 알(5레벨마다) */
   .post("/eggs/claim", async (c) => {
     const { userId } = c.get("viewer");

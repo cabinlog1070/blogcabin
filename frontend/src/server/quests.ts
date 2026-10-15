@@ -1,11 +1,9 @@
 // 오늘의 퀘스트: 하루에 해 볼 만한 활동 5가지를 얼마나 했는지 보여 준다 (보상 없음, 상태만)
 // 횟수는 서버 코드(backend/src/town/quests.ts, 광장 API도 쓴다)가 세고, 여기엔 화면에 보이는 문장을 둔다
 import "server-only";
-import { cache } from "react";
-import { todayKST } from "@/lib/game";
+import type { T } from "@/lib/i18n";
 import { msg } from "@/lib/i18n";
-import { getT } from "@/server/i18n";
-import { countDailyQuests, QUEST_GOALS, QUEST_POST_MIN_CHARS, type QuestKey } from "@backend/town/quests";
+import { QUEST_GOALS, QUEST_POST_MIN_CHARS, type QuestKey } from "@backend/town/quests";
 
 export { QUEST_POST_MIN_CHARS, type QuestKey } from "@backend/town/quests";
 
@@ -58,22 +56,15 @@ const QUESTS: Omit<DailyQuest, "count" | "done" | "goal">[] = [
   },
 ];
 
-export const DAILY_QUEST_COUNT = QUESTS.length;
-
-/**
- * 오늘의 퀘스트 5개와 진행 횟수. today는 한국 시간 날짜(YYYY-MM-DD).
- * 한 요청 안에서 여러 곳(헤더·화면)이 불러도 한 번만 조회한다. label·hint는 화면 언어로 바꿔서 돌려준다.
- */
-export const getDailyQuests = cache(async (userId: string, today: string = todayKST()): Promise<DailyQuest[]> => {
-  const counts = await countDailyQuests(userId, today);
-  const t = await getT();
+/** 오늘의 퀘스트 5개: 서버(출석 읽기 API)가 센 횟수에 화면 언어의 이름·안내를 붙인다 */
+export function presentQuests(t: T, counts: Record<QuestKey, number>): DailyQuest[] {
   const vars = { n: QUEST_POST_MIN_CHARS };
   return QUESTS.map((q) => {
     const count = counts[q.key];
     const goal = QUEST_GOALS[q.key];
     return { ...q, label: t(q.label, vars), hint: t(q.hint, vars), goal, count, done: count >= goal };
   });
-});
+}
 
 /** 완료한 퀘스트 수 (광장의 "퀘스트 n/5" 같은 요약용) */
 export function questProgress(quests: DailyQuest[]) {
