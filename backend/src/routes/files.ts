@@ -4,7 +4,8 @@ import { eq, like } from "drizzle-orm";
 import { Hono } from "hono";
 import { canSeePrivatePosts, isPublished } from "../blog/access";
 import { ATTACHMENT_KEY_RE } from "../attachments/rules";
-import { openAttachment } from "../attachments/storage";
+import { ensureDisplayImage } from "../attachments/display";
+import { openAttachment, openView } from "../attachments/storage";
 import { db } from "../db";
 import { attachments, blogs, posts } from "../db/schema";
 import { memberOrNull, NOT_FOUND, type GuardEnv } from "../http/guard";
@@ -40,24 +41,39 @@ export const fileRoutes = new Hono<GuardEnv>().get("/:key", async (c) => {
   const [row] = await db.select().from(attachments).where(eq(attachments.key, key));
   if (!row) return missing();
   if (!(await canOpen(key, row.userId, (await memberOrNull(c))?.userId ?? null))) return missing();
-  const body = await openAttachment(key);
-  if (!body) return missing();
+  // 사진은 원본 대신 줄여서 다시 압축한 사본을 보낸다 (display.ts). 사본이 없거나 원본이 더 나으면 원본
+  const view = row.kind === "image" ? await ensureDisplayImage(key) : null;
+  const useView = view && view.format !== "none" ? { format: view.format, size: view.size } : null;
+  const mime = useView ? (useView.format === "webp" ? "image/webp" : "image/jpeg") : row.mime;
+  const size = useView ? useView.size : row.size;
+  // 같은 사진을 다시 열면 내용을 다시 받지 않게 (아래 no-cache라 매번 묻기는 하지만, 바뀌지 않았으면 304로 짧게 끝난다)
+  const etag = `"${key}-${useView ? useView.format : "o"}-${size}"`;
 
   // 한글 이름은 filename*(UTF-8)로, 옛 브라우저용 filename에는 ASCII 밖 글자와 " \ 를 _로 바꿔 넣는다
   const encoded = encodeURIComponent(row.name).replace(/['()*]/g, (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`);
   const ascii = row.name.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
   const disposition = `${row.kind === "image" ? "inline" : "attachment"}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+  const common = {
+    ETag: etag,
+    // 글이 공개 ↔ 비공개로 바뀌면 접근도 바로 바뀌어야 하므로, 브라우저·중간 캐시가 오래 들고 있지 않게 매번 확인한다
+    "Cache-Control": "private, no-cache",
+  };
 
+  if (c.req.header("if-none-match")?.split(",").some((t) => t.trim() === etag)) {
+    return new Response(null, { status: 304, headers: common });
+  }
+
+  const body = useView ? openView(key, useView.format) : await openAttachment(key);
+  if (!body) return missing();
   return new Response(body, {
     headers: {
-      "Content-Type": row.mime,
-      "Content-Length": String(row.size),
+      ...common,
+      "Content-Type": mime,
+      "Content-Length": String(size),
       "Content-Disposition": disposition,
       // 브라우저가 형식을 추측해 HTML처럼 실행하지 못하게 한다
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "default-src 'none'; img-src 'self'; media-src 'self'; sandbox",
-      // 글이 공개 ↔ 비공개로 바뀌면 접근도 바로 바뀌어야 하므로, 브라우저·중간 캐시가 오래 들고 있지 않게 매번 확인한다
-      "Cache-Control": "private, no-cache",
     },
   });
 });

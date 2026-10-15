@@ -18,10 +18,10 @@ function reviveDates(_key: string, value: unknown) {
 }
 
 /** 서버 API를 부른 답 그대로 (첨부 파일처럼 JSON이 아닌 것도) */
-export async function serverFetch(path: string): Promise<Response> {
+export async function serverFetch(path: string, extraHeaders: string[] = []): Promise<Response> {
   const incoming = await headers();
   const forwarded = new Headers();
-  for (const name of ["cookie", "x-forwarded-for", "x-forwarded-proto", "accept-language", "user-agent"]) {
+  for (const name of ["cookie", "x-forwarded-for", "x-forwarded-proto", "accept-language", "user-agent", ...extraHeaders]) {
     const value = incoming.get(name);
     if (value) forwarded.set(name, value);
   }
