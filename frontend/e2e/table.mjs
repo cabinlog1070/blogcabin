@@ -131,26 +131,43 @@ async function typeKoreanInCells(context, login) {
 }
 const chromeTyped = await typeKoreanInCells(ctx, false);
 if (chromeTyped !== "종류|가나다") throw new Error(`표 칸 한글 입력이 이상해요: ${chromeTyped}`);
-const safari = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-await safari.addInitScript(() => {
-  Object.defineProperty(Navigator.prototype, "vendor", { get: () => "Apple Computer, Inc." });
-  document.addEventListener(
-    "compositionend",
-    (e) => {
-      const sel = getSelection();
-      const node = sel.focusNode;
-      const end = sel.focusOffset;
-      const cell = node?.nodeType === 3 && e.data ? node.parentElement.closest("td,th") : null;
-      if (!cell || end < e.data.length) return;
-      if (end < node.length) node.splitText(end);
-      const piece = end > e.data.length ? node.splitText(end - e.data.length) : node;
-      cell.parentNode.insertBefore(piece, cell);
-    },
-    true,
-  );
-});
-const safariTyped = await typeKoreanInCells(safari, true);
-if (safariTyped !== "종류|가나다") throw new Error(`사파리에서 표 칸 한글 순서가 뒤집혀요: ${safariTyped}`);
+// lateEnd: 조합 끝 알림이 글자 이동보다 늦게 오는 경우 (브라우저마다 순서가 다르다)
+async function safariLike(lateEnd) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await context.addInitScript((late) => {
+    Object.defineProperty(Navigator.prototype, "vendor", { get: () => "Apple Computer, Inc." });
+    document.addEventListener(
+      "compositionend",
+      (e) => {
+        if (e.__resent) return;
+        const sel = getSelection();
+        const node = sel.focusNode;
+        const end = sel.focusOffset;
+        const cell = node?.nodeType === 3 && e.data ? node.parentElement.closest("td,th") : null;
+        if (!cell || end < e.data.length) return;
+        if (end < node.length) node.splitText(end);
+        const piece = end > e.data.length ? node.splitText(end - e.data.length) : node;
+        cell.parentNode.insertBefore(piece, cell);
+        if (!late) return;
+        e.stopImmediatePropagation();
+        const target = e.target;
+        setTimeout(() => {
+          const again = new CompositionEvent("compositionend", { data: e.data, bubbles: true });
+          again.__resent = true;
+          target.dispatchEvent(again);
+        }, 40);
+      },
+      true,
+    );
+  }, lateEnd);
+  const typed = await typeKoreanInCells(context, true);
+  await context.close();
+  return typed;
+}
+for (const lateEnd of [false, true]) {
+  const typed = await safariLike(lateEnd);
+  if (typed !== "종류|가나다") throw new Error(`사파리 흉내${lateEnd ? "(조합 끝 알림 늦게)" : ""}에서 표 칸 한글 순서가 뒤집혀요: ${typed}`);
+}
 
 const all = [...errors, ...errorsP];
 if (all.length) throw new Error(all.join("\n"));
