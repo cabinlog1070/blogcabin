@@ -102,6 +102,56 @@ await p.getByRole("toolbar", { name: "표 도구" }).waitFor();
 await p.keyboard.type("휴대폰");
 await p.screenshot({ path: `${outDir}/table-6-phone-editor.png` });
 
+// 표 칸 한글 입력 (2026-10-14 사파리에서 "종류"가 "류종"으로 들어가던 문제)
+// 사파리는 칸 안에서 조합이 끝나면 조합한 글자를 칸 밖(행)으로 옮긴다. 그 동작을 흉내 내서 확인한다
+async function typeKoreanInCells(context, login) {
+  const page = await context.newPage();
+  if (login) await loginDev(page, "tabler1");
+  await page.goto(`${BASE}/write`);
+  await page.locator(".ProseMirror").click();
+  await page.getByRole("button", { name: "표 넣기" }).click();
+  await page.getByRole("button", { name: "3행 × 3열" }).click();
+  const cdp = await context.newCDPSession(page);
+  const word = async (syllables) => {
+    for (const steps of syllables) {
+      for (const s of steps) {
+        await cdp.send("Input.imeSetComposition", { text: s, selectionStart: s.length, selectionEnd: s.length });
+        await page.waitForTimeout(60);
+      }
+      await cdp.send("Input.insertText", { text: steps.at(-1) });
+      await page.waitForTimeout(60);
+    }
+  };
+  await word([["ㅈ", "조", "종"], ["ㄹ", "류"]]);
+  await page.locator(".ProseMirror td").first().click();
+  await word([["ㄱ", "가"], ["ㄴ", "나"], ["ㄷ", "다"]]);
+  const got = [await page.locator(".ProseMirror th").first().innerText(), await page.locator(".ProseMirror td").first().innerText()];
+  await page.close();
+  return got.map((t) => t.trim()).join("|");
+}
+const chromeTyped = await typeKoreanInCells(ctx, false);
+if (chromeTyped !== "종류|가나다") throw new Error(`표 칸 한글 입력이 이상해요: ${chromeTyped}`);
+const safari = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+await safari.addInitScript(() => {
+  Object.defineProperty(Navigator.prototype, "vendor", { get: () => "Apple Computer, Inc." });
+  document.addEventListener(
+    "compositionend",
+    (e) => {
+      const sel = getSelection();
+      const node = sel.focusNode;
+      const end = sel.focusOffset;
+      const cell = node?.nodeType === 3 && e.data ? node.parentElement.closest("td,th") : null;
+      if (!cell || end < e.data.length) return;
+      if (end < node.length) node.splitText(end);
+      const piece = end > e.data.length ? node.splitText(end - e.data.length) : node;
+      cell.parentNode.insertBefore(piece, cell);
+    },
+    true,
+  );
+});
+const safariTyped = await typeKoreanInCells(safari, true);
+if (safariTyped !== "종류|가나다") throw new Error(`사파리에서 표 칸 한글 순서가 뒤집혀요: ${safariTyped}`);
+
 const all = [...errors, ...errorsP];
 if (all.length) throw new Error(all.join("\n"));
 console.log("✅ 표 넣기·고치기·읽기 (컴퓨터·휴대폰)");

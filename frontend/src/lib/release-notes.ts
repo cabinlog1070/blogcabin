@@ -50,6 +50,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-14",
     versions: [
       {
+        version: "1.32.10",
+        title: msg("표 칸 한글 입력 고침"),
+        changes: [
+          { kind: "fixed", text: msg("사파리(맥·아이폰)에서 글쓰기 표 칸에 한글을 치면 두 번째 글자부터 순서가 뒤집혀 들어가던 문제를 고쳤어요.") },
+        ],
+      },
+      {
         version: "1.32.9",
         title: msg("삼성 인터넷 다크 모드 안내"),
         changes: [

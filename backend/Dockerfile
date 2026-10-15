@@ -1,5 +1,6 @@
 # BlogCabin 서버(backend) 운영 이미지 (Node 24). GitHub Actions(.github/workflows/deploy.yml)가 빌드하고
-# 서버의 deploy/deploy.sh가 실행한다. 포트는 PORT(운영 8443·8444). DB 마이그레이션도 이 이미지로 돌린다.
+# 운영에서는 서버의 deploy/deploy.sh가 DB 마이그레이션에만 쓴다 (손님은 화면 이미지 안에서 이 서버 앱을 같이 돌려 받는다).
+# 따로 띄울 때 포트는 PORT.
 # npm 설치가 맨 위 package-lock.json 하나라서 저장소 맨 위에서 빌드한다.
 #
 # 직접 빌드·실행 (저장소 맨 위에서):
