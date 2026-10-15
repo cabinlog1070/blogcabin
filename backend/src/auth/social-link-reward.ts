@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db";
-import { pointLedger, profiles, socialLinkRewards } from "../db/schema";
+import { accounts, pointLedger, profiles, socialLinkRewards } from "../db/schema";
 import { SOCIAL_LINK_REWARD_COINS, SOCIAL_PROVIDERS } from "./social-providers";
 
 /** 소셜 계정 번호를 남기지 않고 같은 계정인지만 알 수 있는 값 (사이트 비밀키로 만든 HMAC-SHA256 hex) */
@@ -44,4 +44,18 @@ export async function grantSocialLinkReward(userId: string, providerId: string, 
       .returning({ id: pointLedger.id });
     return inserted.length > 0;
   });
+}
+
+/**
+ * 이 회원에 붙은 소셜 계정(google·kakao·naver)마다 grantSocialLinkReward를 부른다.
+ * 소셜로 처음 가입한 회원이 주민 등록을 마칠 때, 아이디를 만들 때 쓴다. 반환: 실제로 받은 소셜 목록
+ */
+export async function grantSocialLinkRewardsFor(userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ providerId: accounts.providerId, accountId: accounts.accountId })
+    .from(accounts)
+    .where(eq(accounts.userId, userId));
+  const granted: string[] = [];
+  for (const r of rows) if (await grantSocialLinkReward(userId, r.providerId, r.accountId)) granted.push(r.providerId);
+  return granted;
 }

@@ -1,11 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { useT } from "@/components/i18n";
 import { Icon } from "@/components/icon";
 import { ItemArt } from "@/components/item-art";
 import { PetArt } from "@/components/pet-art";
-import { adminSendGift, type GiftState } from "./actions";
+import { errorText } from "@/lib/api";
+import { adminApi } from "./admin-api";
+
+type GiftState = { error?: string; ok?: string; skipped?: string; sentAt?: number };
 
 type Member = { userId: string; label: string; search: string };
 type GiftItem = { id: number; type: string; name: string; assetKey: string };
@@ -24,8 +28,32 @@ const TYPE_TABS = [
  * 보내고 나면 고른 것과 적은 말을 비운다 (다음 선물은 새로 고른다)
  */
 export function AdminGiftForm({ members, items, pets, messageMax }: { members: Member[]; items: GiftItem[]; pets: GiftPet[]; messageMax: number }) {
-  const [state, action, pending] = useActionState<GiftState, FormData>(adminSendGift, {});
   const t = useT();
+  const router = useRouter();
+  const [state, action, pending] = useActionState<GiftState, FormData>(async (_prev, form) => {
+    try {
+      const done = await adminApi.sendGift({
+        message: String(form.get("message") ?? ""),
+        coins: String(form.get("coins") ?? "").trim(),
+        itemIds: form.getAll("itemId").map(Number),
+        speciesIds: form.getAll("speciesId").map(Number),
+        userIds: form.getAll("userId").map(String),
+        everyone: form.get("everyone") === "on",
+      });
+      router.refresh(); // 나에게도 보냈으면 알림·선물 팝업이 바로 보인다
+      const names = done.sent;
+      return {
+        ok:
+          names.length <= 3
+            ? t("{names}님에게 선물을 보냈어요", { names: names.join(", ") })
+            : t("{names}님 외 {n}명에게 선물을 보냈어요", { names: names.slice(0, 3).join(", "), n: names.length - 3 }),
+        skipped: done.skipped.length ? t("아이템을 이미 모두 갖고 있어서 보내지 않은 주민: {names}", { names: done.skipped.join(", ") }) : undefined,
+        sentAt: Date.now(),
+      };
+    } catch (e) {
+      return { error: errorText(t, e) };
+    }
+  }, {});
   const [query, setQuery] = useState("");
   const [everyone, setEveryone] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());

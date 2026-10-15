@@ -4,6 +4,7 @@ import { uploadAttachment } from "./attachments/upload";
 import { auth } from "./auth";
 import { db } from "./db";
 import { accountRoutes } from "./routes/account";
+import { adminRoutes } from "./routes/admin";
 import { blogRoutes } from "./routes/blog";
 import { attendance } from "./routes/attendance";
 import { closetRoutes } from "./routes/closet";
@@ -11,6 +12,7 @@ import { farmRoutes } from "./routes/farm";
 import { localeRoutes } from "./routes/locale";
 import { myBlogRoutes } from "./routes/my-blog";
 import { notificationRoutes } from "./routes/notifications";
+import { onboardingRoutes } from "./routes/onboarding";
 import { postRoutes } from "./routes/posts";
 import { shopRoutes } from "./routes/shop";
 
@@ -46,7 +48,7 @@ v1.get("/health", async (c) => {
 // 글 첨부 올리기 (사진·파일, 로그인한 주민만)
 v1.post("/uploads", uploadAttachment);
 
-// 출석 체크, 알림함·레벨업·선물 팝업, 화면 언어, 회원 탈퇴
+// 출석 체크, 알림함·레벨업·선물 팝업, 화면 언어, 아이디 만들기·합치기·회원 탈퇴
 v1.route("/attendance", attendance);
 v1.route("/notifications", notificationRoutes);
 v1.route("/locale", localeRoutes);
@@ -63,6 +65,10 @@ v1.route("/farm", farmRoutes);
 v1.route("/blog", blogRoutes);
 v1.route("/my-blog", myBlogRoutes);
 v1.route("/posts", postRoutes);
+
+// 마을 주민 등록(온보딩), 관리자(글·댓글 지우기, 강제 탈퇴, 지급, 선물 보내기)
+v1.route("/onboarding", onboardingRoutes);
+v1.route("/admin", adminRoutes);
 
 app.route("/api/v1", v1);
 
