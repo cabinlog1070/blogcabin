@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { PasswordForm } from "@/app/settings/account/password-form";
 import { WithdrawForm } from "@/app/settings/account/withdraw-form";
 import { ADMIN_BLOG_TITLE } from "@/lib/nickname";
+import { FRESH_MINUTES as PASSWORD_FRESH_MINUTES } from "@backend/account/password-rules";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
 import { readApi } from "@/server/read-api";
@@ -16,7 +18,7 @@ export default async function BlogSettingsPage() {
   const t = await getT();
   const data = await readApi.blogSettings();
   if (!data) return null;
-  const { blog, categories: cats, statusMessage, hasPassword } = data;
+  const { blog, categories: cats, statusMessage, hasPassword, skipCurrentPassword } = data;
   const isAdmin = viewer.user.role === "admin";
 
   return (
@@ -42,6 +44,16 @@ export default async function BlogSettingsPage() {
         <h2 className="mb-2 font-display text-xl">{t("카테고리")}</h2>
         <CategoryManager categories={cats} />
       </section>
+
+      {hasPassword && (
+        <section className="card mt-6 p-6" aria-labelledby="password-title" id="password">
+          <h2 id="password-title" className="mb-2 font-display text-xl">{t("비밀번호 바꾸기")}</h2>
+          <p className="mb-4 text-sm text-ink-soft">
+            {t("지금 비밀번호를 잊었다면 로그아웃한 뒤 연동해 둔 카카오·구글로 다시 로그인해 주세요. 로그인하고 {minutes}분 안에는 지금 비밀번호 없이 바꿀 수 있어요.", { minutes: PASSWORD_FRESH_MINUTES })}
+          </p>
+          <PasswordForm skipCurrent={skipCurrentPassword} />
+        </section>
+      )}
 
       <section className="card mt-10 border-berry/40 p-6" aria-label={t("회원 탈퇴")}>
         <h2 className="mb-2 font-display text-xl">{t("회원 탈퇴")}</h2>

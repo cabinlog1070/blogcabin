@@ -1,0 +1,1 @@
+ALTER TABLE "room_furniture" ADD COLUMN "flipped" boolean DEFAULT false NOT NULL;

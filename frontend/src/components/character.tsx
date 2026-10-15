@@ -41,12 +41,12 @@ export function CharacterArt({ asset, size = 96, className = "" }: { asset: stri
 }
 
 /** 미니룸에 놓인 가구 하나. x·y는 미니룸 기준 비율(0~100%)로 본 가구의 가운데 (SHOP-05) */
-export type RoomFurniture = { id: number; assetKey: string; x: number; y: number };
+export type RoomFurniture = { id: number; assetKey: string; x: number; y: number; flipped?: boolean };
 
 /** 가구 그림 (미니룸 안 위치, 높이는 미니룸 높이에 대한 비율) */
-export function FurnitureArt({ assetKey, className = "" }: { assetKey: string; className?: string }) {
+export function FurnitureArt({ assetKey, className = "", flipped = false }: { assetKey: string; className?: string; flipped?: boolean }) {
   // eslint-disable-next-line @next/next/no-img-element -- 코드로 만든 SVG(data URI)
-  return <img src={furnitureDataUri(assetKey, 160)} alt="" draggable={false} className={className} aria-hidden />;
+  return <img src={furnitureDataUri(assetKey, 160)} alt="" draggable={false} className={`${className} ${flipped ? "-scale-x-100" : ""}`} aria-hidden />;
 }
 
 /** 미니룸: 장착한 배경 장면 위에 캐릭터가 서 있는 작은 방. 가구는 아래쪽에 있는 것이 앞에 보인다.
@@ -120,6 +120,7 @@ export function MiniRoom({
             data-furniture={parseFurnitureKey(f.assetKey).assetKey}
             data-furniture-color={parseFurnitureKey(f.assetKey).color ?? undefined}
             data-selected={selectedFurnitureId === f.id || undefined}
+            data-flipped={f.flipped || undefined}
             {...furnitureProps?.(f)}
             className={`absolute -translate-x-1/2 -translate-y-1/2 drop-shadow ${furnitureProps ? "cursor-grab touch-none select-none" : ""} ${hiddenFurnitureId === f.id ? "opacity-0" : ""} ${selectedFurnitureId === f.id ? "rounded-lg outline-[3px] outline-offset-2 outline-ember outline-dashed" : ""}`}
             style={{
@@ -130,7 +131,7 @@ export function MiniRoom({
               zIndex: info.flat ? 0 : roomDepth("furniture", at.y),
             }}
           >
-            <FurnitureArt assetKey={f.assetKey} className="pointer-events-none h-full w-full" />
+            <FurnitureArt assetKey={f.assetKey} flipped={f.flipped} className="pointer-events-none h-full w-full" />
           </div>
         );
       })}

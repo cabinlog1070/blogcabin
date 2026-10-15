@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { CharacterBadge } from "@/components/character";
 import { useT } from "@/components/i18n";
+import { splitMentions } from "@backend/blog/mention-text";
 import { saveError } from "@/lib/api";
 import { blogApi } from "@/lib/blog-api";
 
@@ -24,8 +25,30 @@ export type CommentData =
       nickname: string;
       characterAsset: string;
       blogSlug: string;
+      /** 내용 속 @주소 가운데 있는 블로그 (이것만 링크로) */
+      mentions: string[];
     }
   | { id: number; parentId: null; deleted: true };
+
+/** 댓글 내용: @주소 언급은 그 블로그로 가는 링크로 (없는 주소는 글자 그대로) */
+function CommentText({ content, mentions }: { content: string; mentions: string[] }) {
+  const known = new Set(mentions);
+  return (
+    <p className="mt-0.5 whitespace-pre-wrap break-words">
+      {splitMentions(content).map((part, i) =>
+        i % 2 === 0 ? (
+          part
+        ) : known.has(part) ? (
+          <Link key={i} href={`/@${part}`} data-mention className="font-bold text-leaf-dark hover:underline">
+            @{part}
+          </Link>
+        ) : (
+          `@${part}`
+        ),
+      )}
+    </p>
+  );
+}
 
 function CommentForm({ postId, parentId, onDone }: { postId: number; parentId?: number; onDone?: () => void }) {
   const t = useT();
@@ -149,7 +172,7 @@ function CommentItem({
           {editing ? (
             <EditCommentForm commentId={c.id} content={c.content} onDone={stopEditing} />
           ) : (
-            <p className="mt-0.5 whitespace-pre-wrap break-words">{c.content}</p>
+            <CommentText content={c.content} mentions={c.mentions} />
           )}
           {viewerId && !editing && (
             <div className="mt-1 flex gap-3 text-xs text-ink-soft">

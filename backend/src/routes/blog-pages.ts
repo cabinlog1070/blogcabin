@@ -2,6 +2,8 @@
 // 방문자도 보는 블로그 홈·글은 로그인 없이 답하고, 비공개 글·예약 글은 볼 수 있는 사람에게만 준다
 import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { canSkipCurrentPassword } from "../account/password";
+import { auth } from "../auth";
 import { db } from "../db";
 import { accounts, categories, profiles } from "../db/schema";
 import { getCarriedShowcase, getDisplayedCard } from "../farm/read";
@@ -103,8 +105,11 @@ export async function writePage(userId: string, postId: number | null) {
   return { categories: cats, post, tags };
 }
 
-/** 블로그 관리 화면: 블로그 정보, 카테고리(비공개·예약 글 수 포함), 상태 메시지, 아이디 로그인이 있는지(탈퇴할 때 비밀번호 확인, AUTH-06) */
-export async function blogSettingsPage(userId: string) {
+/**
+ * 블로그 관리 화면: 블로그 정보, 카테고리(비공개·예약 글 수 포함), 상태 메시지, 아이디 로그인이 있는지(탈퇴할 때 비밀번호 확인, AUTH-06),
+ * 비밀번호 바꾸기에서 지금 비밀번호 칸을 비워도 되는지(소셜로 방금 로그인, src/account/password.ts)
+ */
+export async function blogSettingsPage(userId: string, sessionCreatedAt: Date | null) {
   const blog = await getBlogByOwner(userId);
   if (!blog) return null;
   const [cats, [credential], [profile]] = await Promise.all([
@@ -112,7 +117,13 @@ export async function blogSettingsPage(userId: string) {
     db.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.userId, userId), eq(accounts.providerId, "credential"))),
     db.select({ statusMessage: profiles.statusMessage }).from(profiles).where(eq(profiles.userId, userId)),
   ]);
-  return { blog: { slug: blog.slug, title: blog.title, description: blog.description }, categories: cats, statusMessage: profile?.statusMessage ?? null, hasPassword: Boolean(credential) };
+  return {
+    blog: { slug: blog.slug, title: blog.title, description: blog.description },
+    categories: cats,
+    statusMessage: profile?.statusMessage ?? null,
+    hasPassword: Boolean(credential),
+    skipCurrentPassword: sessionCreatedAt ? await canSkipCurrentPassword(userId, sessionCreatedAt) : false,
+  };
 }
 
 export const blogPageRoutes = new Hono<GuardEnv>()
@@ -132,6 +143,7 @@ export const blogPageRoutes = new Hono<GuardEnv>()
     return data ? c.json(data) : c.json({ ok: false, error: NOT_FOUND }, 404);
   })
   .get("/settings", requireViewer("member"), async (c) => {
-    const data = await blogSettingsPage(c.get("viewer").userId);
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    const data = await blogSettingsPage(c.get("viewer").userId, session ? new Date(session.session.createdAt) : null);
     return data ? c.json(data) : c.json({ ok: false, error: NOT_FOUND }, 404);
   });
