@@ -3,9 +3,9 @@
 import "server-only";
 import type { T } from "@/lib/i18n";
 import { msg } from "@/lib/i18n";
-import { QUEST_GOALS, QUEST_POST_MIN_CHARS, type QuestKey } from "@backend/town/quests";
+import { QUEST_GOALS, QUEST_POST_MIN_CHARS, type QuestKey } from "@backend/town/quest-rules";
 
-export { QUEST_POST_MIN_CHARS, type QuestKey } from "@backend/town/quests";
+export { QUEST_POST_MIN_CHARS, type QuestKey } from "@backend/town/quest-rules";
 
 export type DailyQuest = {
   key: QuestKey;

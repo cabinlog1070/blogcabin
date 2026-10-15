@@ -4,7 +4,7 @@
 //     + sessions 행을 바로 넣고, 브라우저에는 Better Auth와 같은 방식(HMAC-SHA256, BETTER_AUTH_SECRET)으로 서명한
 //     better-auth.session_token 쿠키를 넣는다.
 //   - "프로필 메뉴 [연동하기]": OAuth 콜백의 마지막 단계(internalAdapter.createAccount)를 e2e/social-link-hook.ts가
-//     그대로 부른다 → src/lib/auth.ts databaseHooks.account.create.after → grantSocialLinkReward (실제 코드 그대로)
+//     그대로 부른다 → backend/src/auth databaseHooks.account.create.after → grantSocialLinkReward (실제 코드 그대로)
 // 사용: 개발 서버를 띄운 상태에서 BASE_URL=http://localhost:3200 node e2e/social-account.mjs <스크린샷 폴더>
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";

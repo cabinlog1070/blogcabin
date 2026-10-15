@@ -5,13 +5,9 @@ import { db } from "../db";
 import { animalCares, attendances, blogs, comments, postLikes, posts, userAnimals } from "../db/schema";
 import { todayKST } from "../game/rules";
 
-export type QuestKey = "attend" | "post" | "like" | "comment" | "pet";
+import { QUEST_GOALS, QUEST_POST_MIN_CHARS, type QuestKey } from "./quest-rules";
 
-/** 퀘스트마다 몇 번 해야 끝나는지 (화면에 보이는 순서) */
-export const QUEST_GOALS: Record<QuestKey, number> = { attend: 1, post: 1, like: 5, comment: 3, pet: 1 };
-
-/** 글 쓰기 퀘스트로 치는 본문 길이 (공백을 뺀 글자 수) */
-export const QUEST_POST_MIN_CHARS = 30;
+export { QUEST_GOALS, QUEST_POST_MIN_CHARS, type QuestKey };
 
 /** 오늘 한 횟수 (goal을 넘지 않게 자른다). today는 한국 시간 날짜(YYYY-MM-DD) */
 export async function countDailyQuests(userId: string, today: string = todayKST()): Promise<Record<QuestKey, number>> {

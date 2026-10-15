@@ -4,10 +4,10 @@ import { config } from "dotenv";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { animalSpecies, items } from "../../backend/src/db/schema";
-import { giveStarterHair } from "../../backend/src/db/starter-hair";
+import { animalSpecies, items } from "../src/db/schema";
+import { giveStarterHair } from "../src/db/starter-hair";
 
-config({ path: ".env.local" });
+config({ path: [".env", "../frontend/.env.local"], quiet: true }); // 운영은 컨테이너 환경 변수
 
 type NewItem = typeof items.$inferInsert;
 
