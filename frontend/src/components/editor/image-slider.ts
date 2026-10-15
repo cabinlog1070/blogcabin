@@ -5,7 +5,7 @@ export const ROW_MAX = 5;
 
 /**
  * 사진 묶음 두 가지. 저장 모양은 <div data-slider> 또는 <div data-row> 안에 <img>들
- * (src/server/sanitize.ts가 이 모양만 남긴다).
+ * (backend/src/blog/sanitize.ts가 이 모양만 남긴다).
  * - imageSlider: 글 읽는 화면에서 한 장씩 옆으로 넘겨 본다. 화살표·장 수 표시는 src/components/blog/post-sliders.tsx가 붙인다
  * - imageRow: 한 줄에 ROW_MAX장까지 나란히 놓는다
  */

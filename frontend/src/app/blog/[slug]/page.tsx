@@ -6,50 +6,37 @@ import { NeighborList } from "@/components/blog/neighbor-list";
 import { SearchBox } from "@/components/blog/search-box";
 import { PostCard } from "@/components/blog/post-card";
 import { PostListToolbar } from "@/components/blog/post-list-toolbar";
-import { Pagination, parsePage } from "@/components/pagination";
-import { parseId } from "@/lib/ids";
-import { getRoomFurniture } from "@/server/look";
-import { canSeePrivatePosts, getBlogBySlug, getCategories, getFollow, getInviteCode, listBlogPosts, POST_SORTS, type PostSort, listMyFollowers, listMyNeighbors } from "@/server/blog";
-import { getViewer } from "@/server/dal";
-import { getCarriedPet, getDisplayedCard } from "@/server/farm";
+import { Pagination } from "@/components/pagination";
+import { petShowcaseName } from "@/server/farm";
 import { getT } from "@/server/i18n";
-import { getBlogVisitStats } from "@/server/visits";
+import { readApi } from "@/server/read-api";
 import { categoryLabel } from "@/lib/i18n";
 
-export async function generateMetadata(props: PageProps<"/blog/[slug]">) {
+/** 블로그 홈 읽기 (주소의 page·category·sort만 서버로 넘긴다. 메타데이터와 페이지가 같은 답을 한 번만 읽는다) */
+async function load(props: PageProps<"/blog/[slug]">) {
   const { slug } = await props.params;
-  const [blog, t] = await Promise.all([getBlogBySlug(slug), getT()]);
-  return { title: blog ? blog.title : t("블로그를 찾을 수 없어요") };
+  const sp = await props.searchParams;
+  const query: Record<string, string> = {};
+  for (const key of ["page", "category", "sort"]) if (typeof sp[key] === "string") query[key] = sp[key];
+  return readApi.blogHome(slug, query);
+}
+
+export async function generateMetadata(props: PageProps<"/blog/[slug]">) {
+  const [data, t] = await Promise.all([load(props), getT()]);
+  return { title: data ? data.blog.title : t("블로그를 찾을 수 없어요") };
 }
 
 export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
-  const { slug } = await props.params;
+  const data = await load(props);
+  if (!data) notFound();
   const sp = await props.searchParams;
-  const blog = await getBlogBySlug(slug);
-  if (!blog) notFound();
-
-  const viewer = await getViewer();
   const t = await getT();
-  const viewerId = viewer?.profile ? viewer.userId : null;
-  const isOwner = viewerId === blog.ownerId;
-  const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인, 서로 이웃, 관리자만
-  const page = parsePage(sp.page);
-  const categoryId = parseId(sp.category) ?? undefined; // 이상한 값이면 전체 글
-  const sort: PostSort = typeof sp.sort === "string" && sp.sort in POST_SORTS ? (sp.sort as PostSort) : "latest";
+  const { blog, viewerId, isOwner, sort, sorts, cats, list, follow, furniture, visits, neighbors, followers, inviteCode } = data;
+  const categoryId = data.categoryId ?? undefined;
   const view = sp.view === "grid" ? "grid" : "list";
-
-  const [cats, list, follow, furniture, pet, card, visits, neighbors, followers, inviteCode] = await Promise.all([
-    getCategories(blog.id, includePrivate, isOwner),
-    listBlogPosts({ blogId: blog.id, includePrivate, includeScheduled: isOwner, categoryId, page, sort }), // 예약 글은 주인에게만 (POST-11)
-    viewerId && !isOwner ? getFollow(viewerId, blog.ownerId) : null,
-    getRoomFurniture(blog.ownerId), // 미니룸 가구 (SHOP-05)
-    getCarriedPet(blog.ownerId), // 미니룸 펫 (TOWN-09)
-    getDisplayedCard(blog.ownerId), // 프로필 전시 카드 (TOWN-09)
-    getBlogVisitStats(blog.id), // 방문자 수 (BLOG-06)
-    isOwner ? listMyNeighbors(blog.ownerId) : null, // 내 이웃 목록 (TOWN-08, 주인에게만)
-    isOwner ? listMyFollowers(blog.ownerId) : null, // 나를 이웃한 사람 (주인에게만)
-    isOwner ? getInviteCode(blog.ownerId) : null, // 친구 초대 (GAME-09, 주인에게만)
-  ]);
+  // 미니룸 펫·전시 카드 이름은 화면 언어로 (이름을 안 바꾼 펫)
+  const pet = petShowcaseName(t, data.pet);
+  const card = petShowcaseName(t, data.card);
   const currentCat = cats.find((c) => c.id === categoryId);
   const base = `/@${blog.slug}`;
 
@@ -104,7 +91,7 @@ export default async function BlogHomePage(props: PageProps<"/blog/[slug]">) {
             <h2 className="font-display text-xl">
               {currentCat ? categoryLabel(t, currentCat.name) : t("전체 글")} <span className="text-base text-ink-soft">{t("{n}개", { n: list.total })}</span>
             </h2>
-            <PostListToolbar sort={sort} view={view} sorts={Object.entries(POST_SORTS).map(([value, label]) => ({ value, label }))} />
+            <PostListToolbar sort={sort} view={view} sorts={Object.entries(sorts).map(([value, label]) => ({ value, label }))} />
           </div>
           {list.items.length ? (
             <div className={`grid gap-4 ${view === "grid" ? "md:grid-cols-2" : ""}`} data-post-view={view}>

@@ -6,6 +6,8 @@ import { db } from "./db";
 import { accountRoutes } from "./routes/account";
 import { adminRoutes } from "./routes/admin";
 import { blogRoutes } from "./routes/blog";
+import { blogPageRoutes } from "./routes/blog-pages";
+import { fileRoutes } from "./routes/files";
 import { attendance } from "./routes/attendance";
 import { closetRoutes } from "./routes/closet";
 import { farmRoutes } from "./routes/farm";
@@ -68,6 +70,8 @@ v1.route("/farm", farmRoutes);
 v1.route("/blog", blogRoutes);
 v1.route("/my-blog", myBlogRoutes);
 v1.route("/posts", postRoutes);
+v1.route("/blog-pages", blogPageRoutes);
+v1.route("/files", fileRoutes);
 
 // 마을 주민 등록(온보딩), 관리자(글·댓글 지우기, 강제 탈퇴, 지급, 선물 보내기)
 v1.route("/onboarding", onboardingRoutes);
