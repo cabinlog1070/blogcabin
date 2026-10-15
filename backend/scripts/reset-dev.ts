@@ -3,7 +3,7 @@
 import { config } from "dotenv";
 import { Pool } from "pg";
 
-config({ path: ".env.local" });
+config({ path: [".env", "../frontend/.env.local"], quiet: true }); // 운영은 컨테이너 환경 변수
 
 if (process.env.NODE_ENV === "production" || !/localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL ?? "")) {
   console.error("로컬 DB에서만 실행할 수 있어요.");

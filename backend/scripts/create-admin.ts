@@ -2,7 +2,7 @@
 // - 다시 실행하면 비밀번호를 새로 쓰고 관리자의 로그인(세션)을 모두 끊는다 → 모든 기기에서 다시 로그인해야 한다
 // - 처음 만들 때 이미 가입한 주민 모두가 관리자를 이웃으로 갖게 한다 (새 주민은 온보딩에서)
 // - 이미 일반 회원이 쓰는 아이디면 아무것도 바꾸지 않고 멈춘다 (일반 회원을 관리자로 올리지 않는다)
-// 아이디·비밀번호는 .env.local(운영은 호스팅 서비스의 환경 변수)의 ADMIN_USERNAME, ADMIN_PASSWORD에서 읽는다.
+// 아이디·비밀번호는 backend/.env 또는 frontend/.env.local(운영은 서버의 ~/blogcabin/secrets.env)의 ADMIN_USERNAME, ADMIN_PASSWORD에서 읽는다.
 // 실행: npm run admin:create
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
@@ -10,12 +10,12 @@ import { config } from "dotenv";
 import { and, eq, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { accounts, blogs, categories, follows, items, profiles, sessions, userItems, users } from "../../backend/src/db/schema";
-import { giveStarterHair } from "../../backend/src/db/starter-hair";
-import { generateInviteCode } from "../src/lib/invite";
-import { ADMIN_BLOG_TITLE } from "../src/lib/nickname";
+import { accounts, blogs, categories, follows, items, profiles, sessions, userItems, users } from "../src/db/schema";
+import { giveStarterHair } from "../src/db/starter-hair";
+import { generateInviteCode } from "../src/game/invite-code";
+import { ADMIN_BLOG_TITLE } from "../src/blog/profile-rules";
 
-config({ path: ".env.local" });
+config({ path: [".env", "../frontend/.env.local"], quiet: true }); // 운영은 컨테이너 환경 변수
 
 const username = process.env.ADMIN_USERNAME?.trim().toLowerCase();
 const password = process.env.ADMIN_PASSWORD;

@@ -25,8 +25,8 @@ import { walletRoutes } from "./routes/wallet";
 
 // 서버(backend) API. 새 주소는 모두 /api/v1/… 로 시작한다.
 // 예외: 로그인(/api/auth/…)은 소셜 로그인 콜백 주소가 카카오·구글 개발자 센터에 이 주소로 등록돼 있어 그대로 둔다.
-// 운영에서는 화면(frontend)이 /api/v1/… 요청을 이 앱에 그대로 넘긴다 (frontend/src/app/api/v1/[...path]/route.ts).
-// 화면이 하던 일을 영역별로 하나씩 옮겨 온다 (순서는 CLAUDE.md의 "폴더").
+// 운영에서는 화면(frontend)과 다른 컨테이너에서 돌고, 화면이 /api/v1/…·/api/auth/… 요청을 이 앱에 그대로 넘긴다
+// (frontend/src/server/backend.ts). DB 접속 정보·로그인 비밀키는 이 앱만 갖는다.
 export const app = new Hono();
 
 const v1 = new Hono();

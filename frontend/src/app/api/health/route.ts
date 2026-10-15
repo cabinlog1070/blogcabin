@@ -1,20 +1,7 @@
-import { sql } from "drizzle-orm";
-import { db } from "@/db";
-
-// 배포 확인용 (deploy/deploy.sh, 호스팅 헬스 체크). 로그인 없이 열리고, DB가 응답하면 200, 아니면 503.
-// 내부 정보(오류 내용, 주소)는 돌려주지 않는다.
+// 배포 확인용 (deploy/deploy.sh). 로그인 없이 열린다. 화면은 DB를 모르니 화면이 떴는지만 본다.
+// 서버 API(DB 포함)까지 닿는지는 같은 주소의 /api/v1/health 가 본다 (화면이 서버 API로 넘긴다)
 export const dynamic = "force-dynamic";
 
-const headers = { "Cache-Control": "no-store" };
-
-export async function GET() {
-  try {
-    await Promise.race([
-      db.execute(sql`select 1`),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000)),
-    ]);
-    return Response.json({ ok: true }, { headers });
-  } catch {
-    return Response.json({ ok: false, failed: ["db"] }, { status: 503, headers });
-  }
+export function GET() {
+  return Response.json({ ok: true, service: "frontend" }, { headers: { "Cache-Control": "no-store" } });
 }

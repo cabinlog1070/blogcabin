@@ -1,10 +1,10 @@
 // 화면의 서버 쪽 페이지가 서버 API(/api/v1/…)를 읽는 도우미.
-// 운영에서는 서버 앱이 화면 안에서 같이 돌기 때문에(app/api/v1/[...path]/route.ts) 네트워크를 거치지 않고 그 앱을 바로 부른다.
+// 서버 API 컨테이너(src/server/backend.ts의 BACKEND_URL)를 부른다.
 // 브라우저가 보낸 로그인 쿠키·주소를 그대로 넘겨서, 브라우저가 직접 부른 것과 같은 답을 받는다
 import "server-only";
 import { headers } from "next/headers";
 import { cache } from "react";
-import { app } from "@backend/app";
+import { BACKEND_URL } from "./backend";
 
 export class ServerApiError extends Error {
   constructor(readonly status: number, readonly path: string) {
@@ -21,11 +21,13 @@ function reviveDates(_key: string, value: unknown) {
 export async function serverFetch(path: string): Promise<Response> {
   const incoming = await headers();
   const forwarded = new Headers();
-  for (const name of ["cookie", "host", "x-forwarded-host", "x-forwarded-proto", "accept-language", "user-agent"]) {
+  for (const name of ["cookie", "x-forwarded-for", "x-forwarded-proto", "accept-language", "user-agent"]) {
     const value = incoming.get(name);
     if (value) forwarded.set(name, value);
   }
-  return app.fetch(new Request(`http://${incoming.get("host") ?? "localhost"}/api/v1${path}`, { headers: forwarded }));
+  const host = incoming.get("x-forwarded-host") || incoming.get("host");
+  if (host) forwarded.set("x-forwarded-host", host);
+  return fetch(`${BACKEND_URL}/api/v1${path}`, { headers: forwarded, cache: "no-store" });
 }
 
 /** 한 요청 안에서 같은 주소는 한 번만 부른다 (generateMetadata와 페이지가 같은 것을 읽을 때) */
