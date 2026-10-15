@@ -18,7 +18,7 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
       - name: public urls
         run: |
-          for p in / /api/health /api/v1/health /api/auth/get-session /@jiwon; do
+          for p in / /icon.png /favicon.ico /release-notes /api/health /api/v1/health /api/auth/get-session /@jiwon; do
             echo "$p $(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net$p)"
           done
           curl -s https://blogcabin.java21.net/api/health; echo
@@ -35,5 +35,7 @@ jobs:
             echo "$c env keys: $keys"
             echo "$c SUPPORT_EMAIL non-empty: $(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' $c | grep -c '^SUPPORT_EMAIL=.')"
           done
+          docker logs --since 15m blogcabin-api-1 2>&1 | grep -i -E 'error|fail' | tail -5
+          docker logs --since 15m blogcabin-1 2>&1 | grep -i -E 'error|fail' | tail -5
           docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' $(docker ps -q --filter name=blogcabin)
           SH
