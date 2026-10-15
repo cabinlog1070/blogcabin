@@ -20,6 +20,11 @@ jobs:
           for p in / /api/health /api/v1/health /api/auth/get-session /@jiwon934 /town; do
             echo "$p $(curl -s -o /dev/null -m 20 -w '%{http_code} %{time_total}s' https://blogcabin.java21.net$p)"
           done
+      - name: Real blog addresses
+        run: |
+          slugs=$(curl -s -m 20 https://blogcabin.java21.net/feed | grep -oE 'href="/@[A-Za-z0-9_.-]+' | sed 's#href="/@##' | sort -u | head -5)
+          echo "found: $slugs"
+          for s in $slugs admin; do echo "/@$s $(curl -s -o /dev/null -m 20 -w '%{http_code}' https://blogcabin.java21.net/@$s)"; done
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
       - name: Server (read only)
         run: |
