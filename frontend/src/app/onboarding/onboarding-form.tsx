@@ -1,9 +1,18 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 import { CharacterArt } from "@/components/character";
 import { useT } from "@/components/i18n";
-import { completeOnboarding, type OnboardingState } from "./actions";
+import { api, ApiError, errorText } from "@/lib/api";
+
+type Field = "nickname" | "blogTitle" | "slug" | "characterId" | "inviteCode";
+type OnboardingState = {
+  errors?: Partial<Record<Field, string>>;
+  message?: string;
+  values?: Record<string, string>;
+};
+const FIELDS: Field[] = ["nickname", "blogTitle", "slug", "characterId", "inviteCode"];
 
 type Starter = { id: number; name: string; description: string | null; assetKey: string };
 
@@ -28,8 +37,29 @@ export function OnboardingForm({
   defaultNickname: string;
   defaultInviteCode: string;
 }) {
-  const [state, action, pending] = useActionState<OnboardingState, FormData>(completeOnboarding, {});
   const t = useT();
+  const router = useRouter();
+  // 주민 등록 API (POST /api/v1/onboarding). 틀린 칸은 칸 아래에, 적은 값은 그대로 다시 채운다
+  const [state, action, pending] = useActionState<OnboardingState, FormData>(async (_prev, form) => {
+    const values = Object.fromEntries(FIELDS.map((k) => [k, String(form.get(k) ?? "")]));
+    try {
+      await api("/onboarding", { method: "POST", body: values });
+      // 페이지를 새로 불러 헤더에 받은 코인·캐릭터가 처음부터 보이게 한다 (화면 안 이동은 헤더를 잠깐 옛 모습으로 그린다)
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 헤더까지 새로 그리려고 일부러 새로 불러온다
+      window.location.assign("/town?welcome=1");
+      return { values };
+    } catch (e) {
+      if (e instanceof ApiError && e.redirect) {
+        router.push(e.redirect);
+        return { values };
+      }
+      if (e instanceof ApiError && e.fields) {
+        const errors = Object.fromEntries(Object.entries(e.fields).map(([k, v]) => [k, t(v)]));
+        return { errors, values };
+      }
+      return { message: errorText(t, e), values };
+    }
+  }, {});
   const v = state.values ?? {};
   // 블로그 이름 예시는 닉네임 칸에 적는 이름을 따라간다 (비우면 "나")
   const [nickname, setNickname] = useState(v.nickname ?? defaultNickname);
@@ -96,6 +126,11 @@ export function OnboardingForm({
         />
       </Field>
 
+      {state.message && (
+        <p role="alert" className="text-sm font-bold text-berry">
+          {state.message}
+        </p>
+      )}
       <button type="submit" disabled={pending} className="btn w-full bg-leaf py-3 text-lg text-white">
         {pending ? t("등록하는 중...") : t("광장으로 출발! 🚀")}
       </button>

@@ -1,8 +1,7 @@
-import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
-import { db } from "@/db";
-import { accounts, profiles, users } from "@/db/schema";
-import { lockUser } from "@/server/points";
+import { db } from "../db";
+import { accounts, profiles, users } from "../db/schema";
+import { lockUser } from "../game/points";
 
 export class MergeRefused extends Error {}
 

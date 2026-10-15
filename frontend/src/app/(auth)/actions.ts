@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, LOGIN_LOCKED_CODE, LOGIN_LOCKED_MESSAGE } from "@/lib/auth";
-import { authErrorCode, newLoginSchema, USERNAME_RULE_MESSAGE } from "@/lib/login-rules";
+import { authErrorCode, checkNewLogin, isUsernameRuleCode, USERNAME_RULE_MESSAGE } from "@backend/auth/login-rules";
 import { getT } from "@/server/i18n";
 
 export type AuthFormState = { error?: string; values?: { username: string } };
@@ -21,9 +21,9 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
     password: String(formData.get("password") ?? ""),
     passwordConfirm: String(formData.get("passwordConfirm") ?? ""),
   };
-  const parsed = newLoginSchema.safeParse(raw);
-  if (!parsed.success) return { error: t(parsed.error.issues[0].message), values: { username: raw.username } };
-  const { username, password } = parsed.data;
+  const checked = checkNewLogin(raw);
+  if ("error" in checked) return { error: t(checked.error), values: { username: raw.username } };
+  const { username, password } = checked;
 
   try {
     await auth.api.signUpEmail({
@@ -41,7 +41,7 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
     if (code === "USERNAME_IS_ALREADY_TAKEN" || code?.startsWith("USER_ALREADY_EXISTS")) {
       return { error: t("이미 있는 아이디예요"), values: { username: raw.username } };
     }
-    if (code === "INVALID_USERNAME" || code === "USERNAME_TOO_SHORT" || code === "USERNAME_TOO_LONG") {
+    if (isUsernameRuleCode(code)) {
       return { error: t(USERNAME_RULE_MESSAGE), values: { username: raw.username } };
     }
     throw err;

@@ -1,8 +1,7 @@
 import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { accounts, items, pointLedger } from "@/db/schema";
-import { grantSocialLinkReward } from "@backend/auth/social-link-reward";
+import { items, pointLedger } from "@/db/schema";
 
 // 원장 계산·보상 지급·회원 잠금은 서버 코드(출석 API 등)와 같은 것을 쓴다
 export { getWallet, grantReward, lockUser, startOfTodayKST, type RewardResult, type Tx } from "@backend/game/points";
@@ -36,22 +35,8 @@ export async function listLedger(userId: string, page: number) {
   return { rows, total, page, pageCount: Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE)) };
 }
 
-// 소셜 연동 보상은 로그인(서버의 Better Auth)도 부르므로 서버 쪽 코드를 같이 쓴다
-export { grantSocialLinkReward, socialAccountHash } from "@backend/auth/social-link-reward";
-
-/**
- * 이 회원에 붙은 소셜 계정(google·kakao·naver)마다 grantSocialLinkReward를 부른다.
- * 소셜로 처음 가입한 회원이 주민 등록을 마칠 때, 아이디를 만들거나 기존 아이디에 합칠 때 쓴다. 반환: 실제로 받은 소셜 목록
- */
-export async function grantSocialLinkRewardsFor(userId: string): Promise<string[]> {
-  const rows = await db
-    .select({ providerId: accounts.providerId, accountId: accounts.accountId })
-    .from(accounts)
-    .where(eq(accounts.userId, userId));
-  const granted: string[] = [];
-  for (const r of rows) if (await grantSocialLinkReward(userId, r.providerId, r.accountId)) granted.push(r.providerId);
-  return granted;
-}
+// 소셜 연동 보상은 로그인(서버의 Better Auth)·주민 등록·아이디 만들기 API도 부르므로 서버 쪽 코드를 같이 쓴다
+export { grantSocialLinkReward, grantSocialLinkRewardsFor, socialAccountHash } from "@backend/auth/social-link-reward";
 
 /** 이 회원이 연동 보상을 받은 소셜 목록 (프로필 메뉴의 +🪙100 표시용) */
 export async function rewardedSocialProviders(userId: string): Promise<string[]> {

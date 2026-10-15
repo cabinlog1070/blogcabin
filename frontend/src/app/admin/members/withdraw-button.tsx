@@ -1,13 +1,25 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState } from "react";
 import { useT } from "@/components/i18n";
-import { adminWithdrawMember, type WithdrawMemberState } from "../actions";
+import { errorText } from "@/lib/api";
+import { adminApi } from "../admin-api";
 
 /** 관리자 강제 탈퇴 버튼: 확인 창을 한 번 거친 뒤 회원을 지운다 */
 export function AdminWithdrawButton({ userId, name }: { userId: string; name: string }) {
-  const [state, action, pending] = useActionState<WithdrawMemberState, FormData>(adminWithdrawMember, {});
   const t = useT();
+  const router = useRouter();
+  const [state, action, pending] = useActionState<{ error?: string }, FormData>(async () => {
+    try {
+      const done = await adminApi.withdrawMember(userId);
+      router.push(`/admin/members?withdrawn=${encodeURIComponent(done.name ?? t("회원"))}`);
+      router.refresh();
+      return {};
+    } catch (e) {
+      return { error: errorText(t, e) };
+    }
+  }, {});
   return (
     <form
       action={action}
@@ -16,7 +28,6 @@ export function AdminWithdrawButton({ userId, name }: { userId: string; name: st
       }}
       data-admin-withdraw
     >
-      <input type="hidden" name="userId" value={userId} />
       <button type="submit" disabled={pending} className="btn bg-berry text-white">
         {pending ? t("탈퇴시키는 중...") : t("강제 탈퇴")}
       </button>

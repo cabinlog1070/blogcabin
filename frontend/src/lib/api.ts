@@ -11,6 +11,8 @@ export class ApiError extends Error {
     readonly redirect?: string,
     /** 문구의 {이름} 자리에 넣을 값 (예: { level: 3 }) */
     readonly vars?: TVars,
+    /** 칸마다 틀린 이유 (예: { nickname: "이미 있는 닉네임이에요" }, 주민 등록) */
+    readonly fields?: Record<string, string>,
   ) {
     super(message);
   }
@@ -31,7 +33,7 @@ export async function api<R = unknown>(path: string, init: { method?: "GET" | "P
     throw new ApiError(FAILED, 0);
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(typeof data.error === "string" ? data.error : FAILED, res.status, data.redirect, data.vars);
+  if (!res.ok) throw new ApiError(typeof data.error === "string" ? data.error : FAILED, res.status, data.redirect, data.vars, data.errors);
   return data as R;
 }
 

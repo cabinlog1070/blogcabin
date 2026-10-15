@@ -2,12 +2,33 @@
 
 import { useActionState, useState } from "react";
 import { useT } from "@/components/i18n";
-import { createLogin, linkExisting, type SetupState } from "./actions";
+import { api, errorText } from "@/lib/api";
+
+type SetupState = { error?: string; values?: { username: string } };
+
+/**
+ * 아이디 만들기(/setup/new)·합치기(/setup/link) API를 부르고, 끝나면 서버가 알려 준 곳으로 간다.
+ * 로그인 쿠키는 서버 응답이 바꿔 두므로(합치면 다른 회원이 된다) 페이지를 새로 불러 처음부터 그린다
+ */
+function useSetupAction(path: "/account/setup/new" | "/account/setup/link", fields: string[]) {
+  const t = useT();
+  return useActionState<SetupState, FormData>(async (_prev, form) => {
+    const body = Object.fromEntries(fields.map((k) => [k, String(form.get(k) ?? "")]));
+    const values = { username: body.username };
+    try {
+      const done = await api<{ ok: true; redirect: string }>(path, { method: "POST", body });
+      window.location.assign(done.redirect);
+      return { values };
+    } catch (e) {
+      return { error: errorText(t, e), values };
+    }
+  }, {});
+}
 
 const input = "w-full rounded-xl border-2 border-line bg-paper px-3 py-2.5 outline-none focus:border-sun";
 
 function NewLoginForm() {
-  const [state, action, pending] = useActionState<SetupState, FormData>(createLogin, {});
+  const [state, action, pending] = useSetupAction("/account/setup/new", ["username", "password", "passwordConfirm"]);
   const t = useT();
   return (
     <form action={action} className="space-y-3">
@@ -26,7 +47,7 @@ function NewLoginForm() {
 }
 
 function ExistingLoginForm({ providerLabel }: { providerLabel: string }) {
-  const [state, action, pending] = useActionState<SetupState, FormData>(linkExisting, {});
+  const [state, action, pending] = useSetupAction("/account/setup/link", ["username", "password"]);
   const t = useT();
   return (
     <form action={action} className="space-y-3">
