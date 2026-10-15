@@ -1,13 +1,8 @@
-import { eq } from "drizzle-orm";
 import { CharacterNotice } from "@/components/character-notice";
-import { db } from "@/db";
-import { profiles } from "@/db/schema";
 import { Icon } from "@/components/icon";
-import { isForSale } from "@/lib/shop";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
-import { getEquipped, listItemsWithOwnership } from "@/server/inventory";
-import { getWallet } from "@/server/points";
+import { readApi } from "@/server/read-api";
 import { ShopView } from "./shop-view";
 
 export async function generateMetadata() {
@@ -18,16 +13,8 @@ export async function generateMetadata() {
 export default async function ShopPage() {
   const viewer = await requireMember();
   const t = await getT();
-  const [all, wallet, equipped, [hair]] = await Promise.all([
-    listItemsWithOwnership(viewer.userId),
-    getWallet(viewer.userId),
-    getEquipped(viewer.userId),
-    db.select({ color: profiles.hairColor }).from(profiles).where(eq(profiles.userId, viewer.userId)),
-  ]);
-  // 기본 아이템과 캐릭터(2026-10-06부터 판매 중단)는 상점에 나오지 않는다 (SHOP-01)
-  const forSale = all.filter(isForSale);
-  // 미리 입어 보기는 지금 입고 있는 모습에서 시작한다 (부위별 asset_key)
-  const wornAssets = equipped.worn.map((w) => all.find((i) => i.id === w.itemId)?.assetKey ?? "").filter(Boolean);
+  // 파는 아이템만(기본 아이템·캐릭터 빼고, SHOP-01), 미리 입어 보기는 지금 입은 모습에서 시작한다
+  const { items: forSale, wallet, wornAssets, hairColor } = await readApi.shop();
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -55,7 +42,7 @@ export default async function ShopPage() {
         coins={wallet.coins}
         character={viewer.profile.baseCharacterAsset}
         wornAssets={wornAssets}
-        hairColor={hair?.color ?? null}
+        hairColor={hairColor}
       />
     </div>
   );

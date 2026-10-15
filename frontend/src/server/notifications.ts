@@ -1,7 +1,7 @@
 // 알림함 (GAME-08)과 레벨업 팝업 (GAME-06). 알림 코드는 서버(backend/src/notifications)에 있고,
 // 화면 서버 컴포넌트(알림 페이지·헤더)와 아직 서버로 옮기지 않은 동작(공감·댓글…)이 같은 것을 쓴다
 import "server-only";
-import { listNotificationRows, NOTIFICATION_PAGE_SIZE } from "@backend/notifications";
+import type { listNotificationRows } from "@backend/notifications";
 import { presentNotification } from "@/lib/notification-text";
 import { getLocale, getT } from "@/server/i18n";
 
@@ -22,8 +22,8 @@ export {
 } from "@backend/notifications";
 export type { NotificationView } from "@/lib/notification-text";
 
-/** 내 알림 최신순, 화면 언어의 문장으로 */
-export async function listNotifications(userId: string, page = 1, size = NOTIFICATION_PAGE_SIZE) {
-  const [list, t, locale] = await Promise.all([listNotificationRows(userId, page, size), getT(), getLocale()]);
+/** 서버(알림함 읽기 API)가 준 알림을 화면 언어의 문장으로 */
+export async function presentNotifications(list: Awaited<ReturnType<typeof listNotificationRows>>) {
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
   return { ...list, rows: list.rows.map((r) => presentNotification(t, locale, r)) };
 }

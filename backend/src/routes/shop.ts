@@ -9,6 +9,7 @@ import { readJson, requireViewer, type GuardEnv } from "../http/guard";
 import { uniqueViolation } from "../lib/db-errors";
 import { parseId } from "../lib/ids";
 import { isHairColor } from "../shop/colors";
+import { getEquipped, getHairColor, listItemsWithOwnership } from "../shop/inventory";
 import { isForSale } from "../shop/rules";
 
 const msg = <S extends string>(text: S): S => text;
@@ -19,8 +20,24 @@ const fail = (error: string, vars?: Vars): Fail => ({ ok: false, error, vars });
 export type BuyResult = { ok: true; name: string } | Fail;
 export type SaveLookResult = { ok: true; bought: number } | Fail;
 
+/** 상점 화면 (SHOP-01): 파는 아이템, 지갑, 지금 입은 것, 머리 색 */
+export async function shopPage(userId: string) {
+  const [all, wallet, equipped, hairColor] = await Promise.all([
+    listItemsWithOwnership(userId),
+    getWallet(userId),
+    getEquipped(userId),
+    getHairColor(userId),
+  ]);
+  // 미리 입어 보기는 지금 입고 있는 모습에서 시작한다 (부위별 asset_key)
+  const wornAssets = equipped.worn.map((w) => all.find((i) => i.id === w.itemId)?.assetKey ?? "").filter(Boolean);
+  // 기본 아이템과 캐릭터(2026-10-06부터 판매 중단)는 상점에 나오지 않는다
+  return { items: all.filter(isForSale), wallet, wornAssets, hairColor };
+}
+
 export const shopRoutes = new Hono<GuardEnv>()
   .use(requireViewer("member"))
+  /** 상점 화면 읽기 */
+  .get("/", async (c) => c.json(await shopPage(c.get("viewer").userId)))
   /** 아이템 하나 사기 (SHOP-02): { itemId } */
   .post("/buy", async (c) => {
     const { userId } = c.get("viewer");

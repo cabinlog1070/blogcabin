@@ -2,7 +2,7 @@
 // 아이디·비밀번호가 있고 아직 주민 등록 전인 회원이 닉네임·블로그·캐릭터·초대 코드(선택)를 정한다.
 // 칸마다 틀린 이유는 errors { 칸 이름: 한국어 문장 }으로 돌려주고, 화면이 보는 사람의 언어로 바꿔 칸 아래에 보여 준다.
 // 끝나면 화면이 광장(/town?welcome=1)으로 간다
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { deleteCookie } from "hono/cookie";
 import { grantSocialLinkRewardsFor } from "../auth/social-link-reward";
@@ -126,7 +126,18 @@ async function createResident(userId: string, input: Resident): Promise<Errors |
 
 const fieldFail = (errors: Errors) => ({ ok: false as const, error: Object.values(errors)[0] ?? "", errors });
 
-export const onboardingRoutes = new Hono<GuardEnv>().post("/", requireViewer("user"), async (c) => {
+export const onboardingRoutes = new Hono<GuardEnv>()
+  /** 주민 등록 화면: 고를 수 있는 기본 캐릭터 (남자/여자 주민) */
+  .get("/", requireViewer("user"), async (c) =>
+    c.json({
+      starters: await db
+        .select({ id: items.id, name: items.name, description: items.description, assetKey: items.assetKey })
+        .from(items)
+        .where(and(eq(items.type, "character"), eq(items.isStarter, true)))
+        .orderBy(asc(items.id)),
+    }),
+  )
+  .post("/", requireViewer("user"), async (c) => {
   const { userId, hasProfile } = c.get("viewer");
   // 이미 주민이면 광장으로
   if (hasProfile) return c.json({ ok: false, error: msg("이미 주민 등록을 마쳤어요"), redirect: "/town" }, 409);
