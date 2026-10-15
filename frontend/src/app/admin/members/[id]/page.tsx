@@ -7,6 +7,7 @@ import { requireAdmin } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
 import { readApi } from "@/server/read-api";
 import { AdminDeleteCommentButton, AdminDeletePostButton } from "../../delete-button";
+import { AdminPasswordReset } from "../password-reset";
 import { AdminWithdrawButton } from "../withdraw-button";
 
 export async function generateMetadata() {
@@ -15,7 +16,7 @@ export async function generateMetadata() {
 }
 
 
-/** 관리자: 회원 한 명의 정보, 쓴 글·댓글 (하나씩 삭제), 강제 탈퇴 */
+/** 관리자: 회원 한 명의 정보, 쓴 글·댓글 (하나씩 삭제), 비밀번호 초기화, 강제 탈퇴 */
 export default async function AdminMemberPage(props: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   const t = await getT();
@@ -95,6 +96,22 @@ export default async function AdminMemberPage(props: { params: Promise<{ id: str
           </table>
         ) : (
           <p className="text-ink-soft">{t("쓴 댓글이 없어요")}</p>
+        )}
+      </section>
+
+      <section className="card mt-10 p-6" aria-label={t("비밀번호 초기화")}>
+        <h2 className="mb-2 font-display text-xl">{t("비밀번호 초기화")}</h2>
+        {!canWithdraw ? (
+          <p className="text-sm text-ink-soft">{t("관리자 계정의 비밀번호는 초기화할 수 없어요.")}</p>
+        ) : member.username ? (
+          <>
+            <p className="mb-4 text-sm text-ink-soft">
+              {t("비밀번호를 잊은 회원이 메일로 문의했을 때 써요. 메일은 아무나 보낼 수 있으니, 적어 준 닉네임·블로그 이름·최근 글 제목이 위 정보와 맞는지 먼저 확인하고 그 메일로 답장해 주세요. 그 회원은 모든 기기에서 로그아웃되고, 임시 비밀번호로 로그인한 뒤 환경 설정에서 새 비밀번호로 바꾸면 돼요.")}
+            </p>
+            <AdminPasswordReset userId={member.id} name={name} />
+          </>
+        ) : (
+          <p className="text-sm text-ink-soft">{t("아직 아이디를 만들지 않은 회원이에요.")}</p>
         )}
       </section>
 

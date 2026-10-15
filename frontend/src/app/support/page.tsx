@@ -13,6 +13,7 @@ import {
 import type { T } from "@/lib/i18n";
 import { INVITE_REWARD_COINS } from "@/lib/invite";
 import { getT } from "@/server/i18n";
+import { FRESH_MINUTES as PASSWORD_FRESH_MINUTES } from "@backend/account/password-rules";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -167,6 +168,17 @@ const faq = (t: T): { id: string; q: ReactNode; a: ReactNode }[] => [
     id: "blog",
     q: t("블로그 이름이나 주소를 바꾸고 싶어요"),
     a: <p>{t("오른쪽 위 내 얼굴을 누르고 [환경 설정]에서 블로그 이름과 소개를 바꿀 수 있어요. 블로그 주소(/@주소)는 바꿀 수 없어요.")}</p>,
+  },
+  {
+    id: "password",
+    q: t("비밀번호를 잊어버렸어요"),
+    a: (
+      <ul className="list-disc space-y-1 pl-5">
+        <li>{t("카카오·구글을 연동해 두었다면: 로그인 화면의 간편 로그인으로 들어간 뒤, 내 얼굴 → [환경 설정] → [비밀번호 바꾸기]에서 지금 비밀번호 없이 새 비밀번호를 정할 수 있어요 (로그인하고 {minutes}분 안에).", { minutes: PASSWORD_FRESH_MINUTES })}</li>
+        <li>{t("연동하지 않았다면: 아래 메일로 아이디·닉네임·블로그 이름과 최근에 쓴 글 제목을 알려 주세요. 관리자가 본인인지 확인한 뒤 그 메일로 임시 비밀번호를 답장해 드려요. 로그인한 뒤 바로 새 비밀번호로 바꿔 주세요.")}</li>
+        <li>{t("잊기 전에 미리 내 얼굴 메뉴의 [로그인 수단]에서 카카오나 구글을 연동해 두면 혼자서도 되찾을 수 있어요.")}</li>
+      </ul>
+    ),
   },
   {
     id: "leave",
