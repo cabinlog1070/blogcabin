@@ -1,13 +1,10 @@
-import { and, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import { Pagination, parsePage } from "@/components/pagination";
-import { db } from "@/db";
-import { blogs, comments, posts, profiles } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
 import { requireAdmin } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 import { AdminDeleteCommentButton, AdminDeletePostButton } from "../delete-button";
 
 export async function generateMetadata() {
@@ -15,8 +12,6 @@ export async function generateMetadata() {
   return { title: t("글 관리") };
 }
 
-const PAGE_SIZE = 30;
-const postBlog = alias(blogs, "post_blog");
 
 type Tab = "posts" | "comments";
 
@@ -31,9 +26,7 @@ export default async function AdminContentPage(props: { searchParams: Promise<{ 
   const sp = await props.searchParams;
   const tab: Tab = sp.tab === "comments" ? "comments" : "posts";
   const q = (sp.q ?? "").trim().slice(0, 50);
-  const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
   const page = parsePage(sp.page);
-  const offset = (page - 1) * PAGE_SIZE;
 
   const hrefFor = (next: { tab?: Tab; page?: number }) => {
     const params = new URLSearchParams();
@@ -45,65 +38,12 @@ export default async function AdminContentPage(props: { searchParams: Promise<{ 
     return `/admin/content${s ? `?${s}` : ""}`;
   };
 
-  const postWhere = q ? or(ilike(posts.title, like), ilike(profiles.nickname, like), ilike(blogs.slug, like)) : undefined;
-  const commentWhere = and(isNull(comments.deletedAt), q ? or(ilike(comments.content, like), ilike(profiles.nickname, like)) : undefined);
-
-  const [[postCount], [commentCount], postRows, commentRows] = await Promise.all([
-    db
-      .select({ n: count() })
-      .from(posts)
-      .innerJoin(blogs, eq(blogs.id, posts.blogId))
-      .innerJoin(profiles, eq(profiles.userId, blogs.ownerId))
-      .where(postWhere),
-    db.select({ n: count() }).from(comments).leftJoin(profiles, eq(profiles.userId, comments.authorId)).where(commentWhere),
-    tab === "posts"
-      ? db
-          .select({
-            id: posts.id,
-            title: posts.title,
-            visibility: posts.visibility,
-            createdAt: posts.createdAt,
-            slug: blogs.slug,
-            authorId: profiles.userId,
-            nickname: profiles.nickname,
-            commentCount: sql<number>`(SELECT COUNT(*)::int FROM ${comments} WHERE ${comments.postId} = ${posts.id} AND ${comments.deletedAt} IS NULL)`,
-          })
-          .from(posts)
-          .innerJoin(blogs, eq(blogs.id, posts.blogId))
-          .innerJoin(profiles, eq(profiles.userId, blogs.ownerId))
-          .where(postWhere)
-          .orderBy(desc(posts.createdAt), desc(posts.id))
-          .limit(PAGE_SIZE)
-          .offset(offset)
-      : [],
-    tab === "comments"
-      ? db
-          .select({
-            id: comments.id,
-            content: comments.content,
-            createdAt: comments.createdAt,
-            authorId: comments.authorId,
-            nickname: profiles.nickname,
-            postId: posts.id,
-            postTitle: posts.title,
-            slug: postBlog.slug,
-          })
-          .from(comments)
-          .innerJoin(posts, eq(posts.id, comments.postId))
-          .innerJoin(postBlog, eq(postBlog.id, posts.blogId))
-          .leftJoin(profiles, eq(profiles.userId, comments.authorId))
-          .where(commentWhere)
-          .orderBy(desc(comments.createdAt), desc(comments.id))
-          .limit(PAGE_SIZE)
-          .offset(offset)
-      : [],
-  ]);
-
-  const total = tab === "posts" ? postCount.n : commentCount.n;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const { postCount, commentCount, postRows, commentRows, pageSize } = await readApi.admin.content(tab, q, page);
+  const total = tab === "posts" ? postCount : commentCount;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: "posts", label: t("작성한 글"), count: postCount.n },
-    { key: "comments", label: t("작성한 댓글"), count: commentCount.n },
+    { key: "posts", label: t("작성한 글"), count: postCount },
+    { key: "comments", label: t("작성한 댓글"), count: commentCount },
   ];
   const authorLink = (authorId: string | null, nickname: string | null) =>
     authorId ? (

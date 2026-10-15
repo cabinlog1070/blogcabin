@@ -7,11 +7,8 @@ import { LevelBadge } from "@/components/level-badge";
 import { NotificationBell } from "@/components/notification-bell";
 import { ProfileMenu } from "@/components/profile-menu";
 import { SignOutButton } from "@/components/sign-out-button";
-import { enabledProviders } from "@/lib/auth";
-import { getViewer, getViewerLoginMethods } from "@/server/dal";
+import { getMe } from "@/server/dal";
 import { getT } from "@/server/i18n";
-import { getNotificationState } from "@/server/notifications";
-import { getWallet, rewardedSocialProviders } from "@/server/points";
 
 /**
  * 모든 화면 맨 위 헤더 (TOWN-10): 왼쪽 로고, 오른쪽 유저 상태창(캐릭터 얼굴·닉네임·블로그 제목).
@@ -20,12 +17,13 @@ import { getWallet, rewardedSocialProviders } from "@/server/points";
  * 휴대폰(360~430px)에서도 가로로 넘치지 않게 상태창은 얼굴만 보인다.
  */
 export async function SiteHeader() {
-  const viewer = await getViewer();
+  // 지갑·알림 상태·소셜 연동 보상은 서버가 "지금 보는 사람"(GET /api/v1/me)에 같이 담아 준다
+  const me = await getMe();
   const t = await getT();
-  const member = viewer?.profile ? { ...viewer, profile: viewer.profile } : null;
-  const [wallet, notice, loginMethods, rewardedSocial] = member
-    ? await Promise.all([getWallet(member.userId), getNotificationState(member.userId), getViewerLoginMethods(), rewardedSocialProviders(member.userId)])
-    : [null, null, null, null];
+  const viewer = me.user;
+  const member = me.user && me.profile && me.header ? { user: me.user, profile: me.profile } : null;
+  const { wallet, notice, rewardedSocial } = me.header ?? { wallet: null, notice: null, rewardedSocial: null };
+  const loginMethods = me.user ? me.loginMethods : null;
 
   return (
     <header className="sticky top-0 z-20 border-b-2 border-bark/30 bg-cream/95 backdrop-blur">
@@ -66,7 +64,7 @@ export async function SiteHeader() {
               blogSlug={member.profile.blogSlug}
               linked={loginMethods}
               rewarded={rewardedSocial ?? []}
-              providers={enabledProviders}
+              providers={me.providers}
             />
           </div>
         ) : viewer ? (

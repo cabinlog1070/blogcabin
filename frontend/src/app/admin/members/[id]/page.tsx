@@ -1,14 +1,11 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Icon } from "@/components/icon";
-import { db } from "@/db";
-import { blogs, comments, pointLedger, posts, profiles, users } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
 import { levelFromExp } from "@/lib/game";
 import { requireAdmin } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 import { AdminDeleteCommentButton, AdminDeletePostButton } from "../../delete-button";
 import { AdminWithdrawButton } from "../withdraw-button";
 
@@ -17,7 +14,6 @@ export async function generateMetadata() {
   return { title: t("회원 관리") };
 }
 
-const postBlog = alias(blogs, "post_blog");
 
 /** 관리자: 회원 한 명의 정보, 쓴 글·댓글 (하나씩 삭제), 강제 탈퇴 */
 export default async function AdminMemberPage(props: { params: Promise<{ id: string }> }) {
@@ -27,49 +23,9 @@ export default async function AdminMemberPage(props: { params: Promise<{ id: str
   const { id } = await props.params;
   if (id.length > 100) notFound();
 
-  const [member] = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      email: users.email,
-      role: users.role,
-      createdAt: users.createdAt,
-      nickname: profiles.nickname,
-      blogId: blogs.id,
-      slug: blogs.slug,
-      provider: sql<string>`(SELECT string_agg(provider_id, ', ') FROM accounts WHERE accounts.user_id = ${users.id})`,
-      coins: sql<number>`(SELECT COALESCE(SUM(${pointLedger.coinDelta}), 0)::int FROM ${pointLedger} WHERE ${pointLedger.userId} = ${users.id})`,
-      exp: sql<number>`(SELECT COALESCE(SUM(${pointLedger.expDelta}), 0)::int FROM ${pointLedger} WHERE ${pointLedger.userId} = ${users.id})`,
-    })
-    .from(users)
-    .leftJoin(profiles, eq(profiles.userId, users.id))
-    .leftJoin(blogs, eq(blogs.ownerId, users.id))
-    .where(eq(users.id, id));
-  if (!member) notFound();
-
-  const [memberPosts, memberComments] = await Promise.all([
-    member.blogId
-      ? db
-          .select({ id: posts.id, title: posts.title, visibility: posts.visibility, createdAt: posts.createdAt })
-          .from(posts)
-          .where(eq(posts.blogId, member.blogId))
-          .orderBy(desc(posts.createdAt))
-      : [],
-    db
-      .select({
-        id: comments.id,
-        content: comments.content,
-        createdAt: comments.createdAt,
-        postId: posts.id,
-        postTitle: posts.title,
-        slug: postBlog.slug,
-      })
-      .from(comments)
-      .innerJoin(posts, eq(posts.id, comments.postId))
-      .innerJoin(postBlog, eq(postBlog.id, posts.blogId))
-      .where(and(eq(comments.authorId, member.id), isNull(comments.deletedAt)))
-      .orderBy(desc(comments.createdAt)),
-  ]);
+  const data = await readApi.admin.member(id);
+  if (!data) notFound();
+  const { member, memberPosts, memberComments } = data;
 
   const name = member.nickname ?? member.username ?? t("이 회원");
   const canWithdraw = member.role !== "admin" && member.id !== admin.userId;

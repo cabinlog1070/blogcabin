@@ -1,10 +1,10 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { signIn, signUp, type AuthFormState } from "@/app/(auth)/actions";
+import { api, errorText } from "@/lib/api";
 import { useT } from "@/components/i18n";
 import { authClient } from "@/lib/auth-client";
-import { msg } from "@/lib/i18n";
+import { msg, type T } from "@/lib/i18n";
 
 type Providers = { google: boolean; kakao: boolean; naver: boolean };
 
@@ -14,11 +14,25 @@ const SOCIAL = [
   { id: "google", label: "Google", className: "bg-white text-ink border-2 border-line" },
 ] as const;
 
+type AuthFormState = { error?: string; values?: { username: string } };
+
+/** 가입·로그인 API를 부르고, 되면 그 화면으로 새로 연다 (로그인 쿠키가 바뀌어 헤더까지 다시 그려야 해서) */
+async function submitLogin(t: T, path: "/login/sign-in" | "/login/sign-up", formData: FormData): Promise<AuthFormState> {
+  const body = Object.fromEntries([...formData.entries()].map(([k, v]) => [k, String(v)]));
+  try {
+    const { redirect } = await api<{ redirect: string }>(path, { method: "POST", body });
+    window.location.assign(redirect);
+    return { values: { username: body.username ?? "" } };
+  } catch (err) {
+    return { error: errorText(t, err), values: { username: body.username ?? "" } };
+  }
+}
+
 const input = "w-full rounded-xl border-2 border-line bg-paper px-3 py-2.5 outline-none focus:border-sun";
 
 function SignInForm() {
-  const [state, action, pending] = useActionState<AuthFormState, FormData>(signIn, {});
   const t = useT();
+  const [state, action, pending] = useActionState<AuthFormState, FormData>((_prev, formData) => submitLogin(t, "/login/sign-in", formData), {});
   return (
     <form action={action} className="space-y-3">
       <input name="username" defaultValue={state.values?.username} placeholder={t("아이디")} autoComplete="username" required className={input} aria-label={t("아이디")} />
@@ -32,8 +46,8 @@ function SignInForm() {
 }
 
 function SignUpForm() {
-  const [state, action, pending] = useActionState<AuthFormState, FormData>(signUp, {});
   const t = useT();
+  const [state, action, pending] = useActionState<AuthFormState, FormData>((_prev, formData) => submitLogin(t, "/login/sign-up", formData), {});
   return (
     <form action={action} className="space-y-3">
       <div>
