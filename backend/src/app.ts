@@ -30,10 +30,11 @@ export const app = new Hono();
 const v1 = new Hono();
 const noStore = { "Cache-Control": "no-store" };
 
-// 회원마다 다른 답이라 브라우저·중간 서버가 저장해 두지 않게 한다
+// 회원마다 다른 답이라 브라우저·중간 서버가 저장해 두지 않게 한다.
+// 첨부 파일(routes/files.ts)은 스스로 정한 값(private, no-cache: 매번 확인하되 같은 화면 안에서는 다시 받지 않게)을 둔다
 v1.use(async (c, next) => {
   await next();
-  c.res.headers.set("Cache-Control", "no-store");
+  if (!c.res.headers.has("Cache-Control")) c.res.headers.set("Cache-Control", "no-store");
 });
 
 // 배포 확인용 (deploy/deploy.sh). 로그인 없이 열리고, DB가 응답하면 200, 아니면 503.
