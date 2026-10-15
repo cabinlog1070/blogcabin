@@ -1,13 +1,13 @@
-import "server-only";
+// 광장의 집·이웃 주민 (TOWN-04·08·11·12). 광장 읽기 API(routes/town.ts)가 쓴다
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
-import { db } from "@/db";
-import { lookSql } from "@/server/look";
-import { animalSpecies, attendances, blogs, follows, items, pointLedger, postLikes, posts, profiles, userAnimals } from "@/db/schema";
-import { animalStage } from "@/lib/farm";
-import { stripEmoji } from "@/lib/status-message";
-import { houseStageForLevel, levelFromExp, todayKST } from "@/lib/game";
-import type { TownHouse, TownResident } from "@/components/town/types";
+import { lookSql } from "../blog/look";
+import { stripEmoji } from "../blog/status-message";
+import { db } from "../db";
+import { animalSpecies, attendances, blogs, follows, items, pointLedger, postLikes, posts, profiles, userAnimals } from "../db/schema";
+import { animalStage } from "../farm/rules";
+import { houseStageForLevel, levelFromExp, todayKST } from "../game/rules";
+import type { TownHouse, TownResident } from "./types";
 
 const characterItem = alias(items, "character_item");
 const backgroundItem = alias(items, "background_item");
@@ -135,4 +135,24 @@ export async function hasAttendedToday(userId: string) {
     .from(attendances)
     .where(and(eq(attendances.userId, userId), eq(attendances.date, todayKST())));
   return Boolean(row);
+}
+
+/** 광장에서 내 캐릭터를 따라오는 펫 (TOWN-09). name이 비었거나 동물 이름 그대로면 화면이 그 화면 언어의 동물 이름으로 바꾼다 */
+export async function getCarriedPet(userId: string) {
+  const [row] = await db
+    .select({
+      name: userAnimals.name,
+      speciesName: animalSpecies.name,
+      assetKey: animalSpecies.assetKey,
+      growth: userAnimals.growth,
+      growExp: animalSpecies.growExp,
+      accessory: userAnimals.accessory,
+      color: userAnimals.color,
+    })
+    .from(userAnimals)
+    .innerJoin(animalSpecies, eq(animalSpecies.id, userAnimals.speciesId))
+    .where(and(eq(userAnimals.userId, userId), eq(userAnimals.carried, true)));
+  if (!row) return null;
+  const { growth, growExp, ...pet } = row;
+  return { ...pet, name: pet.name ?? "", stage: animalStage(growth, growExp) };
 }

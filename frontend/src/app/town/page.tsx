@@ -5,10 +5,9 @@ import { TownGame } from "@/components/town/town-game";
 import { WelcomeOnce } from "@/components/town/welcome-once";
 import type { TownData } from "@/components/town/types";
 import { getViewer, needsAccountSetup } from "@/server/dal";
-import { getCarriedPet } from "@/server/farm";
-import { getDailyQuests, questProgress } from "@/server/quests";
+import { petDisplayName } from "@/lib/farm";
 import { getT } from "@/server/i18n";
-import { favoriteHouses, getMyHouse, getNeighbors, getPopularHouses, getResidents, hasAttendedToday } from "@/server/town";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -31,31 +30,26 @@ export default async function TownPage(props: PageProps<"/town">) {
   const member = viewer?.profile ? viewer : null;
   const { welcome } = await props.searchParams;
 
-  // 회원: 즐겨찾기한 이웃의 집만 (TOWN-04·08), 방문자: 인기 블로그 100곳 중 무작위 10곳
-  const [myNeighbors, myHouse, attendedToday, pet, quests, residents] = await Promise.all([
-    member ? getNeighbors(member.userId) : getPopularHouses(),
-    member ? getMyHouse(member.userId) : null,
-    member ? hasAttendedToday(member.userId) : false,
-    member ? getCarriedPet(member.userId) : null,
-    member ? getDailyQuests(member.userId) : null,
-    member ? getResidents(member.userId) : [],
-  ]);
+  // 회원: 즐겨찾기한 이웃의 집만 (TOWN-04·08), 방문자: 인기 블로그 100곳 중 무작위 10곳 (광장 API)
+  const town = await readApi.town();
+  const pet = member ? town.pet : null;
 
   const data: TownData = {
     player: member?.profile
       ? {
           nickname: member.profile.nickname,
           characterAsset: member.profile.characterAsset,
-          pet: pet ? { name: pet.name, assetKey: pet.assetKey, stage: pet.stage, accessory: pet.accessory, color: pet.color } : null,
+          // 이름을 안 바꾼 펫은 화면 언어의 동물 이름으로
+          pet: pet ? { name: petDisplayName(t, pet.name, pet.speciesName), assetKey: pet.assetKey, stage: pet.stage, accessory: pet.accessory, color: pet.color } : null,
         }
       : null,
-    myHouse,
-    neighbors: member ? favoriteHouses(myNeighbors) : myNeighbors,
-    residents,
-    panel: myNeighbors,
-    noFavorites: Boolean(member) && !myNeighbors.some((h) => h.favorite),
-    attendedToday,
-    quests: quests ? questProgress(quests) : null,
+    myHouse: town.myHouse,
+    neighbors: town.neighbors,
+    residents: town.residents,
+    panel: town.panel,
+    noFavorites: town.member && !town.panel.some((h) => h.favorite),
+    attendedToday: town.attendedToday,
+    quests: town.quests,
   };
   const { panel, noFavorites } = data;
 

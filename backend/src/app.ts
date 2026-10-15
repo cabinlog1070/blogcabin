@@ -9,12 +9,15 @@ import { blogRoutes } from "./routes/blog";
 import { attendance } from "./routes/attendance";
 import { closetRoutes } from "./routes/closet";
 import { farmRoutes } from "./routes/farm";
+import { feedRoutes, searchRoutes } from "./routes/feed";
 import { localeRoutes } from "./routes/locale";
 import { myBlogRoutes } from "./routes/my-blog";
 import { notificationRoutes } from "./routes/notifications";
 import { onboardingRoutes } from "./routes/onboarding";
 import { postRoutes } from "./routes/posts";
 import { shopRoutes } from "./routes/shop";
+import { townRoutes } from "./routes/town";
+import { walletRoutes } from "./routes/wallet";
 
 // 서버(backend) API. 새 주소는 모두 /api/v1/… 로 시작한다.
 // 예외: 로그인(/api/auth/…)은 소셜 로그인 콜백 주소가 카카오·구글 개발자 센터에 이 주소로 등록돼 있어 그대로 둔다.
@@ -69,6 +72,12 @@ v1.route("/posts", postRoutes);
 // 마을 주민 등록(온보딩), 관리자(글·댓글 지우기, 강제 탈퇴, 지급, 선물 보내기)
 v1.route("/onboarding", onboardingRoutes);
 v1.route("/admin", adminRoutes);
+
+// 읽기: 마을 소식·이웃 새 글·태그, 검색, 광장, 경험치·코인 내역 (화면의 서버 쪽 페이지가 부른다)
+v1.route("/feed", feedRoutes);
+v1.route("/search", searchRoutes);
+v1.route("/town", townRoutes);
+v1.route("/wallet", walletRoutes);
 
 app.route("/api/v1", v1);
 

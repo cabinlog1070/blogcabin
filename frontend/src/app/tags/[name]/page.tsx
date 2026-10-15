@@ -1,8 +1,8 @@
 import { FeedView } from "@/components/blog/feed-view";
 import { parsePage } from "@/components/pagination";
-import { getAllTags, listFeed } from "@/server/blog";
 import { feedFrom } from "@/lib/feed-from";
 import { getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata(props: PageProps<"/tags/[name]">) {
   // generateMetadata의 params는 이미 디코딩되어 온다 (/tags/100%25 → "100%").
@@ -16,7 +16,7 @@ export default async function TagPage(props: PageProps<"/tags/[name]">) {
   const t = await getT();
   const tag = decodeURIComponent((await props.params).name);
   const page = parsePage((await props.searchParams).page);
-  const [list, tags] = await Promise.all([listFeed({ page, tag }), getAllTags()]);
+  const { list, tags } = await readApi.feed(page, tag);
   return (
     <FeedView
       title={<>🏷 #{tag}</>}

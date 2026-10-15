@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { FeedView } from "@/components/blog/feed-view";
 import { parsePage } from "@/components/pagination";
-import { getAllTags, listFeed } from "@/server/blog";
 import { feedFrom } from "@/lib/feed-from";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -17,7 +17,7 @@ export default async function FollowingFeedPage(props: PageProps<"/feed/followin
   // 링크 자리({link})를 기준으로 문장을 나눈다 (언어마다 어순이 달라서)
   const [linkBefore, linkAfter = ""] = t("{link}에서 마음에 드는 블로그를 이웃으로 추가해 보세요.").split("{link}");
   const page = parsePage((await props.searchParams).page);
-  const [list, tags] = await Promise.all([listFeed({ page, followerId: viewer.userId }), getAllTags()]);
+  const { list, tags } = await readApi.following(page);
   return (
     <FeedView
       title={t("💛 이웃 새 글")}
