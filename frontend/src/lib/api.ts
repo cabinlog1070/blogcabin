@@ -18,7 +18,7 @@ export class ApiError extends Error {
 
 const FAILED = msg("잠시 뒤 다시 시도해 주세요");
 
-export async function api<R = unknown>(path: string, init: { method?: "GET" | "POST" | "PUT"; body?: unknown } = {}): Promise<R> {
+export async function api<R = unknown>(path: string, init: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown } = {}): Promise<R> {
   let res: Response;
   try {
     res = await fetch(`/api/v1${path}`, {
@@ -43,4 +43,11 @@ export function errorText(t: T, err: unknown): string {
   if (!(err instanceof ApiError)) return t(FAILED);
   const vars = err.vars && Object.fromEntries(Object.entries(err.vars).map(([k, v]) => [k, typeof v === "string" ? t(v) : v]));
   return t(err.message, vars);
+}
+
+const SAVE_FAILED = msg("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요");
+
+/** 저장 버튼의 실패 문구: 서버가 이유를 알려 줬으면(400대) 그 문구, 아니면(네트워크·서버 오류) "저장하지 못했어요…" */
+export function saveError(t: T, err: unknown): string {
+  return err instanceof ApiError && err.status >= 400 && err.status < 500 ? errorText(t, err) : t(SAVE_FAILED);
 }

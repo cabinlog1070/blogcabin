@@ -1,10 +1,29 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useT } from "@/components/i18n";
-import { addCategory, deleteCategory, moveCategory, renameCategory, updateBlogInfo, type FormState } from "./actions";
-import { categoryLabel } from "@/lib/i18n";
+import { saveError } from "@/lib/api";
+import { myBlogApi } from "@/lib/blog-api";
+import { categoryLabel, DEFAULT_CATEGORY } from "@/lib/i18n";
 import { STATUS_MESSAGE_MAX } from "@/lib/status-message";
+
+type FormState = { error?: string; ok?: number };
+
+/** 저장 API를 부르고 화면(헤더 닉네임·카테고리 목록)을 다시 그린다. 실패하면 보는 사람의 언어로 이유 */
+function useSave() {
+  const t = useT();
+  const router = useRouter();
+  return async (call: () => Promise<unknown>): Promise<FormState> => {
+    try {
+      await call();
+      router.refresh();
+      return { ok: Date.now() };
+    } catch (err) {
+      return { error: saveError(t, err) };
+    }
+  };
+}
 
 const input = "w-full rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun";
 
@@ -22,7 +41,19 @@ export function BlogInfoForm({
   description: string;
   statusMessage: string | null;
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(updateBlogInfo, {});
+  const save = useSave();
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    (_prev, form) =>
+      save(() =>
+        myBlogApi.updateInfo({
+          nickname: String(form.get("nickname") ?? ""),
+          title: String(form.get("title") ?? ""),
+          description: String(form.get("description") ?? ""),
+          statusMessage: String(form.get("statusMessage") ?? ""),
+        }),
+      ),
+    {},
+  );
   const t = useT();
   return (
     <form action={action} className="space-y-3">
@@ -73,12 +104,13 @@ function CategoryRow({ c, first, last }: { c: Category; first: boolean; last: bo
   const [name, setName] = useState(label);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
+  const save = useSave();
 
   return (
     <li className="flex flex-wrap items-center gap-2 py-2">
       <div className="flex flex-col">
-        <button type="button" disabled={first || pending} onClick={() => start(() => moveCategory(c.id, -1))} className="px-1 text-xs disabled:opacity-30" aria-label={t("{name} 위로", { name: label })}>▲</button>
-        <button type="button" disabled={last || pending} onClick={() => start(() => moveCategory(c.id, 1))} className="px-1 text-xs disabled:opacity-30" aria-label={t("{name} 아래로", { name: label })}>▼</button>
+        <button type="button" disabled={first || pending} onClick={() => start(async () => void (await save(() => myBlogApi.moveCategory(c.id, -1))))} className="px-1 text-xs disabled:opacity-30" aria-label={t("{name} 위로", { name: label })}>▲</button>
+        <button type="button" disabled={last || pending} onClick={() => start(async () => void (await save(() => myBlogApi.moveCategory(c.id, 1))))} className="px-1 text-xs disabled:opacity-30" aria-label={t("{name} 아래로", { name: label })}>▼</button>
       </div>
       {editing ? (
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={20} className={`${input} w-auto flex-1 py-1`} aria-label={t("카테고리 이름")} autoFocus />
@@ -95,7 +127,9 @@ function CategoryRow({ c, first, last }: { c: Category; first: boolean; last: bo
             className="text-sm font-bold text-leaf-dark"
             onClick={() =>
               start(async () => {
-                const r = await renameCategory(c.id, name);
+                // 일본어 화면에서 기본 카테고리를 보이는 이름("日常") 그대로 저장하면 기본 이름("일상")으로 둔다 (categoryLabel)
+                const newName = name.trim() === t(DEFAULT_CATEGORY) ? DEFAULT_CATEGORY : name;
+                const r = await save(() => myBlogApi.renameCategory(c.id, newName));
                 if (r.error) setError(r.error);
                 else {
                   setError("");
@@ -117,7 +151,7 @@ function CategoryRow({ c, first, last }: { c: Category; first: boolean; last: bo
             type="button"
             disabled={pending}
             className="text-sm text-ink-soft hover:text-berry"
-            onClick={() => confirm(t("'{name}' 카테고리를 지울까요? 글은 남고 '카테고리 없음'이 돼요.", { name: label })) && start(() => deleteCategory(c.id))}
+            onClick={() => confirm(t("'{name}' 카테고리를 지울까요? 글은 남고 '카테고리 없음'이 돼요.", { name: label })) && start(async () => void (await save(() => myBlogApi.deleteCategory(c.id))))}
           >
             {t("삭제")}
           </button>
@@ -129,7 +163,11 @@ function CategoryRow({ c, first, last }: { c: Category; first: boolean; last: bo
 }
 
 export function CategoryManager({ categories }: { categories: Category[] }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(addCategory, {});
+  const save = useSave();
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    (_prev, form) => save(() => myBlogApi.addCategory(String(form.get("name") ?? ""))),
+    {},
+  );
   const t = useT();
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {

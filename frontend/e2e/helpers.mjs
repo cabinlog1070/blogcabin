@@ -6,7 +6,9 @@ export function collectErrors(page) {
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
   page.on("console", (m) => {
     // Playwright 스크린샷이 넣는 caret 스타일 때문에 생기는 하이드레이션 경고는 제외
-    if (m.type() === "error" && !m.text().includes("caret-color") && !m.text().includes("401")) errors.push(`console: ${m.text().slice(0, 300)}`);
+    // 서버 API가 이유와 함께 거절한 요청(400·409, 화면은 그 문구를 보여 준다)은 브라우저가 콘솔에 적어도 오류가 아니다
+    const refused = /Failed to load resource: the server responded with a status of (400|409)/.test(m.text());
+    if (m.type() === "error" && !m.text().includes("caret-color") && !m.text().includes("401") && !refused) errors.push(`console: ${m.text().slice(0, 300)}`);
   });
   return errors;
 }

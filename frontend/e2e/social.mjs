@@ -41,11 +41,9 @@ const owner = await userId("tester1");
 await db.query("DELETE FROM follows WHERE follower_id = $1 AND followee_id = $2", [me, owner]);
 
 // ── 버튼으로 이웃 추가 → 취소 ──
-const followButton = () => page.locator("form", { has: page.getByRole("button", { name: /이웃/ }) }).first().getByRole("button");
+const followButton = () => page.getByRole("button", { name: /^(\+ 이웃 추가|✓ 이웃)$/ });
 await page.goto(`${BASE}/@tester1`);
-const requestP = page.waitForRequest((r) => r.method() === "POST" && !!r.headers()["next-action"]);
 await followButton().click();
-const request = await requestP;
 await page.getByRole("button", { name: "✓ 이웃" }).waitFor();
 check("SOC-04 [+ 이웃 추가]를 누르면 이웃이 된다", (await followCount(me, owner)) === 1);
 await page.screenshot({ path: `${outDir}/60-follow.png` });
@@ -53,28 +51,14 @@ await followButton().click();
 await page.getByRole("button", { name: "+ 이웃 추가" }).waitFor();
 check("SOC-04 [✓ 이웃]을 다시 누르면 취소된다", (await followCount(me, owner)) === 0);
 
-// ── 조작한 요청: 상대 회원 ID만 바꿔 같은 Server Action을 부른다 ──
+// ── 조작한 요청: 상대 회원 ID만 바꿔 같은 이웃 API를 부른다 ──
 const forge = (targetId) =>
-  page.evaluate(
-    async ({ actionId, contentType, body }) => {
-      const r = await fetch(location.href, {
-        method: "POST",
-        headers: { "Next-Action": actionId, Accept: "text/x-component", "Content-Type": contentType },
-        body,
-      });
-      return r.status;
-    },
-    {
-      actionId: request.headers()["next-action"],
-      contentType: request.headers()["content-type"],
-      body: request.postData().split(owner).join(targetId),
-    },
-  );
+  page.evaluate(async (id) => (await fetch(`/api/v1/blog/neighbors/${encodeURIComponent(id)}/toggle`, { method: "POST" })).status, targetId);
 
 const missingStatus = await forge("no-such-user-id");
-check("SOC-04 없는 회원 ID로 보내도 오류 없이 무시", missingStatus === 200 && (await followCount(me, "no-such-user-id")) === 0, `HTTP ${missingStatus}`);
+check("SOC-04 없는 회원 ID로 보내면 거절(400)하고 저장하지 않음", missingStatus === 400 && (await followCount(me, "no-such-user-id")) === 0, `HTTP ${missingStatus}`);
 const preStatus = await forge(preId);
-check("SOC-04 온보딩 전(블로그 없는) 회원 ID로 보내도 저장되지 않음", preStatus === 200 && (await followCount(me, preId)) === 0, `HTTP ${preStatus}`);
+check("SOC-04 온보딩 전(블로그 없는) 회원 ID로 보내도 저장되지 않음", preStatus === 400 && (await followCount(me, preId)) === 0, `HTTP ${preStatus}`);
 
 console.log(results.join("\n"));
 console.log("errors:", errors.length ? errors : "none");

@@ -5,6 +5,7 @@ import { likePattern, SEARCH_BLOG_LIMIT } from "@/lib/search";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { lookSql } from "@/server/look";
+import { isPublished } from "@backend/blog/access";
 import {
   blogs,
   categories,
@@ -24,11 +25,8 @@ const backgroundItem = alias(items, "background_item");
 
 export const PAGE_SIZE = 8;
 
-/**
- * 올라간 글: 올라갈 시각(created_at)이 지났다. 예약 글(POST-11)은 그 시각 전까지 주인에게만 보이고,
- * 시각이 되면 따로 바꾸는 일 없이 이 조건으로 목록·광장·검색에 나타난다
- */
-export const isPublished = sql<boolean>`${posts.createdAt} <= now()`;
+// 글을 볼 수 있는 조건(올라간 글·서로 이웃·비공개 글)은 서버(블로그 API)와 같은 코드를 쓴다
+export { canSeePrivatePosts, isMutualNeighbor, isPublished } from "@backend/blog/access";
 
 // ===== 블로그 =====
 export async function getBlogBySlug(slug: string) {
@@ -82,29 +80,6 @@ export async function getCategories(blogId: number, includePrivate: boolean, inc
     .from(categories)
     .where(eq(categories.blogId, blogId))
     .orderBy(asc(categories.position), asc(categories.id));
-}
-
-/** 서로 이웃: 두 사람이 서로를 이웃으로 추가했다. 비공개 글은 주인과 서로 이웃만 본다 */
-export async function isMutualNeighbor(a: string, b: string) {
-  if (a === b) return false;
-  const rows = await db
-    .select({ x: follows.followerId })
-    .from(follows)
-    .where(
-      or(
-        and(eq(follows.followerId, a), eq(follows.followeeId, b)),
-        and(eq(follows.followerId, b), eq(follows.followeeId, a)),
-      ),
-    );
-  return rows.length === 2;
-}
-
-/** 이 사람이 이 블로그 주인의 비공개 글을 볼 수 있는가 (주인, 서로 이웃, 관리자) */
-export async function canSeePrivatePosts(viewerId: string | null, ownerId: string) {
-  if (!viewerId) return false;
-  if (viewerId === ownerId) return true;
-  const [viewer] = await db.select({ role: users.role }).from(users).where(eq(users.id, viewerId));
-  return viewer?.role === "admin" || isMutualNeighbor(viewerId, ownerId);
 }
 
 /** 이웃 관계와 즐겨찾기 여부. 이웃이 아니면 null (남의 블로그 헤더의 ☆, TOWN-08) */

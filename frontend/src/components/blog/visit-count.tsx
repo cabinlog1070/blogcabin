@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useEffect, useState } from "react";
-import { recordBlogVisit } from "@/app/blog/actions";
+import { blogApi } from "@/lib/blog-api";
 import { useLocale, useT } from "@/components/i18n";
 import { LOCALE_TAGS, type Locale } from "@/lib/i18n";
 
@@ -20,8 +20,7 @@ export function VisitCount({ blogId, today, total, isOwner }: { blogId: number; 
     if (isOwner) return; // 주인은 세지 않는다 (서버도 다시 확인)
     startTransition(async () => {
       try {
-        const next = await recordBlogVisit(blogId);
-        if (next) setStats(next);
+        setStats(await blogApi.recordBlogVisit(blogId));
       } catch {
         // 기록이 실패해도 블로그는 그대로 보인다
       }

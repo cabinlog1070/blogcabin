@@ -4,11 +4,14 @@ import { uploadAttachment } from "./attachments/upload";
 import { auth } from "./auth";
 import { db } from "./db";
 import { accountRoutes } from "./routes/account";
+import { blogRoutes } from "./routes/blog";
 import { attendance } from "./routes/attendance";
 import { closetRoutes } from "./routes/closet";
 import { farmRoutes } from "./routes/farm";
 import { localeRoutes } from "./routes/locale";
+import { myBlogRoutes } from "./routes/my-blog";
 import { notificationRoutes } from "./routes/notifications";
+import { postRoutes } from "./routes/posts";
 import { shopRoutes } from "./routes/shop";
 
 // 서버(backend) API. 새 주소는 모두 /api/v1/… 로 시작한다.
@@ -55,6 +58,11 @@ v1.route("/closet", closetRoutes);
 
 // 농장 (알·부화·돌보기·물약·펫 꾸미기)
 v1.route("/farm", farmRoutes);
+
+// 블로그: 공감·댓글·이웃·방문 수, 내 블로그 관리(기본 정보·카테고리), 글쓰기
+v1.route("/blog", blogRoutes);
+v1.route("/my-blog", myBlogRoutes);
+v1.route("/posts", postRoutes);
 
 app.route("/api/v1", v1);
 

@@ -12,8 +12,8 @@ export const INVITE_CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/;
 export const INVITE_COOKIE = "bc_invite";
 export const INVITE_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30일
 
-/** 초대 보상: 초대한 사람과 친구 둘 다 코인 50, 경험치 없음 (GAME-09) */
-export const INVITE_REWARD_COINS = 50;
+/** 초대 보상 코인은 서버(글쓰기 API의 초대 보상)와 같은 숫자를 쓴다 */
+export { INVITE_REWARD_COINS } from "@backend/game/rules";
 
 /** 무작위 초대 코드. 서로 겹치는지는 DB UNIQUE가 확인하고, 겹치면 부르는 쪽이 다시 만든다 */
 export function generateInviteCode(random: (n: number) => Uint8Array = defaultRandom): string {
