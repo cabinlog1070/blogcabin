@@ -6,6 +6,7 @@ import { db } from "./db";
 import { accountRoutes } from "./routes/account";
 import { attendance } from "./routes/attendance";
 import { closetRoutes } from "./routes/closet";
+import { farmRoutes } from "./routes/farm";
 import { localeRoutes } from "./routes/locale";
 import { notificationRoutes } from "./routes/notifications";
 import { shopRoutes } from "./routes/shop";
@@ -51,6 +52,9 @@ v1.route("/account", accountRoutes);
 // 상점(사기·입어 본 모습 저장), 꾸미기 저장
 v1.route("/shop", shopRoutes);
 v1.route("/closet", closetRoutes);
+
+// 농장 (알·부화·돌보기·물약·펫 꾸미기)
+v1.route("/farm", farmRoutes);
 
 app.route("/api/v1", v1);
 

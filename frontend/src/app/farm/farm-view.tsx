@@ -26,21 +26,7 @@ import {
 } from "@/lib/farm";
 import type { T } from "@/lib/i18n";
 import type { FarmAnimal, SpeciesCard } from "@/server/farm";
-import {
-  buyEgg,
-  buyPotion,
-  careAnimal,
-  claimEgg,
-  type FarmResult,
-  hatchAllEggs,
-  hatchEgg,
-  renamePet,
-  setCarriedPet,
-  setDisplayedCard,
-  setPetAccessory,
-  setPetColor,
-  givePotion,
-} from "./actions";
+import { type FarmResult, useFarmApi } from "./farm-api";
 import { FarmField, type FieldPet } from "./farm-field";
 import { useAutoClear } from "@/components/use-auto-clear";
 
@@ -105,6 +91,7 @@ export function FarmView({
 }) {
   const t = useT();
   const locale = useLocale();
+  const { buyEgg, buyPotion, claimEgg, hatchAllEggs, hatchEgg } = useFarmApi();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<FarmResult | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
@@ -444,6 +431,7 @@ function PetStatus({
 }) {
   const t = useT();
   const locale = useLocale();
+  const { careAnimal, givePotion, renamePet, setCarriedPet, setDisplayedCard } = useFarmApi();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(pet.name);
   const stage = animalStage(pet.growth, pet.growExp);
@@ -709,6 +697,7 @@ function PetPicker({ title, pets, selectedId, onPick }: { title: string; pets: P
 /** 고른 펫 한 마리 꾸미기: 이름, 꾸미기, 색 */
 function PetDecorator({ pet, pending, run }: { pet: Pet; pending: boolean; run: (fn: () => Promise<FarmResult>) => void }) {
   const t = useT();
+  const { renamePet, setPetAccessory, setPetColor } = useFarmApi();
   const [name, setName] = useState(shownName(t, pet));
   const label = shownName(t, pet);
   return (
