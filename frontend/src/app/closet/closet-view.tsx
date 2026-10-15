@@ -105,7 +105,7 @@ export function ClosetView({
     characterItemId: number;
     backgroundItemId: number;
     worn: { slot: string; itemId: number }[];
-    furniture: { itemId: number; assetKey: string; x: number; y: number }[];
+    furniture: { itemId: number; assetKey: string; x: number; y: number; flipped: boolean }[];
   };
   nickname: string;
   roofColor: string | null; // 고른 지붕 색 (TOWN-07). null = 배경 색 따라가기
@@ -126,7 +126,7 @@ export function ClosetView({
       backgroundItemId: equipped.backgroundItemId,
       worn: Object.fromEntries(equipped.worn.map((w) => [w.slot, w.itemId])),
       roof: roofColor,
-      placed: equipped.furniture.map((f) => ({ id: f.itemId, assetKey: f.assetKey, x: f.x, y: f.y })),
+      placed: equipped.furniture.map((f) => ({ id: f.itemId, assetKey: f.assetKey, x: f.x, y: f.y, flipped: f.flipped })),
       colors,
       charAt: characterSpot ?? ROOM_CHARACTER_SPOT,
       petAt: petSpot,
@@ -175,7 +175,7 @@ export function ClosetView({
       backgroundItemId: sent.backgroundItemId,
       worn: sent.worn,
       roof: sent.roof,
-      furniture: sent.placed.map((f) => ({ itemId: f.id, x: f.x, y: f.y })),
+      furniture: sent.placed.map((f) => ({ itemId: f.id, x: f.x, y: f.y, flipped: f.flipped === true })),
       colors: Object.fromEntries(Object.entries(sent.colors).filter(([id, c]) => c !== saved.colors[Number(id)])),
       character: sent.charAt,
       pet: sent.petAt,
@@ -225,10 +225,16 @@ export function ClosetView({
   function place(item: OwnedItem, x: number, y: number) {
     // 벽 장식은 벽 안, 창문·액자를 가리지 않는 가장 가까운 자리로 맞춘다
     const at = fitRoomSpot(item.assetKey, clampPct(x), clampPct(y));
-    const spot = { id: item.id, assetKey: painted(item), x: at.x, y: at.y };
-    const already = draft.placed.some((f) => f.id === item.id);
+    const before = draft.placed.find((f) => f.id === item.id);
+    const spot = { id: item.id, assetKey: painted(item), x: at.x, y: at.y, flipped: before?.flipped };
+    const already = !!before;
     update({ placed: already ? draft.placed.map((f) => (f.id === item.id ? spot : f)) : [...draft.placed, spot] });
     setSelectedId(item.id);
+  }
+
+  /** 좌우로 뒤집기 (2026-10-15) */
+  function flip(item: OwnedItem) {
+    update({ placed: draft.placed.map((f) => (f.id === item.id ? { ...f, flipped: !f.flipped } : f)) });
   }
 
   function remove(item: OwnedItem) {
@@ -408,7 +414,7 @@ export function ClosetView({
   // ===== 오른쪽(휴대폰은 아래) 고르는 칸 =====
   const avatars = items.filter((i) => i.type === "avatar");
   const selected = byId(selectedId);
-  const selectedPlaced = selected && draft.placed.some((f) => f.id === selected.id);
+  const selectedPlaced = selected ? draft.placed.find((f) => f.id === selected.id) : undefined;
 
   let panel: ReactNode = null;
   if (tab === "char") {
@@ -461,7 +467,7 @@ export function ClosetView({
           {selected && selectedPlaced ? (
             <div className="flex items-center gap-3">
               <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-cream p-3" data-furniture-color-preview={draft.colors[selected.id] ?? "default"}>
-                <FurnitureArt assetKey={painted(selected)} className="h-full w-full object-contain" />
+                <FurnitureArt assetKey={painted(selected)} flipped={selectedPlaced.flipped} className="h-full w-full object-contain" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="mb-2 font-bold">
@@ -475,6 +481,9 @@ export function ClosetView({
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button type="button" disabled={!draft.colors[selected.id]} onClick={() => paint(selected, null)} aria-pressed={!draft.colors[selected.id]} className="btn bg-paper py-1 text-xs text-ink">
                     {t("기본 색")}
+                  </button>
+                  <button type="button" onClick={() => flip(selected)} aria-pressed={!!selectedPlaced.flipped} className="btn bg-paper py-1 text-xs text-ink" data-flip-furniture>
+                    {t("↔ 좌우 뒤집기")}
                   </button>
                   <button type="button" onClick={() => remove(selected)} className="btn bg-paper py-1 text-xs text-berry" data-remove-furniture>
                     {t("미니룸에서 빼기")}

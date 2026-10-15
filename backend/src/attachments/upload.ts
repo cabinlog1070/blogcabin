@@ -18,6 +18,7 @@ import {
   FILE_TYPES,
   IMAGE_TYPES,
 } from "./rules";
+import { storeDisplayImage } from "./display";
 import { saveAttachment } from "./storage";
 
 /** 파일 앞부분으로 진짜 사진인지 확인한다 (확장자만 바꾼 SVG·HTML 등을 막는다) */
@@ -71,6 +72,8 @@ export async function uploadAttachment(c: Context) {
   const mime = kind === "image" ? IMAGE_TYPES[ext] : FILE_TYPES[ext];
   try {
     await saveAttachment(key, bytes);
+    // 글에서 보여 줄 작은 사본 (display.ts). GIF는 원본 그대로
+    if (kind === "image") await storeDisplayImage(key, bytes);
     await db.insert(attachments).values({ key, userId: session.user.id, kind, name, mime, size: bytes.length });
   } catch (err) {
     console.error("첨부 저장 실패", err);

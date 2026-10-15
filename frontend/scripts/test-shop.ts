@@ -80,7 +80,18 @@ expect("위치는 0~100으로", [clampPct(-5), clampPct(42.345), clampPct(130)],
     }
   }
   expect("빈 벽에 놓은 구름은 그 자리 그대로", fitRoomSpot("furn.cloud", 54, 25), { x: 54, y: 25 });
-  expect("바닥 가구는 그대로", fitRoomSpot("furn.chair", 16, 30), { x: 16, y: 30 });
+  // 바닥 가구는 아래 선이 바닥(74%)보다 위로 못 올라간다 (2026-10-15)
+  for (const key of ["furn.chair", "furn.bookshelf", "furn.bed", "furn.lamp", "furn.tv"]) {
+    const { heightPct } = furnitureInfo(key);
+    const at = fitRoomSpot(key, 16, 10);
+    expect(`${key}를 벽에 놓아도 아래 선은 바닥에`, at.y + heightPct / 2 >= 74 && at.y + heightPct / 2 <= 100, true);
+    expect(`${key} 좌우 자리는 그대로`, at.x, 16);
+  }
+  expect("바닥에 놓은 의자는 그대로", fitRoomSpot("furn.chair", 30, 80), { x: 30, y: 80 });
+  {
+    const { heightPct } = furnitureInfo("furn.rug");
+    expect("러그는 통째로 바닥 위에", fitRoomSpot("furn.rug", 50, 40).y - heightPct / 2 >= 72, true);
+  }
 }
 
 if (failed) {

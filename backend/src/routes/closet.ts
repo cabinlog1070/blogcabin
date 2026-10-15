@@ -24,7 +24,8 @@ export type ClosetDraft = {
   /** 부위 → 입은 아이템 (없으면 벗음). 헤어는 벗을 수 없다 */
   worn: Partial<Record<string, number>>;
   roof: string | null;
-  furniture: { itemId: number; x: number; y: number }[];
+  /** flipped: 좌우로 뒤집어 놓음 (2026-10-15, 없으면 뒤집지 않음) */
+  furniture: { itemId: number; x: number; y: number; flipped?: boolean }[];
   /** 가구 id → 색 (null = 기본 색) */
   colors: Record<string, string | null>;
   character: { x: number; y: number };
@@ -68,13 +69,13 @@ export async function saveCloset(userId: string, draft: ClosetDraft): Promise<Cl
     wear.push({ slot: item.slot, itemId });
   }
 
-  // 가구: 가진 가구만, 같은 가구는 한 번. 벽 장식은 벽 안, 창문·액자를 가리지 않는 자리로
-  const room = new Map<number, { x: number; y: number }>();
+  // 가구: 가진 가구만, 같은 가구는 한 번. 벽 장식은 벽 안, 창문·액자를 가리지 않는 자리로, 바닥 가구는 바닥 위로
+  const room = new Map<number, { x: number; y: number; flipped: boolean }>();
   for (const f of draft.furniture) {
     const item = owned.get(f.itemId);
     if (!item) return notOwned;
     if (item.type !== "furniture") return fail(msg("가구만 미니룸에 놓을 수 있어요"));
-    room.set(f.itemId, fitRoomSpot(item.assetKey, clampPct(f.x), clampPct(f.y)));
+    room.set(f.itemId, { ...fitRoomSpot(item.assetKey, clampPct(f.x), clampPct(f.y)), flipped: f.flipped === true });
   }
   const colors: [number, string | null][] = [];
   for (const [id, color] of Object.entries(draft.colors ?? {})) {

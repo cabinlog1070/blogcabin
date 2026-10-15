@@ -22,8 +22,9 @@
     "test:rules": "tsx scripts/test-batch-d.ts",
     "test:i18n": "tsx scripts/test-i18n.ts",
     "test:release-notes": "tsx scripts/test-release-notes.ts",
+    "test:mentions": "tsx --conditions=react-server scripts/test-mentions.ts",
     "test:status-message": "tsx scripts/test-status-message.ts",
-    "test": "npm run test:game && npm run test:shop && npm run test:ids && npm run test:status-message && npm run test:rules && npm run test:release-notes && npm run test:sanitize && npm run test:i18n"
+    "test": "npm run test:game && npm run test:shop && npm run test:ids && npm run test:status-message && npm run test:rules && npm run test:release-notes && npm run test:sanitize && npm run test:mentions && npm run test:i18n"
   },
   "dependencies": {
     "@tiptap/extension-image": "^3.31.4",

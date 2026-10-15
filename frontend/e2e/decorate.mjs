@@ -222,7 +222,7 @@ try {
   await page.reload({ waitUntil: "networkidle" });
   const chairBefore = await chairSrc();
   check("가구 색: 가구를 누르기 전엔 안내만", (await colorSection.getByRole("radio").count()) === 0);
-  await room.locator('[data-furniture="furn.chair"]').click();
+  await room.locator('[data-furniture="furn.chair"]').click({ position: { x: 12, y: 12 } }) // 가운데는 캐릭터가 가릴 수 있어 등받이 쪽을 누른다;
   check("가구 색: 미니룸에서 누른 의자가 점선으로 표시되고 의자 색 고르기가 나옴", (await room.locator('[data-furniture="furn.chair"]').getAttribute("data-selected")) === "true" && (await colorSection.innerText()).includes("의자 색"));
   await colorSection.getByRole("radio", { name: "민트", exact: true }).click();
   check("가구 색: 고르면 미니룸 의자 그림이 바로 바뀜", (await chairSrc()) !== chairBefore);
@@ -237,13 +237,37 @@ try {
     .then(() => false)
     .catch((e) => e.message.includes("user_items_color_check"));
   check("SHOP-05 가구 색: 목록에 없는 색은 DB가 막음", badColor);
-  await room.locator('[data-furniture="furn.chair"]').click();
+  await room.locator('[data-furniture="furn.chair"]').click({ position: { x: 12, y: 12 } }) // 가운데는 캐릭터가 가릴 수 있어 등받이 쪽을 누른다;
   await colorSection.getByRole("button", { name: "기본 색" }).click();
   // 목록 카드를 눌러도 고를 수 있다 (이미 미니룸에 있는 가구)
   await furnCard("침대").click();
   await colorSection.getByRole("radio", { name: "남색", exact: true }).click();
   await saveNow();
   check("SHOP-05 가구 색: 의자는 기본 색, 침대는 남색 (목록 카드로 골라도 됨)", (await colorOf("furn_chair")) === null && (await chairSrc()) === chairBefore && (await colorOf("furn_bed")) === "navy");
+
+  // ── 좌우 뒤집기 (2026-10-15) ──
+  await room.locator('[data-furniture="furn.chair"]').click({ position: { x: 12, y: 12 } }) // 가운데는 캐릭터가 가릴 수 있어 등받이 쪽을 누른다;
+  await colorSection.getByRole("button", { name: "↔ 좌우 뒤집기" }).click();
+  check("좌우 뒤집기: 누르면 미니룸 의자가 바로 뒤집힘", (await room.locator('[data-furniture="furn.chair"]').getAttribute("data-flipped")) === "true");
+  await saveNow();
+  const flippedOf = async (code) => (await one("SELECT rf.flipped FROM room_furniture rf JOIN items i ON i.id = rf.item_id WHERE rf.user_id = $1 AND i.code = $2", [uid, code])).flipped;
+  check("좌우 뒤집기: 저장됨 (다른 가구는 그대로)", (await flippedOf("furn_chair")) === true && (await flippedOf("furn_bed")) === false);
+  await page.reload({ waitUntil: "networkidle" });
+  check("좌우 뒤집기: 새로고침해도 그대로", (await room.locator('[data-furniture="furn.chair"]').getAttribute("data-flipped")) === "true");
+  await dragTo(room.locator('[data-furniture="furn.chair"]'), 40, 70);
+  await saveNow();
+  check("좌우 뒤집기: 옮겨도 뒤집힌 채", (await flippedOf("furn_chair")) === true);
+
+  // ── 바닥 가구는 벽으로 못 올라감 (2026-10-15) ──
+  await dragTo(room.locator('[data-furniture="furn.lamp"]'), 88, 15);
+  const lampBox = await room.locator('[data-furniture="furn.lamp"]').boundingBox();
+  const roomBox = await room.boundingBox();
+  const lampBottom = ((lampBox.y + lampBox.height - roomBox.y) / roomBox.height) * 100;
+  check("바닥 가구: 벽 위로 끌어도 아래 선은 바닥에", lampBottom >= 73.5, lampBottom.toFixed(1));
+  await saveNow();
+  const lamp = await pos("furn_lamp");
+  check("바닥 가구: 바닥으로 맞춘 자리로 저장", Number(lamp.y) + 22 >= 74, String(lamp.y));
+  await page.screenshot({ path: `${outDir}/a3b-closet-flip-floor.png` });
 
   // 6번째도 놓인다 (2026-10-13 5개 제한 없앰): 사지 않고 시험용 가구를 잠깐 만들어 준다
   await db.query("INSERT INTO items (code, type, name, price, required_level, is_starter, asset_key) VALUES ($1, 'furniture', '시험 화분', 0, 1, false, 'furn.plant') ON CONFLICT (code) DO NOTHING", [TEMP_CODE]);
@@ -295,6 +319,7 @@ try {
   const blogRoom = page.locator("[data-mini-room]");
   check("SHOP-06 블로그 미니룸에 같은 모습", (await blogRoom.locator("[data-room-character] img").first().getAttribute("src")) === look);
   check("SHOP-05 블로그 미니룸에 가구 5개", (await blogRoom.locator("[data-furniture]").count()) === 5);
+  check("좌우 뒤집기: 블로그 미니룸에서도 의자가 뒤집혀 보임", (await blogRoom.locator('[data-furniture="furn.chair"]').getAttribute("data-flipped")) === "true");
   check("블로그 홈 [미니룸 꾸미기 >]는 미니룸 꾸미기 탭으로", (await page.locator("[data-miniroom-edit]").getAttribute("href")) === "/closet?tab=room");
   const headerFace = await page.getByRole("banner").locator("img").last().getAttribute("src");
   check("SHOP-06 헤더 캐릭터 얼굴도 밀짚모자", headerFace.includes("%23f4d78a"));
