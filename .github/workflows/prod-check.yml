@@ -23,14 +23,17 @@ jobs:
           done
           curl -s https://blogcabin.java21.net/api/health; echo
           curl -s https://blogcabin.java21.net/api/v1/health; echo
+          s=$(curl -s https://blogcabin.java21.net/support)
+          echo "support: email-shown=$(echo "$s" | grep -c 'mailto:') coming-soon=$(echo "$s" | grep -c '곧 열어요')"
       - name: containers (read only, values hidden)
         run: |
           sshpass -e ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 ${SSH_USER}@${SSH_HOST} 'bash -s' <<'SH'
           set +e
           docker ps --filter name=blogcabin --format '{{.Names}} {{.Image}} {{.Status}}'
           for c in blogcabin-1 blogcabin-2 blogcabin-api-1 blogcabin-api-2; do
-            keys=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' $c | cut -d= -f1 | grep -E 'DATABASE|SECRET|BACKEND_URL' | tr '\n' ' ')
+            keys=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' $c | cut -d= -f1 | grep -E 'DATABASE|SECRET|BACKEND_URL|SUPPORT_EMAIL' | tr '\n' ' ')
             echo "$c env keys: $keys"
+            echo "$c SUPPORT_EMAIL non-empty: $(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' $c | grep -c '^SUPPORT_EMAIL=.')"
           done
           docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' $(docker ps -q --filter name=blogcabin)
           SH
