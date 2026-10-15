@@ -4,7 +4,9 @@ import type { getAllTags, listFeed, searchBlogs, searchPosts } from "@backend/bl
 import type { listLedger } from "@backend/game/ledger";
 import type { listNotificationRows } from "@backend/notifications";
 import type { GiftView } from "@backend/gifts/views";
+import type { adminContent, adminMember, adminMembers, adminOverview } from "@backend/admin/read";
 import type { attendancePage } from "@backend/routes/attendance";
+import type { me } from "@backend/routes/me";
 import type { blogHomePage, blogSettingsPage, postPage, writePage } from "@backend/routes/blog-pages";
 import type { closetPage } from "@backend/routes/closet";
 import type { farmPage } from "@backend/routes/farm";
@@ -20,6 +22,7 @@ type Tags = Awaited<ReturnType<typeof getAllTags>>;
 type Out<F extends (...args: never[]) => unknown> = Awaited<ReturnType<F>>;
 
 export const readApi = {
+  me: () => serverApi<Out<typeof me>>("/me"),
   feed: (page: number, tag?: string) =>
     serverApi<{ list: FeedList; tags: Tags; member: boolean }>(`/feed?${new URLSearchParams({ page: String(page), ...(tag ? { tag } : {}) })}`),
   following: (page: number) => serverApi<{ list: FeedList; tags: Tags }>(`/feed/following?page=${page}`),
@@ -54,4 +57,11 @@ export const readApi = {
     serverApiOrNull<NonNullable<Out<typeof postPage>>>(`/blog-pages/post/${encodeURIComponent(slug)}/${postId}?${new URLSearchParams(query)}`),
   write: (postId?: number) => serverApiOrNull<NonNullable<Out<typeof writePage>>>(postId === undefined ? "/blog-pages/write" : `/blog-pages/write/${postId}`),
   blogSettings: () => serverApiOrNull<NonNullable<Out<typeof blogSettingsPage>>>("/blog-pages/settings"),
+  admin: {
+    overview: () => serverApi<Out<typeof adminOverview>>("/admin/overview"),
+    content: (tab: string, q: string, page: number) =>
+      serverApi<Out<typeof adminContent>>(`/admin/content?${new URLSearchParams({ tab, q, page: String(page) })}`),
+    members: (q: string) => serverApi<{ rows: Out<typeof adminMembers> }>(`/admin/members?${new URLSearchParams({ q })}`),
+    member: (id: string) => serverApiOrNull<NonNullable<Out<typeof adminMember>>>(`/admin/members/${encodeURIComponent(id)}`),
+  },
 };

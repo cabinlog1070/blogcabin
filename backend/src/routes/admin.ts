@@ -4,6 +4,7 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { deleteMember } from "../account/delete-member";
+import { adminContent, adminMember, adminMembers, adminOverview } from "../admin/read";
 import { db } from "../db";
 import { animalSpecies, comments, GIFT_MESSAGE_MAX, items, notifications, pointLedger, posts, profiles, users } from "../db/schema";
 import { sendGifts } from "../gifts/send";
@@ -37,6 +38,22 @@ function idList(v: unknown): number[] {
 
 export const adminRoutes = new Hono<GuardEnv>()
   .use(requireViewer("admin"))
+  /** 관리자 첫 화면 읽기 */
+  .get("/overview", async (c) => c.json(await adminOverview()))
+  /** 글·댓글 관리 읽기: ?tab=posts|comments&q=&page= */
+  .get("/content", async (c) => {
+    const tab = c.req.query("tab") === "comments" ? "comments" : "posts";
+    const q = (c.req.query("q") ?? "").trim().slice(0, 50);
+    return c.json(await adminContent(tab, q, parseId(c.req.query("page")) ?? 1));
+  })
+  /** 회원 목록 읽기: ?q= */
+  .get("/members", async (c) => c.json({ rows: await adminMembers((c.req.query("q") ?? "").trim().slice(0, 50)) }))
+  /** 회원 한 명 읽기 */
+  .get("/members/:id", async (c) => {
+    const id = c.req.param("id");
+    const data = id.length > 100 ? null : await adminMember(id);
+    return data ? c.json(data) : c.json({ ok: false, error: msg("찾을 수 없어요") }, 404);
+  })
   /** 어느 블로그의 글이든 지운다 (댓글·공감도 함께 지워진다) */
   .delete("/posts/:id", async (c) => {
     const postId = parseId(c.req.param("id"));

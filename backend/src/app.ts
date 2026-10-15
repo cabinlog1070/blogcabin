@@ -8,6 +8,8 @@ import { adminRoutes } from "./routes/admin";
 import { blogRoutes } from "./routes/blog";
 import { blogPageRoutes } from "./routes/blog-pages";
 import { fileRoutes } from "./routes/files";
+import { loginRoutes } from "./routes/login";
+import { meRoutes } from "./routes/me";
 import { attendance } from "./routes/attendance";
 import { closetRoutes } from "./routes/closet";
 import { farmRoutes } from "./routes/farm";
@@ -55,6 +57,10 @@ v1.get("/health", async (c) => {
 v1.post("/uploads", uploadAttachment);
 
 // 출석 체크, 알림함·레벨업·선물 팝업, 화면 언어, 아이디 만들기·합치기·회원 탈퇴
+// 지금 보는 사람(화면이 페이지마다 부른다), 아이디로 가입·로그인
+v1.route("/me", meRoutes);
+v1.route("/login", loginRoutes);
+
 v1.route("/attendance", attendance);
 v1.route("/notifications", notificationRoutes);
 v1.route("/locale", localeRoutes);

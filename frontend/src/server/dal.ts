@@ -1,64 +1,37 @@
 // 데이터 접근 계층(DAL): "지금 보고 있는 사람이 누구인가"를 확인하는 유일한 곳
 // Next.js 권장: 인증 확인은 레이아웃이 아니라 각 페이지와 Server Action에서 한다
 import "server-only";
-import { eq } from "drizzle-orm";
-import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { cache } from "react";
-import { db } from "@/db";
-import { accounts, blogs, items, profiles } from "@/db/schema";
-import { auth } from "@/lib/auth";
-import { lookSql } from "@/server/look";
+import { readApi } from "@/server/read-api";
 
-/** 로그인 세션 (한 요청 안에서는 한 번만 조회) */
-export const getSession = cache(async () => {
-  return auth.api.getSession({ headers: await headers() });
-});
+/**
+ * 지금 보는 사람 (서버의 GET /api/v1/me, backend/src/routes/me.ts). 한 요청 안에서는 한 번만 부른다(serverApi).
+ * 로그인하지 않았으면 user가 null
+ */
+export const getMe = () => readApi.me();
 
 /** 로그인한 회원의 프로필과 블로그. 온보딩 전이면 profile이 null */
-export const getViewer = cache(async () => {
-  const session = await getSession();
-  if (!session) return null;
-
-  const [row] = await db
-    .select({
-      nickname: profiles.nickname,
-      characterAsset: lookSql(items.assetKey, profiles.userId),
-      baseCharacterAsset: items.assetKey, // 꾸미기를 뺀 캐릭터 키 (상점 미리 입어 보기)
-      blogId: blogs.id,
-      blogSlug: blogs.slug,
-      blogTitle: blogs.title,
-    })
-    .from(profiles)
-    .innerJoin(items, eq(items.id, profiles.characterItemId))
-    .innerJoin(blogs, eq(blogs.ownerId, profiles.userId))
-    .where(eq(profiles.userId, session.user.id));
-
-  return { userId: session.user.id, user: session.user, profile: row ?? null };
-});
+export async function getViewer() {
+  const me = await getMe();
+  return me.user ? { userId: me.user.id, user: me.user, profile: me.profile } : null;
+}
 
 /**
  * 지금 로그인한 회원에 연결된 로그인 수단 (AUTH-05): accounts.provider_id 목록.
  * credential = 아이디 로그인, 그 밖에는 google·kakao·naver. 헤더 내 정보 메뉴에서 쓴다
  */
-export const getViewerLoginMethods = cache(async (): Promise<string[]> => {
-  const session = await getSession();
-  if (!session) return [];
-  const rows = await db
-    .selectDistinct({ providerId: accounts.providerId })
-    .from(accounts)
-    .where(eq(accounts.userId, session.user.id));
-  return rows.map((r) => r.providerId);
-});
+export async function getViewerLoginMethods(): Promise<string[]> {
+  const me = await getMe();
+  return me.user ? me.loginMethods : [];
+}
 
 /**
  * 한 회원 = 아이디 하나: 로그인했지만 아이디·비밀번호(credential)가 없는 회원인가 (소셜로 처음 들어온 회원).
- * 그런 회원은 다른 화면보다 먼저 /account-setup에서 아이디를 만들거나 기존 아이디에 합친다.
- * getViewerLoginMethods를 같이 써서 한 요청에 쿼리 한 번이다
+ * 그런 회원은 다른 화면보다 먼저 /account-setup에서 아이디를 만들거나 기존 아이디에 합친다
  */
 export async function needsAccountSetup(): Promise<boolean> {
-  if (!(await getSession())) return false;
-  return !(await getViewerLoginMethods()).includes("credential");
+  const me = await getMe();
+  return Boolean(me.user) && !(await getViewerLoginMethods()).includes("credential");
 }
 
 /** 로그인만 확인하고 아이디 만들기는 검사하지 않는다 (/account-setup 화면 전용) */

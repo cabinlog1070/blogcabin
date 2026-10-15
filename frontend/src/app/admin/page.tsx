@@ -1,13 +1,10 @@
-import { and, asc, desc, eq, gte, ne, sql } from "drizzle-orm";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
-import { db } from "@/db";
-import { animalSpecies, attendances, blogs, comments, GIFT_MESSAGE_MAX, items, pointLedger, posts, profiles, users } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
-import { levelFromExp, todayKST } from "@/lib/game";
+import { levelFromExp } from "@/lib/game";
 import { requireAdmin } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
-import { startOfTodayKST } from "@/server/points";
+import { readApi } from "@/server/read-api";
 import { AdminDeletePostButton } from "./delete-button";
 import { AdminGiftForm } from "./gift-form";
 import { AdminGrantForm } from "./grant-form";
@@ -22,61 +19,7 @@ export default async function AdminPage() {
   const t = await getT();
   const locale = await getLocale();
 
-  const [[stats], recentUsers, recentPosts, residents, giftable, giftPets] = await Promise.all([
-    db.select({
-      users: sql<number>`(SELECT COUNT(*)::int FROM ${users})`,
-      residents: sql<number>`(SELECT COUNT(*)::int FROM ${profiles})`,
-      posts: sql<number>`(SELECT COUNT(*)::int FROM ${posts})`,
-      comments: sql<number>`(SELECT COUNT(*)::int FROM ${comments} WHERE ${comments.deletedAt} IS NULL)`,
-      postsToday: sql<number>`(SELECT COUNT(*)::int FROM ${posts} WHERE ${posts.createdAt} >= ${startOfTodayKST})`,
-      attendToday: sql<number>`(SELECT COUNT(*)::int FROM ${attendances} WHERE ${attendances.date} = ${todayKST()})`,
-    }).from(sql`(SELECT 1) AS one`),
-    db
-      .select({
-        id: users.id,
-        username: users.username,
-        role: users.role,
-        createdAt: users.createdAt,
-        nickname: profiles.nickname,
-        slug: blogs.slug,
-        provider: sql<string>`(SELECT string_agg(provider_id, ', ') FROM accounts WHERE accounts.user_id = ${users.id})`,
-      })
-      .from(users)
-      .leftJoin(profiles, eq(profiles.userId, users.id))
-      .leftJoin(blogs, eq(blogs.ownerId, users.id))
-      .orderBy(desc(users.createdAt))
-      .limit(20),
-    db
-      .select({ id: posts.id, title: posts.title, visibility: posts.visibility, createdAt: posts.createdAt, slug: blogs.slug, nickname: profiles.nickname })
-      .from(posts)
-      .innerJoin(blogs, eq(blogs.id, posts.blogId))
-      .innerJoin(profiles, eq(profiles.userId, blogs.ownerId))
-      .where(gte(posts.createdAt, sql`now() - interval '30 days'`))
-      .orderBy(desc(posts.createdAt))
-      .limit(30),
-    // 관리자 지급 대상: 온보딩을 마친 주민 전부와 지금 코인·경험치
-    db
-      .select({
-        userId: profiles.userId,
-        nickname: profiles.nickname,
-        username: users.username,
-        coins: sql<number>`COALESCE(SUM(${pointLedger.coinDelta}), 0)::int`,
-        exp: sql<number>`COALESCE(SUM(${pointLedger.expDelta}), 0)::int`,
-      })
-      .from(profiles)
-      .innerJoin(users, eq(users.id, profiles.userId))
-      .leftJoin(pointLedger, eq(pointLedger.userId, profiles.userId))
-      .groupBy(profiles.userId, profiles.nickname, users.username)
-      .orderBy(profiles.nickname),
-    // 선물로 보낼 수 있는 아이템 = 상점에서 파는 아이템 (기본 아이템과 판매를 멈춘 예전 캐릭터는 뺀다, isForSale과 같은 규칙)
-    db
-      .select({ id: items.id, type: items.type, name: items.name, assetKey: items.assetKey })
-      .from(items)
-      .where(and(eq(items.isStarter, false), ne(items.type, "character")))
-      .orderBy(asc(items.type), asc(items.requiredLevel), asc(items.price), asc(items.id)),
-    // 선물로 보낼 수 있는 펫 = 농장의 모든 펫 종류 (그 펫이 태어나는 알로 간다)
-    db.select({ id: animalSpecies.id, name: animalSpecies.name, assetKey: animalSpecies.assetKey }).from(animalSpecies).orderBy(asc(animalSpecies.id)),
-  ]);
+  const { stats, recentUsers, recentPosts, residents, giftable, giftPets, giftMessageMax } = await readApi.admin.overview();
   const members = residents.map((r) => ({
     userId: r.userId,
     label: `${r.nickname} (${r.username ?? t("소셜")}) · Lv.${levelFromExp(r.exp)} · 🪙 ${r.coins.toLocaleString()}`,
@@ -140,7 +83,7 @@ export default async function AdminPage() {
           <Icon name="gift" size={26} className="-mt-1" /> {t("선물 보내기")}
         </h2>
         <p className="mb-4 text-sm text-ink-soft">{t("주민을 골라 코인·아이템·펫 알을 선물하고, 함께 보낼 말을 적어요. 같은 주민에게 몇 번이든 보낼 수 있어요.")}</p>
-        <AdminGiftForm members={giftMembers} items={giftable} pets={giftPets} messageMax={GIFT_MESSAGE_MAX} />
+        <AdminGiftForm members={giftMembers} items={giftable} pets={giftPets} messageMax={giftMessageMax} />
       </section>
 
       <section className="card mt-8 overflow-x-auto p-5">
