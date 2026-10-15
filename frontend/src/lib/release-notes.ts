@@ -47,6 +47,18 @@ export const RELEASE_KIND_LABEL: Record<ReleaseChangeKind, string> = {
 
 export const RELEASE_NOTES: ReleaseDay[] = [
   {
+    date: "2026-10-15",
+    versions: [
+      {
+        version: "1.32.11",
+        title: msg("맥 사파리 표 칸 한글 입력 고침"),
+        changes: [
+          { kind: "fixed", text: msg("맥 사파리에서 글쓰기 표의 빈 칸에 한글을 치면 글자 순서가 뒤집히고 굵은 글씨가 되던 문제를 고쳤어요.") },
+        ],
+      },
+    ],
+  },
+  {
     date: "2026-10-14",
     versions: [
       {

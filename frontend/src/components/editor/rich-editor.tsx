@@ -15,7 +15,7 @@ import { msg, type T } from "@/lib/i18n";
 import { FileCard } from "./file-card";
 import { ImageRow, ImageSlider, ROW_MAX } from "./image-slider";
 import { DEFAULT_LINE_HEIGHT, LINE_HEIGHTS, LineHeight } from "./line-height";
-import { SafariCellComposition } from "./safari-cell-composition";
+import { CellComposition } from "./cell-composition";
 import { TABLE_ACTIONS, TablePicker, TableToolbar } from "./table-tools";
 import { filesFrom, useAttachmentUpload, type ImageGroup } from "./use-attachment-upload";
 
@@ -269,7 +269,7 @@ export function RichEditor({
       TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right"] }),
       LineHeight,
       TableKit, // 표: 칸 안의 글은 문단이라 정렬·글꼴 도구를 그대로 쓴다
-      SafariCellComposition, // 사파리에서 표 칸에 한글을 칠 때 글자 순서가 뒤집히지 않게
+      CellComposition, // 표 칸에 한글을 칠 때 글자 순서가 뒤집히지 않게 (사파리 등)
       Placeholder.configure({ placeholder: t("오늘 배운 것, 생각한 것, 무엇이든 적어 보세요 ✏️") }),
     ],
     content: initialHtml,
