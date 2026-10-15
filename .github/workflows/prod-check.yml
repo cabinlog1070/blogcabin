@@ -1,4 +1,4 @@
-# 읽기 전용 운영 점검: 서버 nginx를 누가·언제 다시 읽는지(reload) 단서를 찾는다. 아무것도 바꾸지 않는다.
+# 읽기 전용 운영 점검: 화면·서버 API 컨테이너 4개와 공개 주소를 확인한다. 아무것도 바꾸지 않는다.
 name: prod-check
 on:
   push:
@@ -16,18 +16,21 @@ jobs:
       SSH_USER: ${{ secrets.SSH_ID }}
     steps:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
-      - name: when did server nginx last reload (read only)
+      - name: public urls
+        run: |
+          for p in / /api/health /api/v1/health /api/auth/get-session /@jiwon; do
+            echo "$p $(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net$p)"
+          done
+          curl -s https://blogcabin.java21.net/api/health; echo
+          curl -s https://blogcabin.java21.net/api/v1/health; echo
+      - name: containers (read only, values hidden)
         run: |
           sshpass -e ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 ${SSH_USER}@${SSH_HOST} 'bash -s' <<'SH'
           set +e
-          echo "== now"; date
-          echo "== server nginx (/usr/sbin/nginx) master and worker start times"
-          for pid in $(pgrep -f '^nginx: master process /usr/sbin/nginx'); do
-            echo "master $pid $(ps -o lstart= -p $pid)"
-            ps -eo ppid,lstart | awk -v p="$pid" '$1==p {$1=""; print "worker" $0}' | sort | uniq -c
+          docker ps --filter name=blogcabin --format '{{.Names}} {{.Image}} {{.Status}}'
+          for c in blogcabin-1 blogcabin-2 blogcabin-api-1 blogcabin-api-2; do
+            keys=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' $c | cut -d= -f1 | grep -E 'DATABASE|SECRET|BACKEND_URL' | tr '\n' ' ')
+            echo "$c env keys: $keys"
           done
-          echo "== our home and ~/nginx path"; echo "$HOME"; readlink -f ~/nginx
-          echo "== other accounts' nginx files changed in the last 3 hours (names hidden)"
-          base=$(dirname "$HOME"); find "$base"/*/nginx -maxdepth 1 -name '*.conf' -mmin -180 -printf '%TY-%Tm-%Td %TH:%TM:%.2TS\n' 2>/dev/null | sort
-          echo "count of readable nginx dirs: $(ls -d "$base"/*/nginx 2>/dev/null | wc -l)"
+          docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' $(docker ps -q --filter name=blogcabin)
           SH
