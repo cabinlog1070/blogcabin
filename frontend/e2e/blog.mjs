@@ -25,7 +25,7 @@ await a.waitForTimeout(300); // React가 폼을 되돌리는 시점 뒤에 읽�
 const kept = {
   title: await a.getByPlaceholder("제목").inputValue(),
   category: await a.getByLabel("카테고리").evaluate((s) => s.selectedOptions[0].text),
-  tags: await a.getByPlaceholder(/태그/).inputValue(),
+  tags: await a.locator("input[name=tags]").inputValue(), // 태그 칸이 보내는 값 (칩으로 끊은 태그 + 쓰던 글자)
 };
 if (kept.title !== "본문 없이 발행" || kept.category !== "일상" || kept.tags !== "남아야 하는 태그") {
   throw new Error(`오류 뒤 입력값이 사라졌어요: ${JSON.stringify(kept)}`);

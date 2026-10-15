@@ -79,7 +79,7 @@ try {
   await a.page.keyboard.type("굵은 글");
   await a.page.keyboard.press("ControlOrMeta+b");
   await a.page.keyboard.type(" 그리고 보통 글");
-  await a.page.getByLabel("태그").fill("임시, 저장");
+  await a.page.getByLabel("태그", { exact: true }).fill("임시, 저장");
   check("POST-08 2초가 지나기 전에는 저장하지 않음", (await draft()) === null);
   await a.page.getByText(/임시 저장됨 \d{2}:\d{2}/).waitFor({ timeout: 5000 });
   const hm = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
@@ -100,7 +100,7 @@ try {
       (await a.page.getByLabel("카테고리").inputValue()) === String(catId) &&
       (await a.page.getByRole("radio", { name: "🔒 서로 이웃만" }).getAttribute("aria-checked")) === "true" &&
       (await a.page.locator(".ProseMirror strong").innerText()) === "굵은 글" &&
-      (await a.page.getByLabel("태그").inputValue()) === "임시, 저장",
+      (await a.page.locator("input[name=tags]").inputValue()) === "임시, 저장",
   );
   // 불러오지 않기 → 빈 화면
   answer = "dismiss";
