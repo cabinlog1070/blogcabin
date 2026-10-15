@@ -2,9 +2,9 @@ import Link from "next/link";
 import { MiniRoom, type RoomPet } from "@/components/character";
 import { PetCard } from "@/components/pet-art";
 import { FavoriteStar } from "@/components/blog/favorite-star";
+import { FollowButton } from "@/components/blog/follow-button";
 import { VisitCount } from "@/components/blog/visit-count";
 import type { PetShowcase } from "@/server/farm";
-import { toggleFollow } from "@/app/blog/actions";
 import { getLocale, getT } from "@/server/i18n";
 import type { PlacedFurniture } from "@/server/look";
 
@@ -90,11 +90,7 @@ export async function BlogHeader({
             <>
               {/* 이웃이면 이웃 버튼 왼쪽에 ☆ 즐겨찾기 (이웃 끊으면 즐겨찾기도 함께 사라진다) */}
               {following && <FavoriteStar key={blog.ownerId} followeeId={blog.ownerId} nickname={blog.nickname} favorite={favorite} />}
-              <form action={toggleFollow.bind(null, blog.ownerId)}>
-                <button className={`btn whitespace-nowrap ${following ? "bg-paper text-ink" : "bg-sky text-white"}`}>
-                  {following ? t("✓ 이웃") : t("+ 이웃 추가")}
-                </button>
-              </form>
+              <FollowButton ownerId={blog.ownerId} following={following} />
             </>
           ) : null}
         </div>

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { addNeighbor, setFavorite } from "@/app/blog/actions";
 import { CharacterBadge } from "@/components/character";
 import { useT } from "@/components/i18n";
+import { saveError } from "@/lib/api";
+import { blogApi } from "@/lib/blog-api";
 import { MAX_FAVORITES } from "@/lib/game";
 import { useAutoClear } from "@/components/use-auto-clear";
 
@@ -68,14 +69,11 @@ export function NeighborList({ neighbors, followers: initialFollowers }: { neigh
     setMessage(null);
     start(async () => {
       try {
-        if (!(await addNeighbor(p.ownerId))) {
-          setMessage(t("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요"));
-          return;
-        }
+        await blogApi.addNeighbor(p.ownerId);
         setFollowers((fs) => fs.map((f) => (f.ownerId === p.ownerId ? { ...f, mutual: true } : f)));
         setList((ls) => (ls.some((x) => x.ownerId === p.ownerId) ? ls : [...ls, { ...p, mutual: true, favorite: false }]));
-      } catch {
-        setMessage(t("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요"));
+      } catch (err) {
+        setMessage(saveError(t, err));
       }
     });
   }
@@ -91,14 +89,10 @@ export function NeighborList({ neighbors, followers: initialFollowers }: { neigh
     setList(list.map((x) => (x.ownerId === n.ownerId ? { ...x, favorite: next } : x)));
     start(async () => {
       try {
-        const r = await setFavorite(n.ownerId, next);
-        if (!r.ok) {
-          setList(before);
-          setMessage(r.error ?? t("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요"));
-        }
-      } catch {
+        await blogApi.setFavorite(n.ownerId, next);
+      } catch (err) {
         setList(before);
-        setMessage(t("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요"));
+        setMessage(saveError(t, err));
       }
     });
   }
