@@ -10,6 +10,7 @@ import { categoryLabel, type Locale, LOCALE_TAGS } from "@/lib/i18n";
 import { DEFAULT_PIN_HOURS, PIN_HOUR_OPTIONS, toKstInput } from "@/lib/schedule";
 import { postTextLength } from "@/lib/text-length";
 import { RichEditor } from "./rich-editor";
+import { TagInput } from "./tag-input";
 
 type Category = { id: number; name: string };
 
@@ -264,17 +265,11 @@ function PostFormFields({
         onUploadingChange={setUploading}
       />
 
-      <input
-        name="tags"
-        onInput={(e) => {
-          const value = e.currentTarget.value;
-          setFields((f) => ({ ...f, tags: value }));
-        }}
-        defaultValue={v?.tags ?? initial.tags.join(", ")}
-        placeholder={t("태그 (쉼표로 구분, 최대 10개)  예: git, 회고")}
-        className="w-full rounded-xl border-2 border-line bg-paper px-3 py-2.5"
-        aria-label={t("태그")}
-        maxLength={300}
+      <TagInput
+        // 오류로 돌아오면 서버가 돌려준 태그로 다시 그린다
+        key={v ? `restored-${v.tags}` : "initial"}
+        initialText={v?.tags ?? initial.tags.join(", ")}
+        onChange={(value) => setFields((f) => ({ ...f, tags: value }))}
       />
 
       {(canSchedule || isAdmin) && (
