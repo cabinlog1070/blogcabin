@@ -8,9 +8,9 @@ import { Icon } from "@/components/icon";
 import { IconEmoji } from "@/components/icon-emoji";
 import { HAIR_COLORS, HAIR_COLOR_KEYS, HAIR_DEFAULT_SWATCH, paintedHairKey, type HairColor } from "@/lib/art/avatar";
 import { canWear, composeLook, MANNEQUIN, SLOT_LABEL, SLOT_ORDER, type AvatarSlot } from "@/lib/assets";
+import { api, ApiError, errorText } from "@/lib/api";
 import { msg } from "@/lib/i18n";
 import { SORTS, sortItems, type ItemType, type SortKey } from "@/lib/shop";
-import { saveTriedLook } from "./actions";
 import { ShopGrid, type ShopItem } from "./shop-grid";
 import { useAutoClear } from "@/components/use-auto-clear";
 
@@ -153,11 +153,13 @@ function AvatarSection({
 
   function save() {
     startSave(async () => {
-      const r = await saveTriedLook(
-        triedList.map((i) => i.id),
-        hairChanged ? hairColor : undefined,
-      );
-      if (!r.ok) return setError(r.error);
+      try {
+        // 머리 색을 바꾸지 않았으면 보내지 않는다 (서버는 hairColor가 없으면 그대로 둔다)
+        await api("/shop/save-look", { method: "POST", body: { itemIds: triedList.map((i) => i.id), ...(hairChanged ? { hairColor } : {}) } });
+      } catch (e) {
+        if (e instanceof ApiError && e.redirect) return router.push(e.redirect);
+        return setError(errorText(t, e));
+      }
       // 입어 보던 옷이 이제 입은 옷이 된다. 코인·보유 표시·헤더는 새로 받아 온다
       const triedSlots = new Set(triedList.map((i) => i.slot));
       setWorn((prev) => [...prev.filter((a) => !triedSlots.has(slotOf(a) ?? null)), ...triedList.map((i) => i.assetKey)]);

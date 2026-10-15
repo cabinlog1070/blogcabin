@@ -5,8 +5,10 @@ import { auth } from "./auth";
 import { db } from "./db";
 import { accountRoutes } from "./routes/account";
 import { attendance } from "./routes/attendance";
+import { closetRoutes } from "./routes/closet";
 import { localeRoutes } from "./routes/locale";
 import { notificationRoutes } from "./routes/notifications";
+import { shopRoutes } from "./routes/shop";
 
 // 서버(backend) API. 새 주소는 모두 /api/v1/… 로 시작한다.
 // 예외: 로그인(/api/auth/…)은 소셜 로그인 콜백 주소가 카카오·구글 개발자 센터에 이 주소로 등록돼 있어 그대로 둔다.
@@ -45,6 +47,10 @@ v1.route("/attendance", attendance);
 v1.route("/notifications", notificationRoutes);
 v1.route("/locale", localeRoutes);
 v1.route("/account", accountRoutes);
+
+// 상점(사기·입어 본 모습 저장), 꾸미기 저장
+v1.route("/shop", shopRoutes);
+v1.route("/closet", closetRoutes);
 
 app.route("/api/v1", v1);
 

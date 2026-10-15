@@ -15,7 +15,7 @@ AI응용프로젝트 개인 프로젝트. 게임형 블로그(Next.js 16 + Postg
 ## 규칙
 
 - **스키마 변경**: `backend/src/db/schema.ts` 수정 → `npm run db:generate` → `npm run db:migrate` (`frontend/`·`backend/` 어디서나, 결과는 `backend/drizzle/`). 문서 저장소의 `docs/02-erd.md`도 함께 고친다(그 저장소에 PR). 요구사항이 바뀌면 `docs/01-requirements.md`도 마찬가지.
-- **인증**: 페이지와 Server Action마다 `requireMember()` / `requireUser()` (`src/server/dal.ts`). 레이아웃에서 권한 검사를 하지 않는다. 서버 API(`backend/src/routes/`)는 주소마다 `requireViewer("member")`(탈퇴처럼 아이디 만들기 전에도 쓰는 곳은 `"signedIn"`, `backend/src/http/guard.ts`)를 걸고, 화면은 `src/lib/api.ts`의 `api()`로 부른 뒤 코인·캐릭터가 바뀌었으면 `router.refresh()`. 예외는 로그인 전 `signUp`·`signIn`과 방문자도 세는 `recordBlogVisit`·`recordPostView`(주인 여부를 서버에서 다시 확인).
+- **인증**: 페이지와 Server Action마다 `requireMember()` / `requireUser()` (`src/server/dal.ts`). 레이아웃에서 권한 검사를 하지 않는다. 서버 API(`backend/src/routes/`)는 주소마다 `requireViewer("member")`(탈퇴처럼 아이디 만들기 전에도 쓰는 곳은 `"signedIn"`, `backend/src/http/guard.ts`)를 걸고, 화면은 `src/lib/api.ts`의 `api()`로 부른 뒤(실패 문구는 `errorText(t, e)`) 코인·캐릭터가 바뀌었으면 `router.refresh()`. 예외는 로그인 전 `signUp`·`signIn`과 방문자도 세는 `recordBlogVisit`·`recordPostView`(주인 여부를 서버에서 다시 확인).
 - **보상·코인**: 잔액 컬럼을 만들지 않는다. `point_ledger`에 기록하고 `getWallet()`으로 계산한다. 지급·차감은 `lockUser(tx, userId)`를 건 트랜잭션 안에서 `grantReward()` 사용 (레벨이 오르면 레벨업 알림도 여기서 생긴다. 원장에 경험치를 직접 넣는 곳은 `recordLevelUps()`를 부른다). 규칙 숫자는 `backend/src/game/rules.ts`(화면은 `@/lib/game`으로 같이 읽는다), 원장 코드는 `backend/src/game/points.ts`.
 - **알림**: `notifications` (GAME-08). 공감·댓글처럼 남에게 알릴 일은 그 Server Action의 트랜잭션에서 `notifySocial()`. 자기 행동은 알리지 않는다.
 - **헤더 갱신**: 코인·캐릭터가 바뀌는 Server Action은 `revalidatePath("/", "layout")`을 호출한다 (루트 레이아웃은 이동만으로 다시 그려지지 않는다).

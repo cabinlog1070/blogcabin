@@ -3,7 +3,9 @@
 import { piecesInOrder } from "../src/lib/art/avatar";
 import { characterSvg, composeLook, parseLook } from "../src/lib/art/characters";
 import { fitRoomSpot, FURNITURE_COLOR_KEYS, furnitureInfo, furnitureSvg, paintedFurnitureKey, parseFurnitureKey } from "../src/lib/art/furniture";
-import { FURNITURE_COLORS as DB_FURNITURE_COLORS } from "../../backend/src/db/schema";
+import { FURNITURE_COLORS as DB_FURNITURE_COLORS, HAIR_COLORS as DB_HAIR_COLORS } from "../../backend/src/db/schema";
+import { FURNITURE_COLOR_KEYS as API_FURNITURE_COLORS, HAIR_COLOR_KEYS as API_HAIR_COLORS } from "../../backend/src/shop/colors";
+import { HAIR_COLOR_KEYS } from "../src/lib/art/avatar";
 import { clampPct, isForSale, sortItems } from "../src/lib/shop";
 
 let failed = 0;
@@ -38,6 +40,8 @@ expect("원래 배열은 그대로", f[0].name, "침대");
 
 // 가구 색 (SHOP-05, 2026-10-13)
 expect("가구 색 목록이 DB CHECK와 같음", FURNITURE_COLOR_KEYS, [...DB_FURNITURE_COLORS]);
+expect("가구 색: 서버 목록도 DB CHECK와 같음", [...API_FURNITURE_COLORS], [...DB_FURNITURE_COLORS]);
+expect("머리 색: 화면·서버 목록이 DB CHECK와 같음", [HAIR_COLOR_KEYS, [...API_HAIR_COLORS]], [[...DB_HAIR_COLORS], [...DB_HAIR_COLORS]]);
 expect("색 붙인 가구 키", paintedFurnitureKey("furn.chair", "pink"), "furn.chair@pink");
 expect("색이 없거나 모르는 색이면 가구 키 그대로", [paintedFurnitureKey("furn.chair", null), paintedFurnitureKey("furn.chair", "gold")], ["furn.chair", "furn.chair"]);
 expect("색 붙인 가구 키 풀기", parseFurnitureKey("furn.tv@navy"), { assetKey: "furn.tv", color: "navy" });

@@ -1,6 +1,7 @@
 // 아바타 꾸미기 (SHOP-06). 헤어·모자·상의·하의·신발 5부위 (헤어는 2026-10-13). 그림은 crayon-people.ts (2026-10-11 크레용 그림체).
 // 캐릭터 그림(characters.ts)이 입은 꾸미기를 모습(앞·뒤·옆)에 맞게 몸 위에 그린다.
 // DB에는 asset_key("avatar.hat.straw" 등)만 저장한다.
+import { isHairColor, type HairColor } from "@backend/shop/colors";
 import { msg } from "@/lib/i18n";
 import { WEAR_PIECES, type BottomWear, type HairWear, type HatWear, type ShoesWear, type TopWear } from "./crayon-people";
 
@@ -31,12 +32,12 @@ export const HAIR_COLORS = {
   blue: { label: msg("파랑"), hex: "#6f9be0" },
   purple: { label: msg("보라"), hex: "#a283d8" },
   mint: { label: msg("민트"), hex: "#7fd4c0" },
-} as const;
+} as const satisfies Record<HairColor, { label: string; hex: string }>;
 /** "기본 색" 동그라미: 짧은 머리와 긴 머리의 원래 색을 반반 */
 export const HAIR_DEFAULT_SWATCH = `linear-gradient(135deg, ${WEAR_PIECES["avatar.hair.short"].hair.c} 50%, ${WEAR_PIECES["avatar.hair.long"].hair.c} 50%)`;
-export type HairColor = keyof typeof HAIR_COLORS;
+// 고를 수 있는 색인지는 서버 저장과 같은 검사를 쓴다
+export { isHairColor, type HairColor };
 export const HAIR_COLOR_KEYS = Object.keys(HAIR_COLORS) as HairColor[];
-export const isHairColor = (c: unknown): c is HairColor => typeof c === "string" && c in HAIR_COLORS;
 
 /** 헤어 키에 머리 색을 붙인다 ("avatar.hair.long@blonde"). 모습 키 안에서 그대로 쓴다 */
 export const paintedHairKey = (assetKey: string, color: string | null | undefined) =>
