@@ -76,11 +76,20 @@ export function PostBody({ html }: { html: string }) {
   // 저장할 때 sanitize-html로 정화한 HTML만 넣는다. 번역본은 그 HTML의 글자만 바꾼 것이다
   return (
     <>
-      <div className="prose-blog mt-6" data-post-body dangerouslySetInnerHTML={{ __html: done ? done.html : html }} />
+      <div className="prose-blog mt-6" data-post-body dangerouslySetInnerHTML={{ __html: lazyImages(done ? done.html : html) }} />
       {/* 원문·번역을 바꾸면 본문 HTML이 새로 들어가므로, 슬라이드 화살표도 새로 붙인다 */}
       <PostSliders key={done ? "translated" : "original"} />
     </>
   );
+}
+
+/**
+ * 글 사진은 화면 가까이 왔을 때 받는다 (2026-10-15, 휴대폰에서 사진이 늦게 뜬다는 제보).
+ * 아래쪽 사진이 위쪽 사진과 데이터를 나눠 쓰지 않아 처음 보이는 사진이 먼저 뜬다. 맨 위 두 장은 바로 받는다
+ */
+export function lazyImages(html: string) {
+  let n = 0;
+  return html.replace(/<img\b/g, (tag) => (n++ < 2 ? `${tag} decoding="async"` : `${tag} loading="lazy" decoding="async"`));
 }
 
 /** 본문 위 번역 줄 */
