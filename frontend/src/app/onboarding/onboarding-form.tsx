@@ -44,8 +44,9 @@ export function OnboardingForm({
     const values = Object.fromEntries(FIELDS.map((k) => [k, String(form.get(k) ?? "")]));
     try {
       await api("/onboarding", { method: "POST", body: values });
-      router.push("/town?welcome=1");
-      router.refresh(); // 헤더에 코인·캐릭터가 바로 보이도록
+      // 페이지를 새로 불러 헤더에 받은 코인·캐릭터가 처음부터 보이게 한다 (화면 안 이동은 헤더를 잠깐 옛 모습으로 그린다)
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 헤더까지 새로 그리려고 일부러 새로 불러온다
+      window.location.assign("/town?welcome=1");
       return { values };
     } catch (e) {
       if (e instanceof ApiError && e.redirect) {
