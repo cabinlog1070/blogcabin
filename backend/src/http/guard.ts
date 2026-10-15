@@ -64,6 +64,21 @@ export function requireViewer(level: Level): MiddlewareHandler<GuardEnv> {
   };
 }
 
+/**
+ * 로그인하지 않은 방문자도 보는 읽기 주소: 주민 등록까지 마친 회원이면 그 회원, 아니면 null (막지 않는다).
+ * 아이디 만들기·주민 등록 전 회원은 방문자처럼 본다 (화면이 먼저 그 화면으로 보낸다)
+ */
+export async function memberOrNull(c: Context): Promise<Viewer | null> {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  if (!session) return null;
+  const userId = session.user.id;
+  const [[profile], [user]] = await Promise.all([
+    db.select({ userId: profiles.userId }).from(profiles).where(eq(profiles.userId, userId)),
+    db.select({ role: users.role }).from(users).where(eq(users.id, userId)),
+  ]);
+  return profile ? { userId, hasProfile: true, isAdmin: user?.role === "admin" } : null;
+}
+
 /** 본문 JSON을 읽는다. 잘못된 JSON이면 빈 객체 */
 export async function readJson(c: Context): Promise<Record<string, unknown>> {
   try {

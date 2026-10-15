@@ -1,9 +1,9 @@
 import { FeedView } from "@/components/blog/feed-view";
 import { parsePage } from "@/components/pagination";
-import { getAllTags, listFeed } from "@/server/blog";
 import { feedFrom } from "@/lib/feed-from";
 import { getViewer } from "@/server/dal";
 import { getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -13,7 +13,7 @@ export async function generateMetadata() {
 export default async function FeedPage(props: PageProps<"/feed">) {
   const t = await getT();
   const page = parsePage((await props.searchParams).page);
-  const [viewer, list, tags] = await Promise.all([getViewer(), listFeed({ page }), getAllTags()]);
+  const [viewer, { list, tags }] = await Promise.all([getViewer(), readApi.feed(page)]);
   return (
     <FeedView
       title={t("📋 마을 소식")}
