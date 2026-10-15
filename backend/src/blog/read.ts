@@ -1,41 +1,13 @@
-import "server-only";
+// 블로그 홈·글·글쓰기 화면이 읽는 것 (읽기 API routes/blog-pages.ts가 쓴다)
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { db } from "@/db";
-import { lookSql } from "@/server/look";
-import { isPublished } from "@backend/blog/access";
-import {
-  blogs,
-  categories,
-  comments,
-  follows,
-  items,
-  postLikes,
-  posts,
-  postTags,
-  profiles,
-  tags,
-} from "@/db/schema";
+import { db } from "../db";
+import { blogs, categories, comments, follows, items, postLikes, posts, postTags, profiles, tags } from "../db/schema";
+import { isPublished } from "./access";
+import { lookSql } from "./look";
 
 const characterItem = alias(items, "character_item");
 const backgroundItem = alias(items, "background_item");
-
-// 글 목록·태그·검색은 서버(읽기 API)와 같은 코드를 쓴다
-export {
-  getAllTags,
-  getFeedAdjacentPosts,
-  listBlogPosts,
-  listFeed,
-  PAGE_SIZE,
-  POST_SORTS,
-  searchBlogs,
-  searchPosts,
-  type FeedFilter,
-  type PostSort,
-} from "@backend/blog/lists";
-
-// 글을 볼 수 있는 조건(올라간 글·서로 이웃·비공개 글)은 서버(블로그 API)와 같은 코드를 쓴다
-export { canSeePrivatePosts, isMutualNeighbor, isPublished } from "@backend/blog/access";
 
 // ===== 블로그 =====
 export async function getBlogBySlug(slug: string) {

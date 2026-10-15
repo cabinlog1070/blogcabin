@@ -6,6 +6,8 @@ import { db } from "./db";
 import { accountRoutes } from "./routes/account";
 import { adminRoutes } from "./routes/admin";
 import { blogRoutes } from "./routes/blog";
+import { blogPageRoutes } from "./routes/blog-pages";
+import { fileRoutes } from "./routes/files";
 import { attendance } from "./routes/attendance";
 import { closetRoutes } from "./routes/closet";
 import { farmRoutes } from "./routes/farm";
@@ -28,10 +30,11 @@ export const app = new Hono();
 const v1 = new Hono();
 const noStore = { "Cache-Control": "no-store" };
 
-// 회원마다 다른 답이라 브라우저·중간 서버가 저장해 두지 않게 한다
+// 회원마다 다른 답이라 브라우저·중간 서버가 저장해 두지 않게 한다.
+// 첨부 파일(routes/files.ts)은 스스로 정한 값(private, no-cache: 매번 확인하되 같은 화면 안에서는 다시 받지 않게)을 둔다
 v1.use(async (c, next) => {
   await next();
-  c.res.headers.set("Cache-Control", "no-store");
+  if (!c.res.headers.has("Cache-Control")) c.res.headers.set("Cache-Control", "no-store");
 });
 
 // 배포 확인용 (deploy/deploy.sh). 로그인 없이 열리고, DB가 응답하면 200, 아니면 503.
@@ -68,6 +71,8 @@ v1.route("/farm", farmRoutes);
 v1.route("/blog", blogRoutes);
 v1.route("/my-blog", myBlogRoutes);
 v1.route("/posts", postRoutes);
+v1.route("/blog-pages", blogPageRoutes);
+v1.route("/files", fileRoutes);
 
 // 마을 주민 등록(온보딩), 관리자(글·댓글 지우기, 강제 탈퇴, 지급, 선물 보내기)
 v1.route("/onboarding", onboardingRoutes);

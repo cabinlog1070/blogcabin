@@ -5,13 +5,14 @@ import type { listLedger } from "@backend/game/ledger";
 import type { listNotificationRows } from "@backend/notifications";
 import type { GiftView } from "@backend/gifts/views";
 import type { attendancePage } from "@backend/routes/attendance";
+import type { blogHomePage, blogSettingsPage, postPage, writePage } from "@backend/routes/blog-pages";
 import type { closetPage } from "@backend/routes/closet";
 import type { farmPage } from "@backend/routes/farm";
 import type { shopPage } from "@backend/routes/shop";
 import type { getWallet } from "@backend/game/points";
 import type { getCarriedPet } from "@backend/town/houses";
 import type { TownHouse, TownResident } from "@backend/town/types";
-import { serverApi } from "./api";
+import { serverApi, serverApiOrNull } from "./api";
 
 type FeedList = Awaited<ReturnType<typeof listFeed>>;
 type Tags = Awaited<ReturnType<typeof getAllTags>>;
@@ -47,4 +48,10 @@ export const readApi = {
     serverApi<Out<typeof listNotificationRows> & { unread: number }>(`/notifications?page=${page}`),
   gifts: () => serverApi<{ gifts: GiftView[] }>("/notifications/gifts"),
   onboarding: () => serverApi<{ starters: { id: number; name: string; description: string | null; assetKey: string }[] }>("/onboarding"),
+  blogHome: (slug: string, query: Record<string, string>) =>
+    serverApiOrNull<NonNullable<Out<typeof blogHomePage>>>(`/blog-pages/home/${encodeURIComponent(slug)}?${new URLSearchParams(query)}`),
+  post: (slug: string, postId: number, query: Record<string, string>) =>
+    serverApiOrNull<NonNullable<Out<typeof postPage>>>(`/blog-pages/post/${encodeURIComponent(slug)}/${postId}?${new URLSearchParams(query)}`),
+  write: (postId?: number) => serverApiOrNull<NonNullable<Out<typeof writePage>>>(postId === undefined ? "/blog-pages/write" : `/blog-pages/write/${postId}`),
+  blogSettings: () => serverApiOrNull<NonNullable<Out<typeof blogSettingsPage>>>("/blog-pages/settings"),
 };
