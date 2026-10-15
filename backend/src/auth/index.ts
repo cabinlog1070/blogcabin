@@ -1,6 +1,6 @@
-// 로그인 설정 (Better Auth). 서버(backend)가 /api/auth/… 주소로 로그인·로그아웃·소셜 연동을 받고,
-// 화면(frontend)도 같은 설정으로 세션 확인·Server Action 로그인을 한다 (frontend/src/lib/auth.ts).
-// 세션은 DB에 있고 비밀키(BETTER_AUTH_SECRET)가 같아서 둘 중 어디서 로그인해도 같은 쿠키로 통한다.
+// 로그인 설정 (Better Auth). 서버(backend)가 /api/auth/… 주소로 로그인·로그아웃·소셜 연동을 받는다.
+// 화면(frontend)은 이 설정·비밀키를 모르고, 브라우저 요청을 그대로 넘기거나(frontend/src/server/backend.ts)
+// 지금 보는 사람을 서버 API(/api/v1/me)로 묻는다.
 import type { BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";

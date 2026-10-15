@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
-import { savePost, type SavePostState } from "@/app/write/actions";
+import type { SavePostResult } from "@backend/routes/posts";
 import { useLocale, useT } from "@/components/i18n";
+import { api, saveError } from "@/lib/api";
 import { POST_REWARD_MIN_LENGTH, REWARD_RULES } from "@/lib/game";
 import { categoryLabel, type Locale, LOCALE_TAGS } from "@/lib/i18n";
 import { DEFAULT_PIN_HOURS, PIN_HOUR_OPTIONS, toKstInput } from "@/lib/schedule";
@@ -10,6 +12,12 @@ import { postTextLength } from "@/lib/text-length";
 import { RichEditor } from "./rich-editor";
 
 type Category = { id: number; name: string };
+
+// 오류가 나면 입력값을 돌려준다. React 19는 폼 액션 뒤 입력칸을 처음 값으로 되돌리므로 (POST-01, #16)
+type SavePostState = {
+  error?: string;
+  values?: { title: string; categoryId: string; tags: string };
+};
 
 export type PostFormValues = {
   postId?: number;
@@ -115,7 +123,31 @@ function PostFormFields({
 }) {
   const t = useT();
   const locale = useLocale();
-  const [state, action, pending] = useActionState<SavePostState, FormData>(savePost, {});
+  const router = useRouter();
+  // 발행하기: 글쓰기 API에 보내고, 저장되면 그 글로 간다 (새 글이면 보상 결과 ?new=…를 붙인다)
+  const [state, action, pending] = useActionState<SavePostState, FormData>(async (_prev, form) => {
+    const field = (name: string) => String(form.get(name) ?? "");
+    const body = {
+      title: field("title"),
+      contentHtml: field("contentHtml"),
+      categoryId: field("categoryId"),
+      tags: field("tags"),
+      visibility: field("visibility") || "public",
+      publishMode: field("publishMode") || "now",
+      publishAt: field("publishAt"),
+      pinHours: field("pinHours") || 0,
+    };
+    try {
+      const r = initial.postId
+        ? await api<SavePostResult>(`/posts/${initial.postId}`, { method: "PUT", body })
+        : await api<SavePostResult>("/posts", { method: "POST", body });
+      router.push(`/@${r.blogSlug}/${r.postId}${r.reward ? `?new=${r.reward}` : ""}`);
+      router.refresh(); // 헤더 코인·레벨(글 보상)도 다시 그린다
+      return {};
+    } catch (err) {
+      return { error: saveError(t, err), values: { title: body.title, categoryId: body.categoryId, tags: body.tags } };
+    }
+  }, {});
   const [html, setHtml] = useState(initial.contentHtml);
   const [length, setLength] = useState(0);
   const [visibility, setVisibility] = useState(initial.visibility);
@@ -167,7 +199,6 @@ function PostFormFields({
 
   return (
     <form action={action} className="space-y-4">
-      {initial.postId && <input type="hidden" name="postId" value={initial.postId} />}
       <input type="hidden" name="contentHtml" value={html} />
       <input type="hidden" name="visibility" value={visibility} />
       <input type="hidden" name="publishMode" value={scheduling ? "schedule" : "now"} />

@@ -1,12 +1,9 @@
-import { and, eq } from "drizzle-orm";
 import Link from "next/link";
-import { db } from "@/db";
-import { accounts, profiles } from "@/db/schema";
 import { WithdrawForm } from "@/app/settings/account/withdraw-form";
 import { ADMIN_BLOG_TITLE } from "@/lib/nickname";
-import { getBlogByOwner, getCategories } from "@/server/blog";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 import { BlogInfoForm, CategoryManager } from "./settings-forms";
 
 export async function generateMetadata() {
@@ -17,16 +14,10 @@ export async function generateMetadata() {
 export default async function BlogSettingsPage() {
   const viewer = await requireMember();
   const t = await getT();
-  const blog = await getBlogByOwner(viewer.userId);
-  if (!blog) return null;
-  const cats = await getCategories(blog.id, true, true);
+  const data = await readApi.blogSettings();
+  if (!data) return null;
+  const { blog, categories: cats, statusMessage, hasPassword } = data;
   const isAdmin = viewer.user.role === "admin";
-  // 아이디로 가입한 회원은 탈퇴할 때 비밀번호를 다시 입력한다 (AUTH-06)
-  const [credential] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(and(eq(accounts.userId, viewer.userId), eq(accounts.providerId, "credential")));
-  const [{ statusMessage }] = await db.select({ statusMessage: profiles.statusMessage }).from(profiles).where(eq(profiles.userId, viewer.userId));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -57,7 +48,7 @@ export default async function BlogSettingsPage() {
         <p className="mb-4 text-sm text-ink-soft">
           {t("탈퇴하면 프로필·블로그·글·코인 기록·로그인 정보가 바로 지워지고 되돌릴 수 없어요. 남의 글에 남긴 댓글은 답글이 달려 있으면 '삭제된 댓글이에요'로 자리만 남고, 아니면 지워져요.")}
         </p>
-        <WithdrawForm needsPassword={Boolean(credential)} />
+        <WithdrawForm needsPassword={hasPassword} />
       </section>
     </div>
   );

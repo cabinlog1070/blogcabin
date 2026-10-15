@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
-import { addComment, deleteComment, editComment, type CommentState } from "@/app/blog/actions";
 import { CharacterBadge } from "@/components/character";
 import { useT } from "@/components/i18n";
+import { saveError } from "@/lib/api";
+import { blogApi } from "@/lib/blog-api";
+
+type CommentState = { error?: string; ok?: number };
 
 // 삭제된 자리(답글이 남은 원댓글)는 작성자·시각·내용 없이 온다 (spec 004 FR-008)
 export type CommentData =
@@ -25,7 +29,16 @@ export type CommentData =
 
 function CommentForm({ postId, parentId, onDone }: { postId: number; parentId?: number; onDone?: () => void }) {
   const t = useT();
-  const [state, action, pending] = useActionState<CommentState, FormData>(addComment, {});
+  const router = useRouter();
+  const [state, action, pending] = useActionState<CommentState, FormData>(async (_prev, form) => {
+    try {
+      await blogApi.addComment(postId, String(form.get("content") ?? ""), parentId);
+      router.refresh(); // 새 댓글과 헤더 코인(댓글 보상)을 다시 그린다
+      return { ok: Date.now() };
+    } catch (err) {
+      return { error: saveError(t, err) };
+    }
+  }, {});
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state.ok) {
@@ -36,8 +49,6 @@ function CommentForm({ postId, parentId, onDone }: { postId: number; parentId?: 
 
   return (
     <form ref={ref} action={action} className="flex flex-col gap-2">
-      <input type="hidden" name="postId" value={postId} />
-      {parentId && <input type="hidden" name="parentId" value={parentId} />}
       <textarea
         name="content"
         required
@@ -59,14 +70,22 @@ function CommentForm({ postId, parentId, onDone }: { postId: number; parentId?: 
 /** 내 댓글 고치기. 저장하면 닫힌다 */
 function EditCommentForm({ commentId, content, onDone }: { commentId: number; content: string; onDone: () => void }) {
   const t = useT();
-  const [state, action, pending] = useActionState<CommentState, FormData>(editComment, {});
+  const router = useRouter();
+  const [state, action, pending] = useActionState<CommentState, FormData>(async (_prev, form) => {
+    try {
+      await blogApi.editComment(commentId, String(form.get("content") ?? ""));
+      router.refresh();
+      return { ok: Date.now() };
+    } catch (err) {
+      return { error: saveError(t, err) };
+    }
+  }, {});
   useEffect(() => {
     if (state.ok) onDone();
   }, [state.ok, onDone]);
 
   return (
     <form action={action} className="mt-1 flex flex-col gap-2">
-      <input type="hidden" name="commentId" value={commentId} />
       <textarea
         name="content"
         required
@@ -104,6 +123,7 @@ function CommentItem({
   isReply: boolean;
 }) {
   const t = useT();
+  const router = useRouter();
   const [replying, setReplying] = useState(false);
   const [editing, setEditing] = useState(false);
   const stopEditing = useCallback(() => setEditing(false), []);
@@ -149,7 +169,12 @@ function CommentItem({
                 <button
                   type="button"
                   className="hover:text-berry"
-                  onClick={() => confirm(t("댓글을 삭제할까요?")) && deleteComment(c.id)}
+                  onClick={async () => {
+                    if (!confirm(t("댓글을 삭제할까요?"))) return;
+                    // 이미 지워졌거나 실패해도 지금 상태로 다시 그린다
+                    await blogApi.deleteComment(c.id).catch(() => {});
+                    router.refresh();
+                  }}
                 >
                   {t("삭제")}
                 </button>

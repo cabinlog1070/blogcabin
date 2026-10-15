@@ -1,13 +1,10 @@
-import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { db } from "@/db";
-import { categories } from "@/db/schema";
 import { PostForm } from "@/components/editor/post-form";
 import { parseId } from "@/lib/ids";
 import { toKstInput } from "@/lib/schedule";
-import { getPost, getPostTags } from "@/server/blog";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -21,17 +18,9 @@ export default async function EditPostPage(props: PageProps<"/write/[postId]">) 
   if (id === null) notFound();
 
   // 내 블로그의 글만 고칠 수 있다
-  const post = await getPost(viewer.profile.blogId, id);
-  if (!post) notFound();
-
-  const [cats, tagNames] = await Promise.all([
-    db
-      .select({ id: categories.id, name: categories.name })
-      .from(categories)
-      .where(eq(categories.blogId, viewer.profile.blogId))
-      .orderBy(asc(categories.position), asc(categories.id)),
-    getPostTags(post.id),
-  ]);
+  const data = await readApi.write(id);
+  if (!data?.post) notFound();
+  const { post, categories: cats, tags: tagNames } = data;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">

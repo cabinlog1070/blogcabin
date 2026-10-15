@@ -1,6 +1,6 @@
 // NF-03: 글 HTML 정화가 XSS 공격 문자열을 제거하는지 확인한다
 // 실행: npm run test:sanitize
-import { relaxNbsp, sanitizePostHtml } from "../src/server/sanitize";
+import { relaxNbsp, sanitizePostHtml } from "../../backend/src/blog/sanitize";
 // 글쓰기 화면 글자 수가 서버 보상 판단과 같은지도 함께 확인한다 (#18)
 import "./test-text-length";
 const cases = {

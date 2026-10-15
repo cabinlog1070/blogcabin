@@ -1,7 +1,7 @@
 // 글쓰기 화면 글자 수(postTextLength)가 서버 보상 판단(htmlToText(sanitizePostHtml(html)).length)과 같은지 (#18)
 // 실행: npm run test:sanitize (test-sanitize.ts가 이 파일을 불러 함께 실행한다)
 import { postTextLength } from "../src/lib/text-length";
-import { htmlToText, sanitizePostHtml } from "../src/server/sanitize";
+import { htmlToText, sanitizePostHtml } from "../../backend/src/blog/sanitize";
 
 // 에디터(Tiptap getHTML)가 만드는 모양의 HTML
 const CASES: [string, string][] = [

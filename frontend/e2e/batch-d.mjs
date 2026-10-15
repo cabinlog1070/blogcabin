@@ -370,10 +370,6 @@ try {
     return false;
   };
   const v1 = await visitor();
-  let visitReq = null;
-  v1.page.on("request", (r) => {
-    if (r.method() === "POST" && r.headers()["next-action"] && !visitReq) visitReq = r;
-  });
   await v1.page.goto(`${BASE}/@${C}`);
   check("BLOG-06 처음 온 방문자 → 오늘 1·전체 1 (새로고침 없이)", await waitShown(v1.page, { today: 1, total: 1 }));
   check("BLOG-06 정보 줄 `오늘 방문 N · 전체 방문 N`", /@dc\w+ · 글 \d+ · 이웃 \d+ · 오늘 방문 1 · 전체 방문 1/.test(await v1.page.locator("[data-visit-count]").locator("..").innerText()));
@@ -394,10 +390,12 @@ try {
   await b.page.waitForTimeout(800);
   check("BLOG-06 주인이 열면 오르지 않음 (숫자는 보임)", (await visits()).total === 2 && (await shown(c.page)).total === 2);
   // 주인이 기록 요청을 직접 보내도 기록되지 않는다 (방문자의 요청을 주인 쿠키로 다시 보냄)
-  const forgedStatus = await c.page.evaluate(
-    async ({ actionId, body }) => (await fetch(location.href, { method: "POST", headers: { "Next-Action": actionId, Accept: "text/x-component", "Content-Type": "text/plain;charset=UTF-8" }, body })).status,
-    { actionId: visitReq.headers()["next-action"], body: visitReq.postData() },
-  );
+  // 브라우저 쿠키를 그대로 쓰는 요청 (일부러 보내는 이상한 요청이 화면 콘솔 오류로 잡히지 않게 page.request로)
+  const visitApi = async (page, blogId) => {
+    const r = await page.request.post(`${BASE}/api/v1/blog/blogs/${blogId}/visit`, { headers: { Origin: BASE } });
+    return r.status();
+  };
+  const forgedStatus = await visitApi(c.page, c.blogId);
   check("BLOG-06 주인이 기록 요청을 직접 보내도 기록되지 않음", forgedStatus === 200 && (await visits()).total === 2, `HTTP ${forgedStatus}`);
   // 로그인 회원은 기기가 달라도 한 사람 (A가 두 브라우저에서)
   await a.page.goto(`${BASE}/@${C}`);
@@ -411,11 +409,8 @@ try {
   await fetch(`${BASE}/@${C}`);
   check("BLOG-06 스크립트를 실행하지 않는 요청은 세지 않음", (await visits()).total === 3);
   // 없는 블로그 ID로 조작한 요청 → 아무것도 기록하지 않음
-  const ghostStatus = await v1.page.evaluate(
-    async ({ actionId }) => (await fetch(location.href, { method: "POST", headers: { "Next-Action": actionId, Accept: "text/x-component", "Content-Type": "text/plain;charset=UTF-8" }, body: "[2000000000]" })).status,
-    { actionId: visitReq.headers()["next-action"] },
-  );
-  check("BLOG-06 없는 블로그로 조작한 요청은 기록 없음", ghostStatus === 200 && (await one("SELECT COUNT(*)::int AS n FROM blog_visits WHERE blog_id = 2000000000")).n === 0);
+  const ghostStatus = await visitApi(v1.page, 2000000000);
+  check("BLOG-06 없는 블로그로 조작한 요청은 기록 없음", ghostStatus === 404 && (await one("SELECT COUNT(*)::int AS n FROM blog_visits WHERE blog_id = 2000000000")).n === 0);
   await v1.page.goto(`${BASE}/@${C}`);
   await waitShown(v1.page, { today: 3, total: 3 });
   await v1.page.locator("[data-visit-count]").scrollIntoViewIfNeeded();

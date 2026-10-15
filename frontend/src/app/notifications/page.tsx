@@ -3,7 +3,8 @@ import { MarkAllReadButton, NotificationLink } from "@/components/notification-b
 import { timeAgo } from "@/lib/game";
 import { requireMember } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
-import { countUnread, listNotifications } from "@/server/notifications";
+import { presentNotifications } from "@/server/notifications";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -12,11 +13,12 @@ export async function generateMetadata() {
 
 /** 알림함 전체 화면 (GAME-08): 내 알림만, 최신순 20개씩 */
 export default async function NotificationsPage(props: PageProps<"/notifications">) {
-  const viewer = await requireMember();
+  await requireMember();
   const t = await getT();
   const locale = await getLocale();
   const page = parsePage((await props.searchParams).page);
-  const [list, unread] = await Promise.all([listNotifications(viewer.userId, page), countUnread(viewer.userId)]);
+  const { unread, ...rows } = await readApi.notifications(page);
+  const list = await presentNotifications(rows);
   const now = new Date();
 
   return (

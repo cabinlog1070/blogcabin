@@ -1,11 +1,9 @@
-import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import Link from "next/link";
 import { Icon } from "@/components/icon";
-import { db } from "@/db";
-import { blogs, comments, posts, profiles, users } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
 import { requireAdmin } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -21,27 +19,8 @@ export default async function AdminMembersPage(props: { searchParams: Promise<{ 
   const locale = await getLocale();
   const { q: rawQ, withdrawn } = await props.searchParams;
   const q = (rawQ ?? "").trim().slice(0, 50);
-  const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
-  const rows = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      email: users.email,
-      role: users.role,
-      createdAt: users.createdAt,
-      nickname: profiles.nickname,
-      slug: blogs.slug,
-      provider: sql<string>`(SELECT string_agg(provider_id, ', ') FROM accounts WHERE accounts.user_id = ${users.id})`,
-      postCount: sql<number>`(SELECT COUNT(*)::int FROM ${posts} WHERE ${posts.blogId} = ${blogs.id})`,
-      commentCount: sql<number>`(SELECT COUNT(*)::int FROM ${comments} WHERE ${comments.authorId} = ${users.id} AND ${comments.deletedAt} IS NULL)`,
-    })
-    .from(users)
-    .leftJoin(profiles, eq(profiles.userId, users.id))
-    .leftJoin(blogs, eq(blogs.ownerId, users.id))
-    .where(q ? or(ilike(users.username, like), ilike(profiles.nickname, like), ilike(users.email, like), ilike(blogs.slug, like)) : undefined)
-    .orderBy(desc(users.createdAt))
-    .limit(LIMIT);
+  const { rows } = await readApi.admin.members(q);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">

@@ -71,7 +71,7 @@ export function ProfileMenu({
   linked: string[];
   /** 연동 보상(🪙 100)을 이미 받은 소셜 */
   rewarded: string[];
-  /** 키가 설정돼 켜진 소셜 로그인 (src/lib/auth.ts의 enabledProviders) */
+  /** 키가 설정돼 켜진 소셜 로그인 (서버 backend/src/auth의 enabledProviders, GET /api/v1/me가 준다) */
   providers: Record<SocialProvider, boolean>;
 }) {
   const { open, box, setAnchor, setPanel, toggle, close } = useHeaderPopover(288); // 18rem

@@ -106,3 +106,7 @@ export function cleanFileName(name: string): string {
   const ext = extensionOf(cleaned);
   return `${cleaned.slice(0, FILE_NAME_MAX - ext.length - 1)}.${ext}`;
 }
+
+/** 파일 카드의 화면 읽기용 이름. 글 HTML에 저장할 때는 한국어로 넣고, 화면은 t(FILE_CARD_LABEL, …)로 바꿔 쓴다 */
+export const FILE_CARD_LABEL = msg("{name} 내려받기 ({size})");
+export const fileCardLabelKo = (name: string, size: number) => FILE_CARD_LABEL.replace("{name}", name).replace("{size}", formatBytes(size));

@@ -4,23 +4,39 @@ import { uploadAttachment } from "./attachments/upload";
 import { auth } from "./auth";
 import { db } from "./db";
 import { accountRoutes } from "./routes/account";
+import { adminRoutes } from "./routes/admin";
+import { blogRoutes } from "./routes/blog";
+import { blogPageRoutes } from "./routes/blog-pages";
+import { fileRoutes } from "./routes/files";
+import { loginRoutes } from "./routes/login";
+import { meRoutes } from "./routes/me";
 import { attendance } from "./routes/attendance";
+import { closetRoutes } from "./routes/closet";
+import { farmRoutes } from "./routes/farm";
+import { feedRoutes, searchRoutes } from "./routes/feed";
 import { localeRoutes } from "./routes/locale";
+import { myBlogRoutes } from "./routes/my-blog";
 import { notificationRoutes } from "./routes/notifications";
+import { onboardingRoutes } from "./routes/onboarding";
+import { postRoutes } from "./routes/posts";
+import { shopRoutes } from "./routes/shop";
+import { townRoutes } from "./routes/town";
+import { walletRoutes } from "./routes/wallet";
 
 // 서버(backend) API. 새 주소는 모두 /api/v1/… 로 시작한다.
 // 예외: 로그인(/api/auth/…)은 소셜 로그인 콜백 주소가 카카오·구글 개발자 센터에 이 주소로 등록돼 있어 그대로 둔다.
-// 운영에서는 화면(frontend)이 /api/v1/… 요청을 이 앱에 그대로 넘긴다 (frontend/src/app/api/v1/[...path]/route.ts).
-// 화면이 하던 일을 영역별로 하나씩 옮겨 온다 (순서는 CLAUDE.md의 "폴더").
+// 운영에서는 화면(frontend)과 다른 컨테이너에서 돌고, 화면이 /api/v1/…·/api/auth/… 요청을 이 앱에 그대로 넘긴다
+// (frontend/src/server/backend.ts). DB 접속 정보·로그인 비밀키는 이 앱만 갖는다.
 export const app = new Hono();
 
 const v1 = new Hono();
 const noStore = { "Cache-Control": "no-store" };
 
-// 회원마다 다른 답이라 브라우저·중간 서버가 저장해 두지 않게 한다
+// 회원마다 다른 답이라 브라우저·중간 서버가 저장해 두지 않게 한다.
+// 첨부 파일(routes/files.ts)은 스스로 정한 값(private, no-cache: 매번 확인하되 같은 화면 안에서는 다시 받지 않게)을 둔다
 v1.use(async (c, next) => {
   await next();
-  c.res.headers.set("Cache-Control", "no-store");
+  if (!c.res.headers.has("Cache-Control")) c.res.headers.set("Cache-Control", "no-store");
 });
 
 // 배포 확인용 (deploy/deploy.sh). 로그인 없이 열리고, DB가 응답하면 200, 아니면 503.
@@ -40,11 +56,39 @@ v1.get("/health", async (c) => {
 // 글 첨부 올리기 (사진·파일, 로그인한 주민만)
 v1.post("/uploads", uploadAttachment);
 
-// 출석 체크, 알림함·레벨업·선물 팝업, 화면 언어, 회원 탈퇴
+// 출석 체크, 알림함·레벨업·선물 팝업, 화면 언어, 아이디 만들기·합치기·회원 탈퇴
+// 지금 보는 사람(화면이 페이지마다 부른다), 아이디로 가입·로그인
+v1.route("/me", meRoutes);
+v1.route("/login", loginRoutes);
+
 v1.route("/attendance", attendance);
 v1.route("/notifications", notificationRoutes);
 v1.route("/locale", localeRoutes);
 v1.route("/account", accountRoutes);
+
+// 상점(사기·입어 본 모습 저장), 꾸미기 저장
+v1.route("/shop", shopRoutes);
+v1.route("/closet", closetRoutes);
+
+// 농장 (알·부화·돌보기·물약·펫 꾸미기)
+v1.route("/farm", farmRoutes);
+
+// 블로그: 공감·댓글·이웃·방문 수, 내 블로그 관리(기본 정보·카테고리), 글쓰기
+v1.route("/blog", blogRoutes);
+v1.route("/my-blog", myBlogRoutes);
+v1.route("/posts", postRoutes);
+v1.route("/blog-pages", blogPageRoutes);
+v1.route("/files", fileRoutes);
+
+// 마을 주민 등록(온보딩), 관리자(글·댓글 지우기, 강제 탈퇴, 지급, 선물 보내기)
+v1.route("/onboarding", onboardingRoutes);
+v1.route("/admin", adminRoutes);
+
+// 읽기: 마을 소식·이웃 새 글·태그, 검색, 광장, 경험치·코인 내역 (화면의 서버 쪽 페이지가 부른다)
+v1.route("/feed", feedRoutes);
+v1.route("/search", searchRoutes);
+v1.route("/town", townRoutes);
+v1.route("/wallet", walletRoutes);
 
 app.route("/api/v1", v1);
 

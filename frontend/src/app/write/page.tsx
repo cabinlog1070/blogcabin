@@ -1,10 +1,8 @@
-import { asc, eq } from "drizzle-orm";
-import { db } from "@/db";
-import { categories } from "@/db/schema";
 import { PostForm } from "@/components/editor/post-form";
 import { draftStorageKey } from "@/lib/draft";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -13,11 +11,7 @@ export async function generateMetadata() {
 
 export default async function WritePage() {
   const viewer = await requireMember();
-  const cats = await db
-    .select({ id: categories.id, name: categories.name })
-    .from(categories)
-    .where(eq(categories.blogId, viewer.profile.blogId))
-    .orderBy(asc(categories.position), asc(categories.id));
+  const cats = (await readApi.write())?.categories ?? [];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">

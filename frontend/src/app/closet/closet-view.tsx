@@ -3,6 +3,7 @@
 // 꾸미기 화면 (SHOP-04·05·06, TOWN-07). 2026-10-13: 캐릭터 꾸미기 / 미니룸 꾸미기 / 집 테마 탭 3개.
 // 컴퓨터에서는 왼쪽에 미니룸, 오른쪽에 고르는 칸. 휴대폰에서는 미니룸이 위에 있다.
 // 고르는 것은 화면에만 바로 보이고, [저장하기]를 눌러야 한 번에 저장된다 (saveCloset).
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { FurnitureArt, MiniRoom, type RoomFurniture, type RoomPet } from "@/components/character";
 import { useT } from "@/components/i18n";
@@ -25,9 +26,10 @@ import {
 } from "@/lib/assets";
 import { HAIR_COLOR_KEYS, HAIR_COLORS, HAIR_DEFAULT_SWATCH, paintedHairKey, type HairColor } from "@/lib/art/avatar";
 import { HOUSE_STAGES, houseSvg, ROOF_COLORS, roofHex, type HouseStage, type RoofColor } from "@/lib/art/town";
+import { api, ApiError, errorText } from "@/lib/api";
 import { msg } from "@/lib/i18n";
 import { clampCharacterSpot, clampPct, clampPetSpot, CLOSET_TABS, ROOM_CHARACTER_SPOT, type ClosetTab, type ItemType, type RoomSpot } from "@/lib/shop";
-import { saveCloset, type ClosetDraft } from "./actions";
+import type { ClosetDraft } from "@backend/routes/closet";
 import { useAutoClear } from "@/components/use-auto-clear";
 
 type OwnedItem = { id: number; type: ItemType; slot: string | null; name: string; assetKey: string; color?: string | null };
@@ -115,6 +117,7 @@ export function ClosetView({
   initialTab?: ClosetTab;
 }) {
   const t = useT();
+  const router = useRouter();
   const furniture = items.filter((i) => i.type === "furniture");
   const [saved, setSaved] = useState<Draft>(() => {
     const colors = Object.fromEntries(furniture.map((i) => [i.id, isFurnitureColor(i.color) ? i.color : null])) as Record<number, FurnitureColor | null>;
@@ -181,14 +184,14 @@ export function ClosetView({
     setMessage(null);
     start(async () => {
       try {
-        const r = await saveCloset(body);
-        if (r.ok) {
-          setSaved(sent);
-          setMessage({ ok: true, text: t("저장했어요 ✓ 내 블로그 미니룸과 광장에 바로 보여요") });
-        } else setMessage({ ok: false, text: r.error ?? t(FAIL) });
-      } catch {
+        await api("/closet", { method: "PUT", body });
+        setSaved(sent);
+        setMessage({ ok: true, text: t("저장했어요 ✓ 내 블로그 미니룸과 광장에 바로 보여요") });
+        router.refresh(); // 헤더 캐릭터를 새로
+      } catch (e) {
+        if (e instanceof ApiError && e.redirect) return router.push(e.redirect);
         // 서버 오류(네트워크, DB 등)도 오류 화면 대신 알려준다. 고친 내용은 화면에 그대로 남는다
-        setMessage({ ok: false, text: t(FAIL) });
+        setMessage({ ok: false, text: e instanceof ApiError && e.status !== 500 && e.status !== 0 ? errorText(t, e) : t(FAIL) });
       }
     });
   }

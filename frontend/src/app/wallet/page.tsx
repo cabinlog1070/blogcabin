@@ -7,7 +7,7 @@ import { formatDateTime } from "@/lib/format";
 import { msg, type T } from "@/lib/i18n";
 import { requireMember } from "@/server/dal";
 import { getLocale, getT } from "@/server/i18n";
-import { getWallet, listLedger } from "@/server/points";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -48,11 +48,11 @@ function Reason({ reason, t }: { reason: string; t: T }) {
 const signed = (n: number) => (n > 0 ? `+${n.toLocaleString()}` : `−${Math.abs(n).toLocaleString()}`);
 
 export default async function WalletPage(props: PageProps<"/wallet">) {
-  const viewer = await requireMember();
+  await requireMember();
   const t = await getT();
   const locale = await getLocale();
   const page = parsePage((await props.searchParams).page);
-  const [wallet, ledger] = await Promise.all([getWallet(viewer.userId), listLedger(viewer.userId, page)]);
+  const { wallet, ledger } = await readApi.wallet(page);
   const [coinsBefore, coinsAfter = ""] = t("코인은 {link}에서 쓸 수 있어요.").split("{link}");
 
   return (

@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { CharacterArt } from "@/components/character";
 import { LoginButtons } from "@/components/login-buttons";
-import { enabledProviders } from "@/lib/auth";
-import { getViewer, needsAccountSetup } from "@/server/dal";
+import { getMe, getViewer, needsAccountSetup } from "@/server/dal";
 import { getT } from "@/server/i18n";
 
 export default async function LandingPage(props: PageProps<"/">) {
@@ -58,7 +57,7 @@ export default async function LandingPage(props: PageProps<"/">) {
           <CharacterArt asset="char.girl" size={88} />
         </div>
         <h2 className="font-display text-2xl">{t("마을에 들어가기")}</h2>
-        <LoginButtons providers={enabledProviders} />
+        <LoginButtons providers={(await getMe()).providers} />
       </section>
     </div>
   );

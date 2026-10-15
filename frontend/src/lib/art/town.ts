@@ -1,5 +1,6 @@
 // 광장 건물·소품 그림 (SVG). Phaser가 이 SVG를 이미지로 바꿔 광장에 놓는다.
 // 2026-10-11 크레용 그림체 (crayon.ts). 좌표는 화면 크기의 2배. 그림은 아랫변 가운데를 발 닿는 곳으로 놓는다.
+import { isRoofColor, type RoofColor } from "@backend/shop/colors";
 import { msg, type T } from "@/lib/i18n";
 import { backgroundAccent } from "./backgrounds";
 import { attendance, bench, board, campfireBase, campfireFront, farm, flame, house, lamp, pastel, shop, tree } from "./crayon";
@@ -25,9 +26,9 @@ export const ROOF_COLORS = {
   blue: { name: msg("파랑"), hex: "#2563eb" },
   purple: { name: msg("보라"), hex: "#9333ea" },
   brown: { name: msg("갈색"), hex: "#92400e" },
-} as const;
-export type RoofColor = keyof typeof ROOF_COLORS;
-export const isRoofColor = (v: unknown): v is RoofColor => typeof v === "string" && Object.hasOwn(ROOF_COLORS, v);
+} as const satisfies Record<RoofColor, { name: string; hex: string }>;
+// 고를 수 있는 색인지는 서버 저장과 같은 검사를 쓴다
+export { isRoofColor, type RoofColor };
 
 /** 집 지붕에 칠할 색: 고른 색이 있으면 그 색, 없으면(또는 [배경 색 따라가기]) 장착한 배경의 강조색 */
 export function roofHex(roofColor: string | null | undefined, backgroundAsset: string): string {

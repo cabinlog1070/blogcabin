@@ -4,9 +4,9 @@ import { PostCard } from "@/components/blog/post-card";
 import { SearchBox } from "@/components/blog/search-box";
 import { Pagination, parsePage } from "@/components/pagination";
 import { parseSearchQuery } from "@/lib/search";
-import { searchBlogs, searchPosts } from "@/server/blog";
 import { requireMember } from "@/server/dal";
 import { getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -27,7 +27,7 @@ export default async function SearchPage(props: PageProps<"/search">) {
   const page = parsePage(sp.page);
 
   const [blogs, posts] =
-    query.kind === "ok" ? await Promise.all([searchBlogs(query.q), searchPosts(query.q, page)]) : [null, null];
+    query.kind === "ok" ? await readApi.search(query.q, page).then((r) => [r.blogs, r.posts] as const) : [null, null];
   const empty = blogs && posts && blogs.length === 0 && posts.total === 0;
 
   return (

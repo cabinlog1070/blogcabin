@@ -10,12 +10,13 @@ AI응용프로젝트 개인 프로젝트입니다. [Tistory](https://www.tistory
 
 | 폴더 | 내용 |
 |---|---|
-| `frontend/` | 화면 (Next.js 16, TypeScript). 아직 서버로 옮기지 않은 일(Server Action, DB 마이그레이션)도 여기 있다 |
-| `backend/` | 서버 API (Node 24, Hono, TypeScript). 주소는 `/api/v1/…`, 로그인은 `/api/auth/…` |
-| `deploy/` | 운영 서버 배포 스크립트 (앱 두 개 8440·8441, 서버 nginx upstream, 롤링 배포) |
+| `frontend/` | 화면 (Next.js 16, TypeScript). DB를 모르고, 읽기·저장은 모두 서버 API로 한다 |
+| `backend/` | 서버 API (Node 24, Hono, TypeScript). 주소는 `/api/v1/…`, 로그인은 `/api/auth/…`. DB·로그인·첨부 파일·시드·관리자 계정 |
+| `deploy/` | 운영 서버 배포 스크립트 (화면 8440·8441 + 짝 서버 API 8442·8443, 서버 nginx upstream, 롤링 배포) |
 | `.github/` | PR마다 도는 검사(CI: 화면·서버 따로), `main`에 합치면 도는 배포 |
 
-> 2026-10-14부터 화면과 서버를 나누는 중입니다. 지금은 뼈대(폴더·배포·검사)만 나눴고, 출석·상점·농장·블로그처럼 영역을 하나씩 `backend/`로 옮깁니다.
+> 2026-10-14~15에 화면과 서버를 나눴습니다. 운영에서 화면과 서버 API는 서로 다른 컨테이너로 돌고, DB 비밀번호·로그인 비밀키는 서버 API 컨테이너만 받습니다.
+> 손님(브라우저)은 화면 주소만 알고, 화면이 `/api/v1/…`·`/api/auth/…`를 짝 서버 API로 넘깁니다(`frontend/src/server/backend.ts`).
 
 ## 주요 기능
 
@@ -62,7 +63,7 @@ npm run admin:create            # 관리자 계정 만들기 (.env.local의 ADMI
 npm run dev                     # http://localhost:3000
 ```
 
-서버(backend)는 다른 터미널에서 켭니다. 글 첨부 올리기처럼 서버로 옮긴 기능은 화면 개발 서버가 `/api/v1/…`을 서버(4000)로 넘겨서 쓰므로 둘 다 켜 두세요. 접속 정보는 `frontend/.env.local`을 같이 읽습니다(따로 쓰려면 `backend/.env`).
+서버(backend)는 다른 터미널에서 켭니다. 화면은 모든 읽기·저장·로그인을 서버(기본 4000, 바꾸려면 `BACKEND_URL`)에 물으므로 둘 다 켜 두세요. 접속 정보는 서버가 `frontend/.env.local`을 같이 읽습니다(따로 쓰려면 `backend/.env`).
 
 ```bash
 cd backend                      # 저장소 맨 위 폴더에서
@@ -92,7 +93,7 @@ npm run dev                     # http://localhost:4000/api/v1/health
 
 ## 스크립트
 
-`frontend/` 폴더에서 실행합니다. DB 명령(`db:generate`·`db:migrate`·`db:studio`)은 서버 쪽(`backend/`)으로 넘겨 실행되고, `backend/`에서 직접 실행해도 같습니다.
+`frontend/` 폴더에서 실행합니다. DB 명령(`db:generate`·`db:migrate`·`db:studio`·`db:seed`·`db:reset`·`admin:create`)은 서버 쪽(`backend/`)으로 넘겨 실행되고, `backend/`에서 직접 실행해도 같습니다.
 
 | 명령 | 설명 |
 |---|---|
@@ -126,12 +127,12 @@ deploy/                   운영 서버 배포 스크립트 (deploy.sh)
 package.json              npm workspaces (맨 위에서 npm install 한 번, package-lock.json도 하나)
 backend/                  서버 API (Hono)
 ├── drizzle/              마이그레이션 SQL (자동 생성)
-├── scripts/              운영 마이그레이션 (migrate.ts)
+├── scripts/              운영 마이그레이션, 시드, 관리자 계정, 개발 DB 초기화
 └── src/
     ├── app.ts            주소 목록, index.ts 서버 시작
-    └── db/               DB 연결·스키마 (화면도 @/db로 같이 쓴다)
+    └── db/               DB 연결·스키마 (서버 API만 쓴다)
 frontend/                 화면 (Next.js)
-├── scripts/              시드, 관리자 계정, 개발 DB 초기화
+├── scripts/              테스트 (규칙·번역·글 정화)
 ├── e2e/                  Playwright 시나리오
 └── src/
     ├── app/              화면과 Server Action

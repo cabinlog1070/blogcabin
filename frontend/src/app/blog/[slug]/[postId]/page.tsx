@@ -10,32 +10,21 @@ import { CharacterBadge } from "@/components/character";
 import { formatDateTime } from "@/lib/format";
 import { POST_REWARD_MIN_LENGTH, REWARD_RULES } from "@/lib/game";
 import { parseId } from "@/lib/ids";
-import {
-  canSeePrivatePosts,
-  getAdjacentPosts,
-  getBlogBySlug,
-  getFeedAdjacentPosts,
-  getComments,
-  getLikeState,
-  getPost,
-  getPostTags,
-} from "@/server/blog";
-import { getViewer } from "@/server/dal";
-import { relaxNbsp } from "@/server/sanitize";
 import { getLocale, getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 import { categoryLabel } from "@/lib/i18n";
-import { feedFrom, parseFeedFrom } from "@/lib/feed-from";
+import { feedFrom } from "@/lib/feed-from";
 import { detectPostLanguage } from "@/lib/translate";
 
+/** 글 읽기. 볼 수 없는 글(비공개·예약)은 서버가 없는 글처럼 404로 답한다. 이전·다음 글 목록(from·tag)도 넘긴다 */
 async function load(props: PageProps<"/blog/[slug]/[postId]">) {
   const { slug, postId } = await props.params;
   const id = parseId(postId);
   if (id === null) return null;
-  const blog = await getBlogBySlug(slug);
-  if (!blog) return null;
-  const post = await getPost(blog.id, id);
-  if (!post) return null;
-  return { blog, post };
+  const sp = await props.searchParams;
+  const query: Record<string, string> = {};
+  for (const key of ["from", "tag"]) if (typeof sp[key] === "string") query[key] = sp[key];
+  return readApi.post(slug, id, query);
 }
 
 export async function generateMetadata(props: PageProps<"/blog/[slug]/[postId]">) {
@@ -53,29 +42,10 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
   const { blog, post } = data;
   const sp = await props.searchParams;
 
-  const viewer = await getViewer();
   const [t, locale] = await Promise.all([getT(), getLocale()]);
-  const viewerId = viewer?.profile ? viewer.userId : null;
-  const isOwner = viewerId === blog.ownerId;
-  const includePrivate = await canSeePrivatePosts(viewerId, blog.ownerId); // 비공개 글은 주인, 서로 이웃, 관리자만
-  if (post.visibility === "private" && !includePrivate) notFound();
-  if (post.scheduled && !isOwner) notFound(); // 아직 안 올라간 예약 글은 주인만 본다 (POST-11)
-
-  // 마을 소식에서 열었으면 이전·다음 글도 그 목록(마을 전체·💛 이웃 새 글·태그) 순서로 넘긴다.
-  // 💛 이웃 새 글은 회원만 볼 수 있는 목록이라 비회원이면 블로그 안의 이전·다음 글로 둔다
-  const source = parseFeedFrom(sp);
-  const feed =
-    source && ("tag" in source ? { tag: source.tag } : source.tab === "all" ? {} : viewerId ? { followerId: viewerId } : null);
-  const [tagNames, like, comments, feedAdjacent] = await Promise.all([
-    getPostTags(post.id),
-    getLikeState(post.id, viewerId),
-    getComments(post.id),
-    feed ? getFeedAdjacentPosts(post.id, feed) : null,
-  ]);
-  // 지금 글이 그 목록에 없으면(비공개 글 등) 블로그 안의 이전·다음 글
-  const adjacent = feedAdjacent
-    ? { ...feedAdjacent, query: `?${feedFrom(source!)}` }
-    : { ...(await getAdjacentPosts(blog.id, post, includePrivate, isOwner)), query: "" };
+  const { viewerId, isOwner, canModerate, tags: tagNames, like, comments } = data;
+  // 마을 소식에서 열었으면 이전·다음 글 링크에도 그 목록을 붙인다
+  const adjacent = { ...data.adjacent, query: data.adjacent.source ? `?${feedFrom(data.adjacent.source)}` : "" };
   const hrefOf = (p: { id: number; blogSlug?: string }) => `/@${p.blogSlug ?? blog.slug}/${p.id}${adjacent.query}`;
 
   return (
@@ -155,8 +125,8 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
 
         {/* 다른 말로 쓴 글이면 번역 버튼 (POST-10) */}
         <TranslateBar />
-        {/* 저장할 때 sanitize-html로 정화한 HTML만 넣는다. relaxNbsp는 nbsp가 남은 예전 글도 줄이 바뀌게 한다 */}
-        <PostBody html={relaxNbsp(post.contentHtml)} />
+        {/* 저장할 때 sanitize-html로 정화한 HTML만 넣는다 (서버가 nbsp도 풀어서 준다) */}
+        <PostBody html={post.contentHtml} />
 
         {tagNames.length > 0 && (
           <ul className="mt-8 flex flex-wrap gap-2">
@@ -177,7 +147,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
         <CommentSection
           postId={post.id}
           viewerId={viewerId}
-          canModerate={Boolean(viewerId) && (isOwner || viewer?.user.role === "admin")}
+          canModerate={canModerate}
           comments={comments.map((c) =>
             c.deleted
               ? c

@@ -4,8 +4,8 @@ import { ItemArt } from "@/components/item-art";
 import { GiftPetEgg } from "@/components/pet-art";
 import { formatDateTime } from "@/lib/format";
 import { requireMember } from "@/server/dal";
-import { listReceivedGifts } from "@/server/gifts";
 import { getLocale, getT } from "@/server/i18n";
+import { readApi } from "@/server/read-api";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -14,10 +14,10 @@ export async function generateMetadata() {
 
 /** 받은 선물 (관리자 선물): 보낸 사람, 함께 보낸 말, 받은 코인·아이템·펫 알. 최신 50개. 펫 알을 누르면 동물 농장으로 */
 export default async function GiftsPage() {
-  const viewer = await requireMember();
+  await requireMember();
   const t = await getT();
   const locale = await getLocale();
-  const gifts = await listReceivedGifts(viewer.userId);
+  const { gifts } = await readApi.gifts();
   const hasItems = gifts.some((g) => g.items.length > 0);
   const hasPets = gifts.some((g) => g.pets.length > 0);
 

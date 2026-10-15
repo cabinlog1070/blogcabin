@@ -87,7 +87,7 @@ const setBlockStyle = (e: Editor, style: BlockStyle) => {
 const DEFAULT_FONT_SIZE = 16;
 export const FONT_SIZES = [11, 13, 15, 16, 19, 24, 28, 30, 34, 38];
 
-// 글자색·배경색 팔레트. 저장 화면에서 허용하는 값과 같아야 한다 (src/server/sanitize.ts)
+// 글자색·배경색 팔레트. 저장 화면에서 허용하는 값과 같아야 한다 (backend/src/blog/sanitize.ts)
 export const TEXT_COLORS = ["#2e2118", "#6a5444", "#b83a29", "#e8590c", "#96500f", "#3d7a4a", "#2f6f9e", "#5f3dc4", "#c2255c", "#868e96"];
 export const BACKGROUND_COLORS = ["#fff3bf", "#ffe8cc", "#ffe3e3", "#d3f9d8", "#d0ebff", "#e5dbff", "#f1f3f5"];
 

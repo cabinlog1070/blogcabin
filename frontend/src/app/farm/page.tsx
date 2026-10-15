@@ -1,8 +1,7 @@
 import { EGG_LEVEL_EVERY, EGG_PRICE, MAX_ACTIVE_ANIMALS, MAX_NEST_EGGS, POST_GROWTH, POTION_GROWTH, POTION_PRICE } from "@/lib/farm";
 import { requireMember } from "@/server/dal";
-import { getFarm } from "@/server/farm";
 import { getT } from "@/server/i18n";
-import { getWallet } from "@/server/points";
+import { readApi } from "@/server/read-api";
 import { FarmView } from "./farm-view";
 
 export async function generateMetadata() {
@@ -13,10 +12,9 @@ export async function generateMetadata() {
 // 동물 농장 (TOWN-09): 울타리 친 풀밭에 펫이 돌아다닌다. 펫을 누르면 상태창, 가운데 아래 펫 꾸미기,
 // 아래에 알 받기 · 농장 가게(물약) · 내 동물 · 카드 도감
 export default async function FarmPage() {
-  const viewer = await requireMember();
+  await requireMember();
   const t = await getT();
-  const wallet = await getWallet(viewer.userId);
-  const farm = await getFarm(viewer.userId, wallet.level);
+  const { wallet, farm } = await readApi.farm();
   const [growingBefore, growingAfter = ""] = t("키우는 중 {n} / {max}", { max: MAX_ACTIVE_ANIMALS }).split("{n}");
 
   return (
