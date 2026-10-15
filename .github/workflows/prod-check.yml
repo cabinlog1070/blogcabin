@@ -1,4 +1,4 @@
-# 읽기 전용 운영 점검: 사이트가 밖에서 열리는지, 서버 nginx가 8440·8441 둘 다로 보내는지 본다. 아무것도 바꾸지 않는다.
+# 읽기 전용 운영 점검: 서버 nginx가 손님을 8440·8441 둘 다로 보내는지 본다. 아무것도 바꾸지 않는다.
 name: prod-check
 on:
   push:
@@ -15,35 +15,18 @@ jobs:
       SSH_PORT: ${{ secrets.SSH_PORT }}
       SSH_USER: ${{ secrets.SSH_ID }}
     steps:
-      - name: from the internet
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+      - name: send requests, then count which app port each one went to
         run: |
           set +e
-          date -u
-          echo "== dns"; getent hosts blogcabin.java21.net
-          for u in https://blogcabin.java21.net/api/health http://blogcabin.java21.net/ https://java21.net/ ; do
-            echo "$u -> $(curl -s -o /dev/null -m 15 -w '%{http_code} %{time_total}s' "$u"; echo " exit=$?")"
-          done
-          echo "== 20 requests"; for i in $(seq 1 20); do curl -s -o /dev/null -m 8 -w '%{http_code} ' https://blogcabin.java21.net/api/health; done; echo
-          true
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
-      - name: on the server (read only)
-        run: |
+          echo "== 20 requests from the internet"
+          for i in $(seq 1 20); do curl -s -o /dev/null -m 10 -w '%{http_code} ' https://blogcabin.java21.net/api/health; done; echo
           sshpass -e ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 ${SSH_USER}@${SSH_HOST} 'bash -s' <<'SH'
           set +e
           echo "== now"; date
-          echo "== our apps"; docker ps --format '{{.Names}}\t{{.Status}}' | grep -i blogcabin
-          for p in 8440 8441; do echo "$p $(curl -s -o /dev/null -m 5 -w '%{http_code}' http://127.0.0.1:$p/api/health)"; done
-          echo "== through server nginx on this machine"
-          for i in $(seq 1 12); do curl -sk -o /dev/null -m 8 -w '%{http_code} ' --resolve blogcabin.java21.net:443:127.0.0.1 https://blogcabin.java21.net/api/health; done; echo
-          echo "== who listens on 80/443"; ss -ltn | grep -E ':(80|443)\b'
-          echo "== connections to our apps right after (TIME_WAIT lasts ~60s)"
-          ss -tan | grep -E ':844[01]\b' | awk '{print $1, $4}' | sort | uniq -c
-          echo "== our nginx file changed at"; stat -c '%y' ~/nginx/blogcabin.java21.net.conf
-          echo "== nginx masters and their workers' start times"
-          ps -eo pid,args | grep -E 'nginx: master' | grep -v grep | while read -r pid rest; do
-            m=$(ps -o lstart= -p "$pid")
-            w=$(ps -eo ppid,lstart | awk -v p="$pid" '$1==p {$1=""; print}' | sort -u | tr '\n' '|')
-            echo "master $pid started $m | workers: $w | $rest"
-          done
-          echo "== uptime"; uptime
+          echo "== 20 requests through server nginx on this machine"
+          for i in $(seq 1 20); do curl -sk -o /dev/null -m 8 -w '%{http_code} ' --resolve blogcabin.java21.net:443:127.0.0.1 https://blogcabin.java21.net/api/health; done; echo
+          echo "== recent connections from nginx, by app port (TIME_WAIT lasts ~60s)"
+          ss -tan state time-wait | awk '{print $NF}' | grep -E '127\.0\.0\.1:844[01]$' | sort | uniq -c
           SH
+          true
