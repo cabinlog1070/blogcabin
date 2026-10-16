@@ -50,6 +50,14 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-16",
     versions: [
       {
+        version: "1.34.1",
+        title: msg("따라오는 글쓰기 도구 줄"),
+        changes: [
+          { kind: "improved", text: msg("글을 길게 써도 글쓰기 도구 줄이 따라와요. 컴퓨터에서는 화면 위에 붙어 있고, 휴대폰에서는 키보드 바로 위에 붙어요.") },
+          { kind: "fixed", text: msg("답글에 단 답글이 그 답글 바로 아래에 모이고, 누구에게 단 답글인지 ↪ 표시로 보여요.") },
+        ],
+      },
+      {
         version: "1.34.0",
         title: msg("댓글 하트와 답글에 답글"),
         changes: [
