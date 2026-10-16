@@ -43,13 +43,18 @@ export const HAIR_COLOR_KEYS = Object.keys(HAIR_COLORS) as HairColor[];
 export const paintedHairKey = (assetKey: string, color: string | null | undefined) =>
   color && isHairColor(color) && AVATAR_PIECES[assetKey]?.slot === "hair" ? `${assetKey}@${color}` : assetKey;
 
+/** 상의 빼 입기 표시 ("avatar.top.hoodie@out"). 모습 키 안에서 그대로 쓴다 */
+export const TOP_OUT = "out";
+export const outTopKey = (assetKey: string, out: boolean | null | undefined) => (out && AVATAR_PIECES[assetKey]?.slot === "top" ? `${assetKey}@${TOP_OUT}` : assetKey);
+
 /** 꾸미기 키들 → 그릴 조각 (부위 순서대로, 같은 부위는 처음 것 하나만) */
 export function piecesInOrder(assetKeys: string[]): AvatarPiece[] {
   const pieces = assetKeys
     .map((key): AvatarPiece | undefined => {
-      // 머리 색은 헤어 키 뒤에 @색으로 붙는다
+      // 머리 색은 헤어 키 뒤에 @색으로, 상의 빼 입기는 상의 키 뒤에 @out으로 붙는다
       const [k, color] = key.split("@");
       const p = AVATAR_PIECES[k];
+      if (p?.slot === "top" && color === TOP_OUT) return { slot: "top", top: { ...p.top, out: true } };
       return p?.slot === "hair" && isHairColor(color) ? { slot: "hair", hair: { ...p.hair, c: HAIR_COLORS[color].hex } } : p;
     })
     .filter((p): p is AvatarPiece => Boolean(p));

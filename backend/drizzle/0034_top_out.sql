@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "top_out" boolean DEFAULT false NOT NULL;
