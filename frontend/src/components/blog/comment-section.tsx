@@ -31,14 +31,17 @@ export type CommentData =
       /** 하트 수와 지금 보는 사람이 눌렀는지 */
       likeCount: number;
       liked: boolean;
+      /** 답글에 단 답글이면 받는 답글 (그 답글이 지워졌으면 null) */
+      replyTo: { id: number; nickname: string } | null;
     }
   | { id: number; parentId: null; deleted: true };
 
 /** 댓글 내용: @주소 언급은 그 블로그로 가는 링크로 (없는 주소는 글자 그대로) */
-function CommentText({ content, mentions }: { content: string; mentions: string[] }) {
+function CommentText({ content, mentions, prefix }: { content: string; mentions: string[]; prefix?: React.ReactNode }) {
   const known = new Set(mentions);
   return (
     <p className="mt-0.5 whitespace-pre-wrap break-words">
+      {prefix}
       {splitMentions(content).map((part, i) =>
         i % 2 === 0 ? (
           part
@@ -105,8 +108,8 @@ function CommentHeart({ commentId, count, liked, canLike }: { commentId: number;
   );
 }
 
-/** 댓글·답글 입력칸. 답글에 다는 답글은 상대 @주소를 미리 넣고(mention) 그 뒤에 커서를 둔다 */
-function CommentForm({ postId, parentId, mention, onDone }: { postId: number; parentId?: number; mention?: string; onDone?: () => void }) {
+/** 댓글·답글 입력칸 */
+function CommentForm({ postId, parentId, onDone }: { postId: number; parentId?: number; onDone?: () => void }) {
   const t = useT();
   const router = useRouter();
   const [state, action, pending] = useActionState<CommentState, FormData>(async (_prev, form) => {
@@ -122,12 +125,6 @@ function CommentForm({ postId, parentId, mention, onDone }: { postId: number; pa
   const textRef = useRef<HTMLTextAreaElement>(null);
   const { picker, textareaProps } = useTextareaMentions(textRef);
   useEffect(() => {
-    const el = textRef.current;
-    if (!mention || !el) return;
-    el.focus();
-    el.setSelectionRange(el.value.length, el.value.length);
-  }, [mention]);
-  useEffect(() => {
     if (state.ok) {
       ref.current?.reset();
       onDone?.();
@@ -142,7 +139,6 @@ function CommentForm({ postId, parentId, mention, onDone }: { postId: number; pa
           name="content"
           required
           maxLength={1000}
-          defaultValue={mention ? `@${mention} ` : undefined}
           rows={parentId ? 2 : 3}
           placeholder={parentId ? t("답글을 남겨 주세요") : t("따뜻한 댓글을 남겨 주세요 💬")}
           className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
@@ -249,7 +245,22 @@ function CommentItem({
           {editing ? (
             <EditCommentForm commentId={c.id} content={c.content} onDone={stopEditing} />
           ) : (
-            <CommentText content={c.content} mentions={c.mentions} />
+            <CommentText
+              content={c.content}
+              mentions={c.mentions}
+              prefix={
+                c.replyTo && (
+                  <a
+                  href={`#comment-${c.replyTo.id}`}
+                  data-reply-to
+                  title={t("{name}님에게 단 답글", { name: c.replyTo.nickname })}
+                    className="mr-1.5 inline-block rounded-full bg-moss px-2 py-px align-[1px] text-xs font-bold text-leaf-dark hover:underline"
+                  >
+                    ↪ {c.replyTo.nickname}
+                  </a>
+                )
+              }
+            />
           )}
           {!editing && (
             <div className="mt-1 flex items-center gap-3 text-xs text-ink-soft">
@@ -285,18 +296,26 @@ function CommentItem({
           )}
           {replying && (
             <div className="mt-2">
-              <CommentForm
-                postId={postId}
-                parentId={c.id}
-                mention={isReply && c.authorId !== viewerId && c.blogSlug ? c.blogSlug : undefined}
-                onDone={() => setReplying(false)}
-              />
+              <CommentForm postId={postId} parentId={c.id} onDone={() => setReplying(false)} />
             </div>
           )}
         </div>
       </div>
     </div>
   );
+}
+
+/** 한 원댓글의 답글 순서: 답글에 단 답글은 받는 답글(과 그 아래 이어진 답글) 바로 다음에, 나머지는 단 순서대로 */
+function threadOrder(list: CommentData[]) {
+  const ids = new Set(list.map((c) => c.id));
+  const target = (c: CommentData) => (!c.deleted && c.replyTo && ids.has(c.replyTo.id) ? c.replyTo.id : null);
+  const out: CommentData[] = [];
+  const add = (c: CommentData) => {
+    out.push(c);
+    for (const child of list) if (target(child) === c.id) add(child);
+  };
+  for (const c of list) if (target(c) === null) add(c);
+  return out;
 }
 
 export function CommentSection({
@@ -315,7 +334,7 @@ export function CommentSection({
   // 링크 자리({link})를 기준으로 문장을 나눠 링크 앞뒤 글자를 얻는다 (언어마다 어순이 달라서)
   const [loginBefore, loginAfter = ""] = t("{link}하면 댓글을 남길 수 있어요").split("{link}");
   const roots = comments.filter((c) => !c.parentId);
-  const replies = (id: number) => comments.filter((c) => c.parentId === id);
+  const replies = (id: number) => threadOrder(comments.filter((c) => c.parentId === id));
   const visibleCount = comments.filter((c) => !c.deleted).length;
 
   return (

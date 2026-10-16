@@ -92,6 +92,7 @@ export const blogRoutes = new Hono<GuardEnv>()
     const id = await db.transaction(async (tx) => {
       // 답글은 같은 글의 원댓글에만 (답글의 답글은 원댓글에 붙인다)
       let parent: number | null = null;
+      let replyTo: number | null = null; // 답글에 단 답글이면 그 답글
       let repliedTo: string | null = null; // 답글을 단 댓글의 작성자 (답글 알림 받는 사람)
       if (parentId) {
         const [p] = await tx
@@ -99,6 +100,7 @@ export const blogRoutes = new Hono<GuardEnv>()
           .from(comments)
           .where(and(eq(comments.id, parentId), eq(comments.postId, postId)));
         parent = p ? (p.parentId ?? p.id) : null;
+        replyTo = p?.parentId && !p.deletedAt ? p.id : null;
         repliedTo = p && !p.deletedAt ? p.authorId : null;
         // 삭제되어 화면에서 사라진 댓글(답글이 없는 원댓글, 삭제된 답글)은 없는 댓글처럼 일반 댓글로 (spec 004 FR-018)
         if (p?.deletedAt) {
@@ -114,7 +116,7 @@ export const blogRoutes = new Hono<GuardEnv>()
       }
       const [created] = await tx
         .insert(comments)
-        .values({ postId, authorId: userId, parentId: parent, content })
+        .values({ postId, authorId: userId, parentId: parent, replyToId: parent ? replyTo : null, content })
         .returning({ id: comments.id });
 
       // 알림 (GAME-08): 답글이면 그 댓글 작성자에게, 글 주인에게는 댓글 알림 (같은 사람이면 한 번만, 자기 자신은 빼고)
