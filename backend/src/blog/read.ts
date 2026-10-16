@@ -103,7 +103,7 @@ export async function getPostTags(postId: number) {
     .from(postTags)
     .innerJoin(tags, eq(tags.id, postTags.tagId))
     .where(eq(postTags.postId, postId))
-    .orderBy(asc(tags.name));
+    .orderBy(asc(postTags.position), asc(tags.name)); // 적은 순서 (순서 칸이 생기기 전 글은 이름순)
   return rows.map((r) => r.name);
 }
 

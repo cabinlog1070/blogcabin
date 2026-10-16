@@ -142,6 +142,8 @@ function PostFormFields({
       const r = initial.postId
         ? await api<SavePostResult>(`/posts/${initial.postId}`, { method: "PUT", body })
         : await api<SavePostResult>("/posts", { method: "POST", body });
+      // 뒤로 가기가 글쓰기(고치기) 화면이 아니라 내 블로그로 가게, 지금 칸을 블로그 주소로 바꾼 뒤 글로 간다
+      window.history.replaceState(null, "", `/@${r.blogSlug}`);
       router.push(`/@${r.blogSlug}/${r.postId}${r.reward ? `?new=${r.reward}` : ""}`);
       router.refresh(); // 헤더 코인·레벨(글 보상)도 다시 그린다
       return {};
