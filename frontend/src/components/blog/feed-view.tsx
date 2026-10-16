@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PostCard, type PostCardData } from "@/components/blog/post-card";
+import { FeedSearch } from "@/components/blog/feed-search";
 import { Icon } from "@/components/icon";
 import { Pagination } from "@/components/pagination";
 import { getT } from "@/server/i18n";
@@ -57,6 +58,8 @@ export async function FeedView({
                 </span>
               </Link>
             )}
+            {/* 마을 검색은 회원만 쓴다 (BLOG-07) */}
+            {myBlogHref && <FeedSearch />}
           </div>
         )}
         <div className="mt-5 grid gap-4">

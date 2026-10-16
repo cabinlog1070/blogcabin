@@ -5,8 +5,8 @@ import { useState } from "react";
 import { useT } from "@/components/i18n";
 import { SEARCH_MAX_LENGTH } from "@/lib/search";
 
-/** 마을 검색창 (BLOG-07): 내 블로그 홈(주인)과 검색 결과 화면에만. 마을 전체의 공개 글과 블로그를 찾는다 */
-export function SearchBox({ defaultValue = "", initialError = false }: { defaultValue?: string; initialError?: boolean }) {
+/** 마을 검색창 (BLOG-07): 내 블로그 홈(주인)과 검색 결과 화면. 마을 소식에는 작은 검색창(feed-search.tsx). 마을 전체의 공개 글과 블로그를 찾는다 */
+export function SearchBox({ defaultValue = "", initialError = false, from }: { defaultValue?: string; initialError?: boolean; from?: "feed" }) {
   const t = useT();
   const router = useRouter();
   const [error, setError] = useState(initialError);
@@ -23,7 +23,7 @@ export function SearchBox({ defaultValue = "", initialError = false }: { default
           return;
         }
         setError(false);
-        router.push(`/search?${new URLSearchParams({ q })}`);
+        router.push(`/search?${new URLSearchParams({ q, ...(from && { from }) })}`);
       }}
       className="card p-3"
     >
