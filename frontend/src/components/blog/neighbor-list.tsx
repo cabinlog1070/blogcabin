@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CharacterBadge } from "@/components/character";
 import { useT } from "@/components/i18n";
@@ -25,6 +26,7 @@ type Tab = "following" | "mutual" | "followers";
  */
 export function NeighborList({ neighbors, followers: initialFollowers }: { neighbors: Neighbor[]; followers: Person[] }) {
   const t = useT();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("following");
   const [list, setList] = useState(neighbors);
   const [followers, setFollowers] = useState(initialFollowers);
@@ -90,6 +92,7 @@ export function NeighborList({ neighbors, followers: initialFollowers }: { neigh
     start(async () => {
       try {
         await blogApi.setFavorite(n.ownerId, next);
+        router.refresh(); // 뒤로 가기로 돌아올 화면(광장 이웃집·이 이웃 칸)이 옛 ⭐을 기억하지 않게 (favorite-star.tsx와 같다)
       } catch (err) {
         setList(before);
         setMessage(saveError(t, err));
