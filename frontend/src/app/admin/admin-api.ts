@@ -10,6 +10,8 @@ export const adminApi = {
   withdrawMember: (userId: string) => api<{ ok: true; name: string | null }>(`/admin/members/${encodeURIComponent(userId)}/withdraw`, { method: "POST" }),
   resetPassword: (userId: string) =>
     api<{ ok: true; username: string | null; tempPassword: string }>(`/admin/members/${encodeURIComponent(userId)}/password-reset`, { method: "POST" }),
+  answerInquiry: (id: number, answer: string) => api(`/admin/inquiries/${id}/answer`, { method: "POST", body: { answer } }),
+  setInquiryStatus: (id: number, status: "closed" | "waiting") => api(`/admin/inquiries/${id}/status`, { method: "POST", body: { status } }),
   grant: (body: { userId: string; coins: string; exp: string; maxCoins: boolean; maxExp: boolean }) =>
     api<GrantResult>("/admin/grant", { method: "POST", body }),
   sendGift: (body: { message: string; coins: string; itemIds: number[]; speciesIds: number[]; userIds: string[]; everyone: boolean }) =>

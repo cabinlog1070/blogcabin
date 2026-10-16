@@ -4,6 +4,7 @@ import { uploadAttachment } from "./attachments/upload";
 import { auth } from "./auth";
 import { db } from "./db";
 import { accountRoutes } from "./routes/account";
+import { inquiryRoutes } from "./routes/inquiries";
 import { adminRoutes } from "./routes/admin";
 import { blogRoutes } from "./routes/blog";
 import { blogPageRoutes } from "./routes/blog-pages";
@@ -65,6 +66,7 @@ v1.route("/attendance", attendance);
 v1.route("/notifications", notificationRoutes);
 v1.route("/locale", localeRoutes);
 v1.route("/account", accountRoutes);
+v1.route("/inquiries", inquiryRoutes);
 
 // 상점(사기·입어 본 모습 저장), 꾸미기 저장
 v1.route("/shop", shopRoutes);

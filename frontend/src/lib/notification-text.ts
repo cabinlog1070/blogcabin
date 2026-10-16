@@ -59,5 +59,7 @@ export function presentNotification(
           : t("🎁 {who}님이 선물을 보냈어요", { who: r.actorName ?? t("관리자") }),
         href: "/gifts",
       };
+    case "inquiry_answer":
+      return { ...base, text: t("📮 관리자가 내 문의에 답했어요"), href: "/support#my-inquiries" };
   }
 }
