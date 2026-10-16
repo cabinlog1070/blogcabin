@@ -47,6 +47,18 @@ export const RELEASE_KIND_LABEL: Record<ReleaseChangeKind, string> = {
 
 export const RELEASE_NOTES: ReleaseDay[] = [
   {
+    date: "2026-10-16",
+    versions: [
+      {
+        version: "1.33.1",
+        title: msg("상의와 치마 겹침"),
+        changes: [
+          { kind: "fixed", text: msg("한복 치마가 가슴께까지 올라와 상의를 덮고, 후드티 주머니나 줄무늬가 치마·바지 위로 넘어오던 문제를 고쳤어요. 이제 치마와 바지는 상의 아랫단에서 깔끔하게 시작해요.") },
+        ],
+      },
+    ],
+  },
+  {
     date: "2026-10-15",
     versions: [
       {
