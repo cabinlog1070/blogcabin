@@ -365,7 +365,8 @@ export function createResidents(scene: PhaserNS.Scene, Phaser: PhaserLib, reside
   function step(w: Walker, dt: number) {
     const now = scene.time.now;
     let moving = false;
-    if (w.phase === "rest" && now >= w.until) start(w);
+    // 걷는 모습·동작 소품 그림은 광장을 띄운 뒤에 한꺼번에 들어온다 (scene.ts townTextures의 later). 그때까지는 서 있는다
+    if (w.phase === "rest" && now >= w.until && scene.textures.exists(actPropKey("star"))) start(w);
     if (w.phase === "go") {
       const next = w.path[0];
       if (!next) beginDo(w);

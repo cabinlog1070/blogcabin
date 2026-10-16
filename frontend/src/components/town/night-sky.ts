@@ -90,7 +90,7 @@ export function createNightSky(scene: PhaserNS.Scene, Phaser: typeof PhaserNS, a
   /** 불꽃 하나: 작은 크레용 점이 올라가서, 크레용으로 그은 불꽃 그림(정지원 님 시안)이 활짝 퍼졌다가 흘러내리며 사라진다 */
   const burst = (key: string) => {
     const sky = visibleSky();
-    if (!sky || night < 0.5) return;
+    if (!sky || night < 0.5 || !scene.textures.exists(key)) return; // 불꽃 그림은 광장을 띄운 뒤에 들어온다
     scene.game.canvas.dataset.fireworks = String(Number(scene.game.canvas.dataset.fireworks ?? 0) + 1); // e2e 확인용
     const cx = rng.between(sky.left, sky.right), cy = rng.between(sky.top + 20, sky.bottom);
     const size = Math.min(130, (sky.bottom - sky.top + 60) * 0.9) * rng.realInRange(0.8, 1.1);
