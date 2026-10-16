@@ -1,4 +1,3 @@
-import { connection } from "next/server";
 import { Fragment, type ReactNode } from "react";
 import { Icon } from "@/components/icon";
 import { EGG_LEVEL_EVERY, EGG_PRICE, MAX_ACTIVE_ANIMALS, MAX_NEST_EGGS, POST_GROWTH, POTION_GROWTH, POTION_PRICE } from "@/lib/farm";
@@ -199,11 +198,8 @@ const faq = (t: T): { id: string; q: ReactNode; a: ReactNode }[] => [
   },
 ];
 
-/** 문의하기 (공개 화면): 자주 묻는 질문 + 문의 남기기(문의함, 로그인 없이도) + 내 문의와 답 + 문의 메일(있으면) */
+/** 문의하기 (공개 화면): 자주 묻는 질문 + 문의 남기기(문의함, 로그인 없이도) + 내 문의와 답 */
 export default async function SupportPage(props: PageProps<"/support">) {
-  // 배포 환경마다 다른 주소를 쓸 수 있게 요청 때 환경 변수를 읽는다
-  await connection();
-  const email = process.env.SUPPORT_EMAIL?.trim();
   const t = await getT();
   const locale = await getLocale();
   const FAQ = faq(t);
@@ -247,14 +243,6 @@ export default async function SupportPage(props: PageProps<"/support">) {
           {signedIn ? t("관리자가 답하면 알림으로 알려 드리고, 아래 [내 문의]에서 답을 볼 수 있어요.") : t("비밀번호를 잊어 로그인할 수 없어도 보낼 수 있어요.")}
         </p>
         <InquiryForm signedIn={signedIn} initialTopic={initialTopic} />
-        {email && (
-          <p className="mt-4 border-t-2 border-line/60 pt-3 text-sm text-ink-soft" data-support-contact>
-            {t("메일로도 문의할 수 있어요:")}{" "}
-            <a href={`mailto:${email}`} className="font-bold text-leaf-dark underline">
-              {email}
-            </a>
-          </p>
-        )}
       </section>
 
       {signedIn && (
