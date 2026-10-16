@@ -17,6 +17,7 @@ import { FileCard } from "./file-card";
 import { ImageRow, ImageSlider, ROW_MAX } from "./image-slider";
 import { DEFAULT_LINE_HEIGHT, LINE_HEIGHTS, LineHeight } from "./line-height";
 import { CellComposition } from "./cell-composition";
+import { useKeyboardDock } from "./keyboard-dock";
 import { TABLE_ACTIONS, TablePicker, TableToolbar } from "./table-tools";
 import { filesFrom, useAttachmentUpload, type ImageGroup } from "./use-attachment-upload";
 
@@ -403,10 +404,33 @@ export function RichEditor({
   // 휴대폰에서 펼친 묶음 (컴퓨터에서는 쓰지 않는다)
   const [openGroup, setOpenGroup] = useState<Group | null>(null);
   const inGroup = (group: Group) => (group === openGroup ? "max-sm:order-4" : "max-sm:hidden");
+  // 도구 줄은 머리말 밑에 붙어 따라오고, 휴대폰에서 글을 쓰는 동안에는 키보드 바로 위에 붙는다
+  const dock = useKeyboardDock(editor);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  // 글을 쓰며 줄이 내려가도 쓰는 줄이 도구 줄(위에 붙었을 때는 위, 키보드 위일 때는 아래)에 가리지 않게 여유를 둔다
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const bar = toolbarRef.current?.getBoundingClientRect().height ?? 0;
+    editor.view.setProps({
+      scrollMargin: dock.docked ? { top: dock.top + 8, bottom: bar + 16, left: 5, right: 5 } : { top: dock.top + bar + 8, bottom: 16, left: 5, right: 5 },
+      scrollThreshold: dock.docked ? { top: dock.top + 8, bottom: bar + 16, left: 0, right: 0 } : { top: dock.top + bar + 8, bottom: 16, left: 0, right: 0 },
+    });
+  }, [editor, dock, openGroup]);
 
   return (
-    <div data-rich-editor className="overflow-hidden rounded-2xl border-2 border-line bg-paper focus-within:border-sun">
-      <div className="flex flex-wrap items-center gap-0.5 border-b-2 border-line bg-cream/60 p-1.5 sm:gap-1 sm:p-2" role="toolbar" aria-label={t("글꼴 도구")}>
+    <div data-rich-editor className="overflow-clip rounded-2xl border-2 border-line bg-paper focus-within:border-sun">
+      <div
+        ref={toolbarRef}
+        data-docked={dock.docked || undefined}
+        style={dock.docked ? { bottom: dock.bottom } : { top: dock.top }}
+        className={`z-10 flex flex-wrap items-center gap-0.5 border-line bg-[color-mix(in_srgb,var(--color-cream)_60%,var(--color-paper))] p-1.5 sm:gap-1 sm:p-2 ${
+          dock.docked
+            ? "fixed inset-x-0 border-t-2 shadow-[0_-6px_10px_-8px_var(--color-bark)] [&_[role=menu]]:top-auto [&_[role=menu]]:bottom-full [&_[role=menu]]:mt-0 [&_[role=menu]]:mb-1" // 색 고르기 창은 키보드 쪽이 아니라 위로 연다
+            : "sticky border-b-2"
+        }`}
+        role="toolbar"
+        aria-label={t("글꼴 도구")}
+      >
         {GROUPS.map((g) => (
           <button
             key={g.value}
@@ -582,7 +606,7 @@ export function RichEditor({
         </div>
       )}
       {editor && state?.inTable && <TableToolbar editor={editor} enabled={state.tableActions} />}
-      <div ref={editorBoxRef} className="relative">
+      <div ref={editorBoxRef} className={`relative ${dock.docked ? "pb-16" : ""}`}>
         <EditorContent editor={editor} />
         <MentionList picker={mentions} />
       </div>
