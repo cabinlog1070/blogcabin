@@ -1,5 +1,5 @@
 {
-  "id": "0753c6c1-6927-4009-976c-e33d10d61b4d",
+  "id": "e6522065-b0a7-4811-889b-d30b98f10df2",
   "prevId": "0550d99a-8e88-448a-bc36-2b0ec15704d7",
   "version": "7",
   "dialect": "postgresql",
@@ -1532,189 +1532,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.inquiries": {
-      "name": "inquiries",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "inquiries_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "guest_username": {
-          "name": "guest_username",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_email": {
-          "name": "contact_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "topic": {
-          "name": "topic",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "answer": {
-          "name": "answer",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answered_by": {
-          "name": "answered_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answered_at": {
-          "name": "answered_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'waiting'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "inquiries_status_created_idx": {
-          "name": "inquiries_status_created_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "inquiries_user_created_idx": {
-          "name": "inquiries_user_created_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "inquiries_user_id_users_id_fk": {
-          "name": "inquiries_user_id_users_id_fk",
-          "tableFrom": "inquiries",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "inquiries_answered_by_users_id_fk": {
-          "name": "inquiries_answered_by_users_id_fk",
-          "tableFrom": "inquiries",
-          "tableTo": "users",
-          "columnsFrom": [
-            "answered_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "inquiries_topic_check": {
-          "name": "inquiries_topic_check",
-          "value": "\"inquiries\".\"topic\" IN ('password', 'account', 'bug', 'other')"
-        },
-        "inquiries_status_check": {
-          "name": "inquiries_status_check",
-          "value": "\"inquiries\".\"status\" IN ('waiting', 'answered', 'closed')"
-        },
-        "inquiries_sender_check": {
-          "name": "inquiries_sender_check",
-          "value": "\"inquiries\".\"user_id\" IS NOT NULL OR \"inquiries\".\"contact_email\" IS NOT NULL"
-        },
-        "inquiries_content_check": {
-          "name": "inquiries_content_check",
-          "value": "char_length(\"inquiries\".\"content\") BETWEEN 1 AND 2000"
-        },
-        "inquiries_answer_check": {
-          "name": "inquiries_answer_check",
-          "value": "\"inquiries\".\"answer\" IS NULL OR char_length(\"inquiries\".\"answer\") BETWEEN 1 AND 2000"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.items": {
       "name": "items",
       "schema": "",
@@ -2108,7 +1925,7 @@
       "checkConstraints": {
         "notifications_kind_check": {
           "name": "notifications_kind_check",
-          "value": "\"notifications\".\"kind\" IN ('level_up', 'like', 'comment', 'reply', 'pet_level_up', 'gift', 'mention', 'inquiry_answer')"
+          "value": "\"notifications\".\"kind\" IN ('level_up', 'like', 'comment', 'reply', 'pet_level_up', 'gift', 'mention')"
         },
         "notifications_level_check": {
           "name": "notifications_level_check",
@@ -2737,6 +2554,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "top_out": {
+          "name": "top_out",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",

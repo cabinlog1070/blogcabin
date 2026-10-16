@@ -328,6 +328,8 @@ export const profiles = pgTable(
     statusMessage: text("status_message"),
     // 머리 색 (2026-10-13, 무료). NULL = 입은 헤어를 그린 그대로의 색
     hairColor: text("hair_color"),
+    // 상의 빼 입기 (2026-10-16). false = 넣어 입기(상의를 하의 안에), true = 상의가 허리를 덮는다. 모습 키에서 상의 키 뒤에 @out
+    topOut: boolean("top_out").notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [

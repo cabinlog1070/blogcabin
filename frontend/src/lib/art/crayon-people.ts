@@ -17,7 +17,7 @@ export type Wear = {
   /** 헤어 (2026-10-13). 없으면 캐릭터의 기본 머리(짧은 머리 주민은 짧은 머리, 긴 머리 주민은 긴 머리) */
   hair?: HairWear;
 };
-export type TopWear = { color: string; longSleeve?: boolean; sleeveless?: boolean; /** 기모노처럼 발목까지 내려오는 옷자락 */ robe?: boolean; /** 저고리처럼 짧은 상의의 아랫단 y. 그 아래로 하의가 보인다 */ hem?: number; deco?: (v: View) => string };
+export type TopWear = { color: string; longSleeve?: boolean; sleeveless?: boolean; /** 기모노처럼 발목까지 내려오는 옷자락 */ robe?: boolean; /** 저고리처럼 짧은 상의의 아랫단 y. 그 아래로 하의가 보인다 */ hem?: number; /** 빼 입기 (2026-10-16): 상의가 허리를 덮고 그 아래로 치마·바지가 나온다. 기본은 넣어 입기 */ out?: boolean; deco?: (v: View) => string };
 export type BottomWear = { color: string; long?: boolean; skirt?: boolean; /** 한복 치마처럼 가슴께에서 발목까지 오는 긴 치마 */ longSkirt?: boolean; /** 꼬리처럼 몸 밖으로 나오는 장식. 앞·옆은 몸 뒤, 뒤는 몸 위에 그린다 */ tail?: (v: View) => string };
 export type ShoesWear = { color: string; boots?: boolean; deco?: (v: View) => string };
 export type HatWear = { draw: (v: View) => string };
@@ -82,24 +82,29 @@ const armS = (d: string, sy: number, top: string, skin: string) => {
 /** 다리 + 바지 + 신발 (다리 모양 그대로 잘라 입힌다) */
 const leg = (c: Ctx, d: string, line: string) => {
   const id = nid("l");
-  const pants = c.w.bottom?.skirt ? "" : F(Rc(60, 200, 160, c.w.bottom?.long ? 70 : 22), c.bot);
+  const pants = c.w.bottom?.skirt ? "" : F(Rc(60, 200, 160, c.w.bottom?.long ? 70 : untucked(c) ? 32 : 22), c.bot);
   return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, c.skin)}<g clip-path="url(#${id})">${pants}${F(Rc(60, 256, 160, 20), c.shoe)}</g>${L(d, 4.5)}${L(line, 3)}`;
 };
-/** 몸통 + 아랫단(하의 색). 저고리처럼 짧은 상의는 아랫단(hem)부터 하의가 보인다 */
+/** 몸통 + 아랫단(하의 색). 넣어 입으면 허리부터 하의가 보이고, 빼 입으면 몸통 전체가 상의다 */
 const torso = (c: Ctx, d: string) => {
   const id = nid("t");
+  if (untucked(c)) return F(d, c.top) + L(d, 5);
   const band = c.w.bottom?.skirt ? c.w.bottom.color : c.bot;
   const from = waist(c);
   return `<clipPath id="${id}"><path d="${d}"/></clipPath>${F(d, c.top)}<g clip-path="url(#${id})">${F(Rc(60, from, 160, 230 - from), band)}</g>${L(d, 5)}`;
 };
-/** 상의 아랫단 = 하의가 시작하는 허리 y */
+/** 빼 입기. 저고리처럼 짧은 상의와 기모노처럼 긴 옷은 늘 같은 모습이다 */
+const untucked = (c: Ctx) => !!c.w.top?.out && c.w.top.hem === undefined && !c.w.top?.robe;
+/** 하의가 시작하는 허리 y */
 const waist = (c: Ctx) => c.w.top?.hem ?? 198;
+/** 상의 무늬가 그려지는 아래 끝: 넣어 입으면 허리, 빼 입으면 상의 아랫단 */
+const topEnd = (c: Ctx) => (untucked(c) ? 222 : waist(c));
 /** 상의 무늬는 상의 안(아랫단 위)에만 그려 하의를 덮지 않는다. 기모노처럼 발목까지 오는 옷은 그대로 */
 const topDeco = (c: Ctx, v: View) => {
   const d = c.w.top?.deco?.(v) ?? "";
   if (!d || c.w.top?.robe) return d;
   const id = nid("d");
-  return `<clipPath id="${id}"><rect x="0" y="0" width="288" height="${waist(c) + 1}"/></clipPath><g clip-path="url(#${id})">${d}</g>`;
+  return `<clipPath id="${id}"><rect x="0" y="0" width="288" height="${topEnd(c) + 1}"/></clipPath><g clip-path="url(#${id})">${d}</g>`;
 };
 const sleeveY = (c: Ctx, side: boolean) => (c.w.top?.sleeveless ? 120 : c.w.top?.longSleeve ? (side ? 198 : 196) : side ? 180 : 189);
 
@@ -114,12 +119,16 @@ function bodyFB(c: Ctx, v: View): string {
   const sy = sleeveY(c, false);
   s += `<g transform="rotate(${swing} 119 162)">${armS(ARML, sy, c.top, c.skin)}</g>`;
   s += `<g transform="rotate(${-swing} 169 162)">${armS(ARMR, sy, c.top, c.skin)}</g>`;
+  // 치마는 허리에서 시작한다(예전 한복 치마는 가슴께부터 그려 상의를 덮었다, 2026-10-16 정지원 님).
+  // 넣어 입으면 몸통 위에, 빼 입으면 몸통 밑에 그려 상의가 치마 허리를 덮는다
+  const w = waist(c);
+  const skirt = c.w.bottom?.longSkirt
+    ? S(`M114 ${w}h60l16 ${262 - w}q-46 10 -92 0Z`, c.w.bottom.color, 4.5) + L(`M134 ${w + 6}L126 258M154 ${w + 6}L162 258`, 2.5)
+    : c.w.bottom?.skirt ? S(`M115 ${w}h58l10 ${untucked(c) ? 44 : 34}q-39 10 -78 0Z`, c.w.bottom.color, 4.5) + L(`M132 ${w + 4}l-6 28M156 ${w + 4}l6 28`, 2.5) : "";
+  if (untucked(c)) s += skirt;
   s += torso(c, TORSO);
   if (v === "back") s += c.w.bottom?.tail?.(v) ?? "";
-  // 치마는 상의 아랫단(허리)에서 시작한다. 예전 한복 치마는 가슴께부터 그려 상의를 덮었다 (2026-10-16 정지원 님)
-  const w = waist(c);
-  if (c.w.bottom?.longSkirt) s += S(`M114 ${w}h60l16 ${262 - w}q-46 10 -92 0Z`, c.w.bottom.color, 4.5) + L(`M134 ${w + 6}L126 258M154 ${w + 6}L162 258`, 2.5);
-  else if (c.w.bottom?.skirt) s += S(`M115 ${w}h58l10 34q-39 10 -78 0Z`, c.w.bottom.color, 4.5) + L(`M132 ${w + 4}l-6 28M156 ${w + 4}l6 28`, 2.5);
+  if (!untucked(c)) s += skirt;
   if (c.w.top?.robe) s += S("M114 194h60l8 68q-38 9 -76 0Z", c.top, 4.5);
   s += topDeco(c, v);
   s += "</g>";
@@ -177,10 +186,13 @@ function side(c: Ctx): string {
   o += `<g transform="translate(0 -${c.frame ? 3 : 0})">`;
   const H = hairOf(c);
   if (H?.sideBehind) o += S(H.sideBehind, H.c, 5);
-  o += torso(c, SIDE_TORSO);
   const w = waist(c);
-  if (c.w.bottom?.longSkirt) o += S(`M122 ${w}h44l16 ${262 - w}q-38 9-76 0Z`, c.w.bottom.color, 4.5) + L(`M142 ${w + 6}L136 258`, 2.5);
-  else if (c.w.bottom?.skirt) o += S(`M122 ${w}h44l12 34q-34 10-68 0Z`, c.w.bottom.color, 4.5) + L(`M140 ${w + 4}l-4 28`, 2.5);
+  const skirt = c.w.bottom?.longSkirt
+    ? S(`M122 ${w}h44l16 ${262 - w}q-38 9-76 0Z`, c.w.bottom.color, 4.5) + L(`M142 ${w + 6}L136 258`, 2.5)
+    : c.w.bottom?.skirt ? S(`M122 ${w}h44l12 ${untucked(c) ? 44 : 34}q-34 10-68 0Z`, c.w.bottom.color, 4.5) + L(`M140 ${w + 4}l-4 28`, 2.5) : "";
+  if (untucked(c)) o += skirt;
+  o += torso(c, SIDE_TORSO);
+  if (!untucked(c)) o += skirt;
   if (c.w.top?.robe) o += S("M122 194h44l8 68q-30 9-60 0Z", c.top, 4.5);
   o += topDeco(c, "side");
   // 머리는 앞모습과 같은 동그란 두상을 몸 한가운데 위에 얹고, 머리카락이 뒤통수·정수리를 덮는다
