@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useT } from "@/components/i18n";
 import { saveError } from "@/lib/api";
@@ -12,6 +13,7 @@ import { useAutoClear } from "@/components/use-auto-clear";
  */
 export function FavoriteStar({ followeeId, nickname, favorite }: { followeeId: string; nickname: string; favorite: boolean }) {
   const t = useT();
+  const router = useRouter();
   const [on, setOn] = useState(favorite);
   const [message, setMessage] = useState<string | null>(null);
   useAutoClear(message, () => setMessage(null));
@@ -24,6 +26,9 @@ export function FavoriteStar({ followeeId, nickname, favorite }: { followeeId: s
     start(async () => {
       try {
         await blogApi.setFavorite(followeeId, next);
+        // 뒤로 가기로 돌아간 화면(광장 이웃집·내 이웃 칸)은 브라우저가 기억해 둔 옛 화면을 다시 보여 주므로
+        // 기억해 둔 화면을 비워서 돌아갈 때 새로 그리게 한다
+        router.refresh();
       } catch (err) {
         setOn(!next);
         setMessage(saveError(t, err));
