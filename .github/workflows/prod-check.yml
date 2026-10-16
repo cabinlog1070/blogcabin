@@ -16,15 +16,15 @@ jobs:
       SSH_USER: ${{ secrets.SSH_ID }}
     steps:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
-      - name: public urls (1.34.0)
+      - name: public urls (1.35.0)
         run: |
-          for p in / /release-notes /api/health /api/v1/health /api/auth/get-session /@jiwon; do
+          for p in / /release-notes /support /api/health /api/v1/health /api/auth/get-session /@jiwon /release-notes/1.35.0/outfit-tuck.webp /release-notes/1.35.0/inquiry-form.webp /release-notes/1.35.0/inquiry-admin.webp; do
             echo "$p $(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net$p)"
           done
-          echo "release-notes 1.34.0 shown: $(curl -s https://blogcabin.java21.net/release-notes | grep -c '1.34.0')"
-          # 새 서버 API: 로그인 없이 부르면 401(없는 주소면 404)
-          echo "neighbors (no login) $(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net/api/v1/blog/neighbors)"
-          echo "comment like (no login) $(curl -s -o /dev/null -w '%{http_code}' -X POST https://blogcabin.java21.net/api/v1/blog/comments/1/like)"
+          echo "release-notes 1.35.0 shown: $(curl -s https://blogcabin.java21.net/release-notes | grep -c '1.35.0')"
+          # 새 서버 API: 로그인 없이 부르면 401·403(없는 주소면 404)
+          echo "my inquiries (no login) $(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net/api/v1/inquiries/mine)"
+          echo "admin inquiries (no login) $(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net/api/v1/admin/inquiries)"
           for i in $(seq 1 10); do curl -s -o /dev/null -w '%{http_code} ' https://blogcabin.java21.net/; done; echo
       - name: containers (read only, values hidden)
         run: |
@@ -32,11 +32,12 @@ jobs:
           set +e
           docker ps --filter name=blogcabin --format '{{.Names}} {{.Image}} {{.Status}}'
           for c in blogcabin-1 blogcabin-2 blogcabin-api-1 blogcabin-api-2; do
-            keys=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' $c | cut -d= -f1 | grep -E 'DATABASE|SECRET|BACKEND_URL|SUPPORT_EMAIL' | tr '\n' ' ')
+            keys=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' $c | cut -d= -f1 | grep -E 'DATABASE|SECRET|BACKEND_URL' | tr '\n' ' ')
             echo "$c env keys: $keys"
-            echo "$c SUPPORT_EMAIL non-empty: $(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' $c | grep -c '^SUPPORT_EMAIL=.')"
           done
           docker logs --since 20m blogcabin-api-1 2>&1 | grep -i -E 'error|fail' | tail -5
           docker logs --since 20m blogcabin-1 2>&1 | grep -i -E 'error|fail' | tail -5
+          docker logs --since 20m blogcabin-api-2 2>&1 | grep -i -E 'error|fail' | tail -5
+          docker logs --since 20m blogcabin-2 2>&1 | grep -i -E 'error|fail' | tail -5
           docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' $(docker ps -q --filter name=blogcabin)
           SH
