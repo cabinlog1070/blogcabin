@@ -128,6 +128,7 @@ export async function getComments(postId: number, viewerId: string | null = null
     .select({
       id: comments.id,
       parentId: comments.parentId,
+      replyToId: comments.replyToId,
       content: comments.content,
       createdAt: comments.createdAt,
       deletedAt: comments.deletedAt,
@@ -153,18 +154,24 @@ export async function getComments(postId: number, viewerId: string | null = null
   // 댓글 속 @주소 가운데 실제로 있는 블로그 (화면이 이것만 링크로 보여 준다)
   const live = rows.filter((c) => !c.deletedAt);
   const known = await findMentionedBlogs([...new Set(live.flatMap((c) => mentionsIn(c.content)))]);
+  // 답글에 단 답글의 받는 사람 (그 답글이 지워져 화면에 없으면 없음)
+  const liveNickname = new Map(live.flatMap((c) => (c.authorId && c.nickname ? [[c.id, c.nickname] as const] : [])));
   type Row = (typeof rows)[number];
-  type Visible = Omit<Row, "authorId" | "nickname" | "blogSlug"> & {
+  type Visible = Omit<Row, "authorId" | "nickname" | "blogSlug" | "replyToId"> & {
     deleted: false;
     authorId: string;
     nickname: string;
     blogSlug: string;
     mentions: string[];
+    replyTo: { id: number; nickname: string } | null;
   };
   return rows.flatMap((c): (Visible | { id: number; parentId: null; deleted: true })[] => {
     if (!c.deletedAt && c.authorId && c.nickname) {
       const mentions = mentionsIn(c.content).filter((slug) => known.has(slug));
-      return [{ ...c, deleted: false as const, authorId: c.authorId, nickname: c.nickname, blogSlug: c.blogSlug ?? "", mentions }];
+      const { replyToId, ...rest } = c;
+      const toName = replyToId ? liveNickname.get(replyToId) : undefined;
+      const replyTo = replyToId && toName ? { id: replyToId, nickname: toName } : null;
+      return [{ ...rest, deleted: false as const, authorId: c.authorId, nickname: c.nickname, blogSlug: c.blogSlug ?? "", mentions, replyTo }];
     }
     // 삭제된 자리: 답글이 남은 원댓글만. 지운 내용·작성자·시각은 화면으로 보내지 않는다
     if (c.parentId || !liveReplyParents.has(c.id)) return [];

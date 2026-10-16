@@ -484,6 +484,8 @@ export const comments = pgTable(
       onDelete: "set null",
     }),
     parentId: integer("parent_id"),
+    // 답글에 단 답글이면 그 답글 (화면이 그 답글 바로 아래에 "↪ 받는 사람"과 함께 놓는다). 그 답글이 지워지면 비운다
+    replyToId: integer("reply_to_id"),
     content: text("content").notNull(),
     createdAt: createdAt(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }), // 답글이 남도록 행은 지우지 않는다
@@ -495,6 +497,11 @@ export const comments = pgTable(
       columns: [t.parentId],
       foreignColumns: [t.id],
     }).onDelete("cascade"),
+    foreignKey({
+      name: "comments_reply_to_fk",
+      columns: [t.replyToId],
+      foreignColumns: [t.id],
+    }).onDelete("set null"),
     check(
       "comments_content_check",
       sql`char_length(${t.content}) BETWEEN 1 AND 1000`,

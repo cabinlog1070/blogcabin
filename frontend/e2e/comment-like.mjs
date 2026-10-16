@@ -1,5 +1,5 @@
 // 댓글 하트 (SOC-01): [답글] 앞 하트를 누르면 채워지고 수가 오른다. 다시 누르면 취소. 로그인 전에는 수만 보인다
-// 답글에 답글: 답글에도 [답글]이 있고, 상대 @주소가 미리 들어가며 같은 원댓글 아래에 모인다. 상대에게 답글 알림
+// 답글에 답글: 답글에도 [답글]이 있고, 받는 답글 바로 아래에 "↪ 받는 사람"과 함께 놓인다. 상대에게 답글 알림
 import { chromium } from "@playwright/test";
 import pg from "pg";
 import { BASE, collectErrors, loginDev } from "./helpers.mjs";
@@ -62,22 +62,36 @@ await heartOf(b, "냐냐냥!!!!").click();
 await b.waitForTimeout(500);
 if ((await count("냐냐냥!!!!")) !== 1) throw new Error("하트 취소가 안 됐어요");
 
-// 답글에 답글: tester1의 답글에 tester2가 [답글] → @tester1 이 미리 들어가 있다
+// 답글에 답글: tester1의 답글에 tester2가 [답글] → 그 답글 바로 아래에 "↪ tester1"과 함께 놓인다
 const replyRow = b.locator('[id^="comment-"]', { hasText: "ㅋㅋㅋ 귀여워" }).first();
 await replyRow.getByRole("button", { name: "답글", exact: true }).click();
 const box = replyRow.getByPlaceholder("답글을 남겨 주세요");
-if ((await box.inputValue()) !== "@tester1 ") throw new Error(`답글 칸에 @주소가 없어요: ${await box.inputValue()}`);
-await box.pressSequentially("나도 그렇게 생각해!");
+if ((await box.inputValue()) !== "") throw new Error(`답글 칸이 비어 있지 않아요: ${await box.inputValue()}`);
+await box.fill("나도 그렇게 생각해!");
 await replyRow.getByRole("button", { name: "답글 등록" }).click();
 await b.getByText("나도 그렇게 생각해!").waitFor();
-const { rows: thread } = await db.query("SELECT content, parent_id FROM comments WHERE post_id = $1 ORDER BY id", [post.id]);
+// 원댓글에 바로 단 답글은 그다음에 단 것이라도 그 대화 아래로 간다
+await b.locator('[id^="comment-"]', { hasText: "냐냐냥!!!!" }).first().getByRole("button", { name: "답글", exact: true }).click();
+await b.getByPlaceholder("답글을 남겨 주세요").fill("새 이야기");
+await b.getByRole("button", { name: "답글 등록" }).click();
+await b.getByText("새 이야기").waitFor();
+// 나중에 앞 답글에 또 달면 "새 이야기"보다 위, 그 대화 끝에 온다
+await b.locator('[id^="comment-"]', { hasText: "ㅋㅋㅋ 귀여워" }).first().getByRole("button", { name: "답글", exact: true }).click();
+await b.getByPlaceholder("답글을 남겨 주세요").fill("나중에 단 답");
+await b.getByRole("button", { name: "답글 등록" }).click();
+await b.getByText("나중에 단 답").waitFor();
+const order = await b.locator('#comments [id^="comment-"]').evaluateAll((els) => els.map((e) => e.querySelector("p.mt-0\\.5")?.textContent?.trim()));
+const expected = ["냐냐냥!!!!", "ㅋㅋㅋ 귀여워", "↪ tester1나도 그렇게 생각해!", "↪ tester1나중에 단 답", "새 이야기"];
+if (JSON.stringify(order) !== JSON.stringify(expected)) throw new Error(`답글 순서가 이상해요: ${JSON.stringify(order)}`);
+const { rows: thread } = await db.query("SELECT content, parent_id, reply_to_id FROM comments WHERE post_id = $1 ORDER BY id", [post.id]);
 const rootId = (await db.query("SELECT id FROM comments WHERE post_id = $1 AND parent_id IS NULL", [post.id])).rows[0].id;
-if (thread[2].content !== "@tester1 나도 그렇게 생각해!" || thread[2].parent_id !== rootId) throw new Error(`답글에 단 답글이 이상해요: ${JSON.stringify(thread[2])}`);
+const replyId = (await db.query("SELECT id FROM comments WHERE post_id = $1 AND content = 'ㅋㅋㅋ 귀여워'", [post.id])).rows[0].id;
+if (thread[2].parent_id !== rootId || thread[2].reply_to_id !== replyId || thread[3].reply_to_id !== null) throw new Error(`reply_to_id가 이상해요: ${JSON.stringify(thread)}`);
 const { rows: noti } = await db.query(
   "SELECT n.kind FROM notifications n JOIN users u ON u.id = n.user_id WHERE u.username = 'tester1' AND n.post_id = $1 AND n.kind IN ('reply','mention')",
   [post.id],
 );
-if (noti.length !== 1 || noti[0].kind !== "reply") throw new Error(`tester1 알림이 답글 한 번이 아니에요: ${JSON.stringify(noti)}`);
+if (noti.length !== 2 || noti.some((n) => n.kind !== "reply")) throw new Error(`tester1 알림이 답글 두 번(언급 없이)이 아니에요: ${JSON.stringify(noti)}`);
 await b.locator("#comments").screenshot({ path: `${outDir}/comment-reply-reply.png` });
 
 // 로그인 전: 수만 보이고 버튼이 아니다
