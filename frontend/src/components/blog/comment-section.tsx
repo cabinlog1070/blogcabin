@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { CharacterBadge } from "@/components/character";
 import { useT } from "@/components/i18n";
+import { MentionList, useTextareaMentions } from "@/components/blog/mention-picker";
 import { splitMentions } from "@backend/blog/mention-text";
 import { saveError } from "@/lib/api";
 import { blogApi } from "@/lib/blog-api";
@@ -119,6 +120,7 @@ function CommentForm({ postId, parentId, mention, onDone }: { postId: number; pa
   }, {});
   const ref = useRef<HTMLFormElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const { picker, textareaProps } = useTextareaMentions(textRef);
   useEffect(() => {
     const el = textRef.current;
     if (!mention || !el) return;
@@ -134,16 +136,20 @@ function CommentForm({ postId, parentId, mention, onDone }: { postId: number; pa
 
   return (
     <form ref={ref} action={action} className="flex flex-col gap-2">
-      <textarea
-        ref={textRef}
-        name="content"
-        required
-        maxLength={1000}
-        defaultValue={mention ? `@${mention} ` : undefined}
-        rows={parentId ? 2 : 3}
-        placeholder={parentId ? t("답글을 남겨 주세요") : t("따뜻한 댓글을 남겨 주세요 💬")}
-        className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
-      />
+      <div className="relative">
+        <textarea
+          ref={textRef}
+          name="content"
+          required
+          maxLength={1000}
+          defaultValue={mention ? `@${mention} ` : undefined}
+          rows={parentId ? 2 : 3}
+          placeholder={parentId ? t("답글을 남겨 주세요") : t("따뜻한 댓글을 남겨 주세요 💬")}
+          className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
+          {...textareaProps}
+        />
+        <MentionList picker={picker} />
+      </div>
       <div className="flex items-center justify-end gap-3">
         {state.error && <span className="text-sm text-berry">{state.error}</span>}
         <button disabled={pending} className="btn bg-ink py-1.5 text-sm text-cream">
@@ -170,19 +176,26 @@ function EditCommentForm({ commentId, content, onDone }: { commentId: number; co
   useEffect(() => {
     if (state.ok) onDone();
   }, [state.ok, onDone]);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const { picker, textareaProps } = useTextareaMentions(textRef);
 
   return (
     <form action={action} className="mt-1 flex flex-col gap-2">
-      <textarea
-        name="content"
-        required
-        maxLength={1000}
-        rows={3}
-        defaultValue={content}
-        autoFocus
-        aria-label={t("댓글 수정")}
-        className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
-      />
+      <div className="relative">
+        <textarea
+          ref={textRef}
+          name="content"
+          required
+          maxLength={1000}
+          rows={3}
+          defaultValue={content}
+          autoFocus
+          aria-label={t("댓글 수정")}
+          className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
+          {...textareaProps}
+        />
+        <MentionList picker={picker} />
+      </div>
       <div className="flex items-center justify-end gap-3">
         {state.error && <span className="text-sm text-berry">{state.error}</span>}
         <button type="button" onClick={onDone} className="text-sm text-ink-soft hover:text-ink">

@@ -4,6 +4,7 @@ import { and, count, eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { canSeePrivatePosts, findVisiblePost, isPublished } from "../blog/access";
 import { getMemberBlog } from "../blog/member";
+import { listMyNeighbors } from "../blog/read";
 import { findMentionedBlogs, mentionsIn, mentionTargets } from "../blog/mentions";
 import { addBlogVisit, addPostView, currentViewerKey, getBlogVisitStats } from "../blog/visits";
 import { db } from "../db";
@@ -210,6 +211,12 @@ export const blogRoutes = new Hono<GuardEnv>()
   })
 
   // ===== 이웃 =====
+  /** 내가 이웃한 사람 (글·댓글에서 @를 치면 뜨는 목록, SOC-06). 즐겨찾는 이웃 먼저 */
+  .get("/neighbors", member, async (c) => {
+    const { userId } = c.get("viewer");
+    const rows = await listMyNeighbors(userId);
+    return c.json({ neighbors: rows.map(({ slug, nickname, characterAsset }) => ({ slug, nickname, characterAsset })) });
+  })
   /** 이웃 추가 / 이웃 끊기 (남의 블로그 헤더의 이웃 버튼) */
   .post("/neighbors/:userId/toggle", member, async (c) => {
     const { userId } = c.get("viewer");
