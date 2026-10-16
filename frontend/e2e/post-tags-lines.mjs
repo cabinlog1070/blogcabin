@@ -1,4 +1,5 @@
 // 글쓰기 태그 칩 (쉼표·#·엔터로 끊기, 10개까지, 넘으면 3초 알림) + 엔터만 친 빈 줄이 읽는 화면에도 남는다
+// + 태그는 적은 순서대로 보인다 (고쳐서 순서를 바꾸면 그 순서로) + 발행·수정 완료 뒤 뒤로 가기는 글쓰기 화면이 아니라 내 블로그로 간다
 import { chromium } from "@playwright/test";
 import { BASE, collectErrors, loginDev } from "./helpers.mjs";
 
@@ -8,6 +9,7 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
 const a = await ctx.newPage();
 const errors = collectErrors(a);
 await loginDev(a, "tagger1");
+await a.goto(`${BASE}/@tagger1`); // 내 블로그 → 글쓰기
 await a.goto(`${BASE}/write`);
 await a.locator(".ProseMirror").waitFor();
 await a.getByPlaceholder("제목").fill("빈 줄과 태그");
@@ -59,7 +61,40 @@ const viewGap = await gap(a, "[data-post-body]");
 console.log("빈 줄 간격 (에디터 → 읽는 화면):", editorGap, "→", viewGap);
 if (Math.abs(viewGap - editorGap) > editorGap * 0.25) throw new Error(`읽는 화면에서 빈 줄이 줄었어요: ${editorGap}px → ${viewGap}px`);
 await a.screenshot({ path: `${outDir}/tags-2-post.png`, fullPage: true });
+const shownTags = () => a.locator('main a[href^="/tags/"]').allInnerTexts();
+const written = ["git", "next", "하나", "둘", "셋", "넷", "다섯", "여섯", "일곱", "여덟"];
+const expectTags = async (want, when) => {
+  const got = (await shownTags()).map((s) => s.replace(/^#/, "").trim());
+  if (got.join("|") !== want.join("|")) throw new Error(`${when} 태그 순서가 달라요: ${got.join("|")}`);
+};
+await expectTags(written, "발행한 글의");
+
+// 뒤로 가기: 글쓰기가 아니라 내 블로그
+const postUrl = a.url().replace(/\?.*$/, "");
+const backToBlog = async (when) => {
+  await a.goBack();
+  await a.waitForURL(`${BASE}/@tagger1`);
+  await a.waitForLoadState("networkidle");
+  if (await a.locator(".ProseMirror").count()) throw new Error(`${when} 뒤 뒤로 가기에 글쓰기 화면이 보여요`);
+  await a.getByRole("link", { name: "빈 줄과 태그" }).first().waitFor({ timeout: 5000 });
+};
+await backToBlog("발행");
+// 글 고치기도 같다: 글 → 고치기 → 수정 완료 → 뒤로 가기 = 내 블로그
+await a.goto(postUrl);
+await a.goto(postUrl.replace(/\/@tagger1\//, "/write/"));
+await a.locator(".ProseMirror").waitFor();
+if ((await a.locator("input[name=tags]").inputValue()) !== written.join(", ")) throw new Error("고치기 화면의 태그 순서가 달라요");
+// git을 빼고 맨 뒤에 다시 넣으면 그 순서로 저장된다
+await a.getByRole("button", { name: "git 태그 빼기" }).click();
+await tagBox.click();
+await a.keyboard.type("git");
+await a.keyboard.press("Enter");
+await a.getByRole("button", { name: "수정 완료" }).click();
+await a.waitForURL(postUrl);
+await a.locator("[data-post-body]").waitFor();
+await expectTags([...written.slice(1), "git"], "고친 글의");
+await backToBlog("수정 완료");
 
 if (errors.length) throw new Error(errors.join("\n"));
-console.log("✅ 태그 칩·10개 제한·빈 줄 유지");
+console.log("✅ 태그 칩·10개 제한·빈 줄 유지·태그 순서·발행 뒤 뒤로 가기");
 await browser.close();
