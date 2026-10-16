@@ -18,14 +18,17 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
       - name: public urls (1.35.0)
         run: |
+          bad=0; out=""
           for p in / /release-notes /support /api/health /api/v1/health /api/auth/get-session /@jiwon /release-notes/1.35.0/outfit-tuck.webp /release-notes/1.35.0/inquiry-form.webp /release-notes/1.35.0/inquiry-admin.webp; do
-            echo "$p $(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net$p)"
+            c=$(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net$p); out="$out $p=$c"; [ "$c" = 200 ] || bad=1
           done
-          echo "release-notes 1.35.0 shown: $(curl -s https://blogcabin.java21.net/release-notes | grep -c '1.35.0')"
+          n=$(curl -s https://blogcabin.java21.net/release-notes | grep -c '1.35.0'); out="$out release-notes-1.35.0=$n"; [ "$n" -gt 0 ] || bad=1
           # 새 서버 API: 로그인 없이 부르면 401·403(없는 주소면 404)
-          echo "my inquiries (no login) $(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net/api/v1/inquiries/mine)"
-          echo "admin inquiries (no login) $(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net/api/v1/admin/inquiries)"
-          for i in $(seq 1 10); do curl -s -o /dev/null -w '%{http_code} ' https://blogcabin.java21.net/; done; echo
+          for p in /api/v1/inquiries/mine /api/v1/admin/inquiries; do
+            c=$(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net$p); out="$out $p=$c"; case $c in 401|403) ;; *) bad=1;; esac
+          done
+          r=""; for i in $(seq 1 10); do r="$r$(curl -s -o /dev/null -w '%{http_code}' https://blogcabin.java21.net/),"; done; out="$out home-x10=$r"
+          echo "$out"; echo "::notice title=public urls::$out"; exit $bad
       - name: containers (read only, values hidden)
         run: |
           sshpass -e ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 ${SSH_USER}@${SSH_HOST} 'bash -s' <<'SH'
