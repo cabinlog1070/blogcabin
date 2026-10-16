@@ -165,6 +165,7 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
                   mentions: c.mentions,
                   likeCount: c.likeCount,
                   liked: c.liked,
+                  replyTo: c.replyTo,
                 },
           )}
         />
