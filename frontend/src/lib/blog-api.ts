@@ -25,6 +25,7 @@ export const blogApi = {
   /** 댓글·답글 달기 */
   addComment: (postId: number, content: string, parentId?: number) => post(`/blog/posts/${postId}/comments`, { content, parentId }),
   editComment: (commentId: number, content: string) => put(`/blog/comments/${commentId}`, { content }),
+  toggleCommentLike: (commentId: number) => post<{ liked: boolean }>(`/blog/comments/${commentId}/like`),
   deleteComment: (commentId: number) => del(`/blog/comments/${commentId}`),
   /** 이웃 추가 / 끊기 */
   toggleFollow: (userId: string) => post<{ following: boolean }>(`/blog/neighbors/${encodeURIComponent(userId)}/toggle`),

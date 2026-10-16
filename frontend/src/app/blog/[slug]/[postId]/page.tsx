@@ -163,6 +163,8 @@ export default async function PostPage(props: PageProps<"/blog/[slug]/[postId]">
                   characterAsset: c.characterAsset,
                   blogSlug: c.blogSlug,
                   mentions: c.mentions,
+                  likeCount: c.likeCount,
+                  liked: c.liked,
                 },
           )}
         />
