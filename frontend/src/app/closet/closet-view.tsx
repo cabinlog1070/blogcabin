@@ -24,7 +24,7 @@ import {
   paintedFurnitureKey,
   type FurnitureColor,
 } from "@/lib/assets";
-import { HAIR_COLOR_KEYS, HAIR_COLORS, HAIR_DEFAULT_SWATCH, paintedHairKey, type HairColor } from "@/lib/art/avatar";
+import { HAIR_COLOR_KEYS, HAIR_COLORS, HAIR_DEFAULT_SWATCH, outTopKey, paintedHairKey, type HairColor } from "@/lib/art/avatar";
 import { HOUSE_STAGES, houseSvg, ROOF_COLORS, roofHex, type HouseStage, type RoofColor } from "@/lib/art/town";
 import { api, ApiError, errorText } from "@/lib/api";
 import { msg } from "@/lib/i18n";
@@ -84,6 +84,7 @@ type Draft = {
   charAt: RoomSpot;
   petAt: RoomSpot | null;
   hairColor: string | null; // 머리 색 (null = 헤어마다 그린 그대로)
+  topOut: boolean; // 상의 빼 입기 (false = 넣어 입기)
 };
 
 const FAIL = msg("저장하지 못했어요. 잠시 뒤 다시 시도해 주세요");
@@ -98,6 +99,7 @@ export function ClosetView({
   characterSpot = null,
   petSpot = null,
   hairColor = null,
+  topOut = false,
   initialTab = "char",
 }: {
   items: OwnedItem[];
@@ -114,6 +116,7 @@ export function ClosetView({
   characterSpot?: RoomSpot | null; // 미니룸 안 캐릭터 발 자리 (null = 가운데 아래)
   petSpot?: RoomSpot | null; // 미니룸에 놓은 펫 자리 (null = 캐릭터 옆)
   hairColor?: string | null; // 고른 머리 색 (상점 헤어 칸과 같은 값)
+  topOut?: boolean; // 상의 빼 입기
   initialTab?: ClosetTab;
 }) {
   const t = useT();
@@ -131,6 +134,7 @@ export function ClosetView({
       charAt: characterSpot ?? ROOM_CHARACTER_SPOT,
       petAt: petSpot,
       hairColor,
+      topOut,
     };
   });
   const [draft, setDraft] = useState<Draft>(saved);
@@ -163,7 +167,7 @@ export function ClosetView({
   const background = byId(draft.backgroundItemId);
   const look = composeLook(
     character?.assetKey ?? "",
-    DRAW_ORDER.map((s) => paintedHairKey(byId(draft.worn[s])?.assetKey ?? "", draft.hairColor)).filter(Boolean),
+    DRAW_ORDER.map((s) => outTopKey(paintedHairKey(byId(draft.worn[s])?.assetKey ?? "", draft.hairColor), draft.topOut)).filter(Boolean),
   );
   // 꾸미기 카드 그림: 내 캐릭터(남자·여자 주민)에 입혀서, 아니면 마네킹에
   const wearer = character && canWear(character.assetKey) ? character.assetKey : MANNEQUIN;
@@ -448,6 +452,25 @@ export function ClosetView({
                 />
               );
             })}
+          </div>
+        )}
+        {wearTab === "top" && (
+          // 상의 입는 법 (2026-10-16): 넣어 입기 / 빼 입기. 고르면 화면에만 바로 보이고, [저장하기]를 눌러야 저장된다
+          <div className="mb-3 flex flex-wrap items-center gap-1.5 sm:gap-2" role="radiogroup" aria-label={t("상의 입는 법")} data-closet-top-style>
+            <span className="mr-1 text-sm font-bold">{t("입는 법")}</span>
+            {([false, true] as const).map((out) => (
+              <button
+                key={String(out)}
+                type="button"
+                role="radio"
+                aria-checked={draft.topOut === out}
+                onClick={() => update({ topOut: out })}
+                data-top-out={out ? "out" : "in"}
+                className={`rounded-full border-2 px-3 py-1 text-sm font-bold ${draft.topOut === out ? "border-ink bg-honey text-ink" : "border-line bg-paper text-ink-soft hover:text-ink"}`}
+              >
+                {out ? t("빼 입기") : t("넣어 입기")}
+              </button>
+            ))}
           </div>
         )}
         {grid(
