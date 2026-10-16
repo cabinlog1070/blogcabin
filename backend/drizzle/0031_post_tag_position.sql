@@ -1,0 +1,1 @@
+ALTER TABLE "post_tags" ADD COLUMN "position" smallint DEFAULT 0 NOT NULL;

@@ -11,6 +11,7 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   unique,
@@ -462,6 +463,8 @@ export const postTags = pgTable(
     tagId: integer("tag_id")
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
+    // 글쓴이가 적은 순서 (0부터). 읽을 때 이 순서로 보여 준다. 이 칸이 생기기 전 글은 모두 0이라 이름순
+    position: smallint("position").notNull().default(0),
   },
   (t) => [
     primaryKey({ columns: [t.postId, t.tagId] }),
