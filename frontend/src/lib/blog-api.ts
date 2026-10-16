@@ -2,6 +2,8 @@
 // 실패하면 ApiError를 던진다: 화면은 errorText(t, err)로 보여 주고, 글·댓글이 바뀌었으면 router.refresh()
 import { api } from "@/lib/api";
 
+export type MentionCandidate = { slug: string; nickname: string; characterAsset: string };
+
 const post = <R = unknown>(path: string, body: unknown = {}) => api<R>(path, { method: "POST", body });
 const put = <R = unknown>(path: string, body: unknown = {}) => api<R>(path, { method: "PUT", body });
 const del = (path: string) => api(path, { method: "DELETE" });
@@ -25,7 +27,10 @@ export const blogApi = {
   /** 댓글·답글 달기 */
   addComment: (postId: number, content: string, parentId?: number) => post(`/blog/posts/${postId}/comments`, { content, parentId }),
   editComment: (commentId: number, content: string) => put(`/blog/comments/${commentId}`, { content }),
+  toggleCommentLike: (commentId: number) => post<{ liked: boolean }>(`/blog/comments/${commentId}/like`),
   deleteComment: (commentId: number) => del(`/blog/comments/${commentId}`),
+  /** 내가 이웃한 사람 (@ 언급 목록) */
+  myNeighbors: () => api<{ neighbors: MentionCandidate[] }>("/blog/neighbors"),
   /** 이웃 추가 / 끊기 */
   toggleFollow: (userId: string) => post<{ following: boolean }>(`/blog/neighbors/${encodeURIComponent(userId)}/toggle`),
   /** 이웃 추가만 (이미 이웃이면 그대로) */

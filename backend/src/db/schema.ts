@@ -11,6 +11,7 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   unique,
@@ -462,6 +463,8 @@ export const postTags = pgTable(
     tagId: integer("tag_id")
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
+    // 글쓴이가 적은 순서 (0부터). 읽을 때 이 순서로 보여 준다. 이 칸이 생기기 전 글은 모두 0이라 이름순
+    position: smallint("position").notNull().default(0),
   },
   (t) => [
     primaryKey({ columns: [t.postId, t.tagId] }),
@@ -517,6 +520,21 @@ export const postLikes = pgTable(
     createdAt: createdAt(),
   },
   (t) => [primaryKey({ columns: [t.postId, t.userId] })],
+);
+
+// 댓글 ↔ 하트 누른 회원 (N:M): 한 댓글에 한 번만. 다시 누르면 행을 지워 취소한다
+export const commentLikes = pgTable(
+  "comment_likes",
+  {
+    commentId: integer("comment_id")
+      .notNull()
+      .references(() => comments.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.commentId, t.userId] }), index("comment_likes_user_idx").on(t.userId)],
 );
 
 // 회원 ↔ 회원 (자기 참조 N:M): 이웃

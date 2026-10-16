@@ -188,13 +188,19 @@ async function savePost(userId: string, postId: number | null, body: Record<stri
     if (tagNames.length) {
       await tx.insert(tags).values(tagNames.map((name) => ({ name }))).onConflictDoNothing();
     }
-    const tagRows = tagNames.length ? await tx.select({ id: tags.id }).from(tags).where(inArray(tags.name, tagNames)) : [];
+    const tagRows = tagNames.length
+      ? await tx.select({ id: tags.id, name: tags.name }).from(tags).where(inArray(tags.name, tagNames))
+      : [];
     const tagIds = tagRows.map((row) => row.id);
     await tx
       .delete(postTags)
       .where(and(eq(postTags.postId, id), tagIds.length ? notInArray(postTags.tagId, tagIds) : undefined));
     if (tagIds.length) {
-      await tx.insert(postTags).values(tagIds.map((tagId) => ({ postId: id, tagId }))).onConflictDoNothing();
+      // 적은 순서를 position에 적는다 (이미 있던 연결도 순서를 새로 맞춘다)
+      await tx
+        .insert(postTags)
+        .values(tagRows.map((row) => ({ postId: id, tagId: row.id, position: tagNames.indexOf(row.name) })))
+        .onConflictDoUpdate({ target: [postTags.postId, postTags.tagId], set: { position: sql`excluded.position` } });
     }
     return id;
   });

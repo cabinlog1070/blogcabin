@@ -4,10 +4,11 @@ import { and, count, eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { canSeePrivatePosts, findVisiblePost, isPublished } from "../blog/access";
 import { getMemberBlog } from "../blog/member";
+import { listMyNeighbors } from "../blog/read";
 import { findMentionedBlogs, mentionsIn, mentionTargets } from "../blog/mentions";
 import { addBlogVisit, addPostView, currentViewerKey, getBlogVisitStats } from "../blog/visits";
 import { db } from "../db";
-import { blogs, comments, follows, pointLedger, postLikes, posts } from "../db/schema";
+import { blogs, commentLikes, comments, follows, pointLedger, postLikes, posts } from "../db/schema";
 import { grantReward, lockUser } from "../game/points";
 import { MAX_FAVORITES } from "../game/rules";
 import { BAD_REQUEST, isSameOrigin, readJson, requireViewer, type GuardEnv } from "../http/guard";
@@ -166,6 +167,27 @@ export const blogRoutes = new Hono<GuardEnv>()
     });
     return c.json({ ok: true });
   })
+  /** 댓글 하트 / 하트 취소 (볼 수 있는 글의 남아 있는 댓글·답글만). 알림·보상은 없다 */
+  .post("/comments/:id/like", member, async (c) => {
+    const { userId } = c.get("viewer");
+    const commentId = parseId(c.req.param("id"));
+    if (commentId === null) return c.json(fail(BAD_REQUEST), 400);
+    const [row] = await db
+      .select({ postId: comments.postId })
+      .from(comments)
+      .where(and(eq(comments.id, commentId), isNull(comments.deletedAt)));
+    const post = row ? await findVisiblePost(row.postId, userId) : null;
+    if (!row || !post) return c.json(fail(msg("댓글을 찾을 수 없어요")), 404);
+
+    const removed = await db
+      .delete(commentLikes)
+      .where(and(eq(commentLikes.commentId, commentId), eq(commentLikes.userId, userId)))
+      .returning({ commentId: commentLikes.commentId });
+    if (removed.length) return c.json({ ok: true, liked: false });
+    // 두 번 빨리 눌려도 한 번만
+    await db.insert(commentLikes).values({ commentId, userId }).onConflictDoNothing();
+    return c.json({ ok: true, liked: true });
+  })
   /** 댓글 지우기: 작성자, 그 글의 블로그 주인, 관리자 (spec 004 결정, SOC-01) */
   .delete("/comments/:id", member, async (c) => {
     const { userId } = c.get("viewer");
@@ -189,6 +211,12 @@ export const blogRoutes = new Hono<GuardEnv>()
   })
 
   // ===== 이웃 =====
+  /** 내가 이웃한 사람 (글·댓글에서 @를 치면 뜨는 목록, SOC-06). 즐겨찾는 이웃 먼저 */
+  .get("/neighbors", member, async (c) => {
+    const { userId } = c.get("viewer");
+    const rows = await listMyNeighbors(userId);
+    return c.json({ neighbors: rows.map(({ slug, nickname, characterAsset }) => ({ slug, nickname, characterAsset })) });
+  })
   /** 이웃 추가 / 이웃 끊기 (남의 블로그 헤더의 이웃 버튼) */
   .post("/neighbors/:userId/toggle", member, async (c) => {
     const { userId } = c.get("viewer");

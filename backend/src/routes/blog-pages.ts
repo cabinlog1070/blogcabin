@@ -76,7 +76,7 @@ export async function postPage(viewer: Awaited<ReturnType<typeof memberOrNull>>,
   const [tags, like, comments, feedAdjacent] = await Promise.all([
     getPostTags(post.id),
     getLikeState(post.id, viewerId),
-    getComments(post.id),
+    getComments(post.id, viewerId),
     feed ? getFeedAdjacentPosts(post.id, feed) : null,
   ]);
   // 지금 글이 그 목록에 없으면(비공개 글 등) 블로그 안의 이전·다음 글

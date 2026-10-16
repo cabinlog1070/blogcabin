@@ -2,7 +2,7 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db";
-import { blogs, categories, comments, follows, items, postLikes, posts, postTags, profiles, tags } from "../db/schema";
+import { blogs, categories, commentLikes, comments, follows, items, postLikes, posts, postTags, profiles, tags } from "../db/schema";
 import { isPublished } from "./access";
 import { lookSql } from "./look";
 import { findMentionedBlogs, mentionsIn } from "./mentions";
@@ -103,7 +103,7 @@ export async function getPostTags(postId: number) {
     .from(postTags)
     .innerJoin(tags, eq(tags.id, postTags.tagId))
     .where(eq(postTags.postId, postId))
-    .orderBy(asc(tags.name));
+    .orderBy(asc(postTags.position), asc(tags.name)); // 적은 순서 (순서 칸이 생기기 전 글은 이름순)
   return rows.map((r) => r.name);
 }
 
@@ -123,7 +123,7 @@ export async function getLikeState(postId: number, viewerId: string | null) {
  * 답글이 남아 있는 원댓글만 작성자·시각·내용 없는 자리로 남기고, 나머지 삭제된 댓글(답글 포함)은 뺀다.
  * 탈퇴한 회원(작성자 없음)의 댓글도 같은 규칙이다 (AUTH-06).
  */
-export async function getComments(postId: number) {
+export async function getComments(postId: number, viewerId: string | null = null) {
   const rows = await db
     .select({
       id: comments.id,
@@ -136,6 +136,11 @@ export async function getComments(postId: number) {
       nickname: profiles.nickname,
       characterAsset: lookSql(characterItem.assetKey, profiles.userId),
       blogSlug: blogs.slug,
+      // 댓글 하트: 수와 지금 보는 사람이 눌렀는지
+      likeCount: sql<number>`(SELECT COUNT(*)::int FROM ${commentLikes} WHERE ${commentLikes.commentId} = ${comments.id})`,
+      liked: viewerId
+        ? sql<boolean>`EXISTS (SELECT 1 FROM ${commentLikes} WHERE ${commentLikes.commentId} = ${comments.id} AND ${commentLikes.userId} = ${viewerId})`
+        : sql<boolean>`false`,
     })
     .from(comments)
     .leftJoin(profiles, eq(profiles.userId, comments.authorId))
