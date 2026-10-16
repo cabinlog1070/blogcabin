@@ -14,7 +14,7 @@ export async function generateMetadata() {
 }
 
 /**
- * 마을 검색 결과 (BLOG-07). 검색창은 내 블로그 홈에만 있고, 결과는 이 화면에서 본다.
+ * 마을 검색 결과 (BLOG-07). 검색창은 내 블로그 홈과 마을 소식(탭 줄 오른쪽)에 있고, 결과는 이 화면에서 본다.
  * 온보딩을 마친 회원만 (로그인 안 했으면 첫 화면, 온보딩 전이면 온보딩 화면으로, spec 002 FR-042)
  */
 export default async function SearchPage(props: PageProps<"/search">) {
@@ -25,6 +25,8 @@ export default async function SearchPage(props: PageProps<"/search">) {
   const sp = await props.searchParams;
   const query = parseSearchQuery(sp.q);
   const page = parsePage(sp.page);
+  // 마을 소식 검색창에서 왔으면 돌아가는 곳도 마을 소식
+  const fromFeed = sp.from === "feed";
 
   const [blogs, posts] =
     query.kind === "ok" ? await readApi.search(query.q, page).then((r) => [r.blogs, r.posts] as const) : [null, null];
@@ -34,11 +36,11 @@ export default async function SearchPage(props: PageProps<"/search">) {
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <h1 className="font-display text-3xl">{t("🔍 마을 검색")}</h1>
-        <Link href={`/@${viewer.profile.blogSlug}`} className="text-sm text-ink-soft hover:text-ink">
-          {t("← 내 블로그로")}
+        <Link href={fromFeed ? "/feed" : `/@${viewer.profile.blogSlug}`} className="text-sm text-ink-soft hover:text-ink">
+          {fromFeed ? t("← 마을 소식으로") : t("← 내 블로그로")}
         </Link>
       </div>
-      <SearchBox key={query.kind === "ok" ? query.q : ""} defaultValue={query.kind === "ok" ? query.q : ""} initialError={query.kind === "empty"} />
+      <SearchBox key={query.kind === "ok" ? query.q : ""} defaultValue={query.kind === "ok" ? query.q : ""} initialError={query.kind === "empty"} from={fromFeed ? "feed" : undefined} />
 
       {query.kind === "ok" && (
         <p className="mt-4 text-sm text-ink-soft">
@@ -89,7 +91,7 @@ export default async function SearchPage(props: PageProps<"/search">) {
           <Pagination
             page={posts.page}
             pageCount={posts.pageCount}
-            hrefFor={(n) => `/search?${new URLSearchParams({ q: query.kind === "ok" ? query.q : "", page: String(n) })}`}
+            hrefFor={(n) => `/search?${new URLSearchParams({ q: query.kind === "ok" ? query.q : "", page: String(n), ...(fromFeed && { from: "feed" }) })}`}
           />
         </section>
       )}
