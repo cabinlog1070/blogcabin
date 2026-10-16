@@ -25,6 +25,14 @@ jobs:
           curl -s https://blogcabin.java21.net/api/v1/health; echo
           s=$(curl -s https://blogcabin.java21.net/support)
           echo "support: email-shown=$(echo "$s" | grep -c 'mailto:') coming-soon=$(echo "$s" | grep -c '곧 열어요')"
+      - name: icons
+        run: |
+          # 기대: favicon.ico db907aa8…, icon.png df6137d7…, apple-icon.png 238302c5…
+          for p in /favicon.ico /icon.png /apple-icon.png; do
+            echo "$p $(curl -s -o /dev/null -w '%{http_code} %{content_type}' https://blogcabin.java21.net$p) md5=$(curl -s https://blogcabin.java21.net$p | md5sum | cut -c1-8)"
+            curl -sI https://blogcabin.java21.net$p | grep -i -E 'cache-control|etag|last-modified|age:'
+          done
+          curl -s https://blogcabin.java21.net/ | grep -o '<link[^>]*icon[^>]*>'
       - name: containers (read only, values hidden)
         run: |
           sshpass -e ssh -p ${SSH_PORT:-22} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 ${SSH_USER}@${SSH_HOST} 'bash -s' <<'SH'
