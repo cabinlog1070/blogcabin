@@ -5,7 +5,7 @@
 // 고르는 것은 화면에만 바로 보이고, [저장하기]를 눌러야 한 번에 저장된다 (saveCloset).
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { FurnitureArt, MiniRoom, type RoomFurniture, type RoomPet } from "@/components/character";
+import { CharacterArt, FurnitureArt, MiniRoom, type RoomFurniture, type RoomPet } from "@/components/character";
 import { useT } from "@/components/i18n";
 import { IconEmoji } from "@/components/icon-emoji";
 import { ItemArt } from "@/components/item-art";
@@ -165,10 +165,12 @@ export function ClosetView({
   const byId = (id: number | null | undefined) => items.find((i) => i.id === id);
   const character = byId(draft.characterItemId);
   const background = byId(draft.backgroundItemId);
-  const look = composeLook(
-    character?.assetKey ?? "",
-    DRAW_ORDER.map((s) => outTopKey(paintedHairKey(byId(draft.worn[s])?.assetKey ?? "", draft.hairColor), draft.topOut)).filter(Boolean),
-  );
+  const lookWith = (out: boolean) =>
+    composeLook(
+      character?.assetKey ?? "",
+      DRAW_ORDER.map((s) => outTopKey(paintedHairKey(byId(draft.worn[s])?.assetKey ?? "", draft.hairColor), out)).filter(Boolean),
+    );
+  const look = lookWith(draft.topOut);
   // 꾸미기 카드 그림: 내 캐릭터(남자·여자 주민)에 입혀서, 아니면 마네킹에
   const wearer = character && canWear(character.assetKey) ? character.assetKey : MANNEQUIN;
 
@@ -184,6 +186,7 @@ export function ClosetView({
       character: sent.charAt,
       pet: sent.petAt,
       hairColor: sent.hairColor,
+      topOut: sent.topOut,
     };
     setMessage(null);
     start(async () => {
@@ -466,8 +469,14 @@ export function ClosetView({
                 aria-checked={draft.topOut === out}
                 onClick={() => update({ topOut: out })}
                 data-top-out={out ? "out" : "in"}
-                className={`rounded-full border-2 px-3 py-1 text-sm font-bold ${draft.topOut === out ? "border-ink bg-honey text-ink" : "border-line bg-paper text-ink-soft hover:text-ink"}`}
+                className={`flex items-center gap-1 rounded-full border-2 py-0.5 pl-1 pr-3 text-sm font-bold ${draft.topOut === out ? "border-ink bg-honey text-ink" : "border-line bg-paper text-ink-soft hover:text-ink"}`}
               >
+                {/* 지금 입은 옷으로 그린 몸통만 잘라 보여 준다 (글자만으로는 헷갈려서, 2026-10-16) */}
+                <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full bg-cream" aria-hidden>
+                  <span className="absolute left-1/2 top-[-56px] -translate-x-1/2">
+                    <CharacterArt asset={lookWith(out)} size={110} className="max-w-none" />
+                  </span>
+                </span>
                 {out ? t("빼 입기") : t("넣어 입기")}
               </button>
             ))}

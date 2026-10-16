@@ -40,6 +40,12 @@ export async function getEquipped(userId: string) {
   return { ...row, worn, furniture };
 }
 
+/** 머리 색과 상의 입는 법 (꾸미기 화면) */
+export async function getLookStyle(userId: string): Promise<{ hairColor: string | null; topOut: boolean }> {
+  const [row] = await db.select({ hairColor: profiles.hairColor, topOut: profiles.topOut }).from(profiles).where(eq(profiles.userId, userId));
+  return { hairColor: row?.hairColor ?? null, topOut: row?.topOut ?? false };
+}
+
 /** 고른 머리 색 (없으면 null) */
 export async function getHairColor(userId: string): Promise<string | null> {
   const [row] = await db.select({ color: profiles.hairColor }).from(profiles).where(eq(profiles.userId, userId));
