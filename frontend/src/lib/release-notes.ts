@@ -50,6 +50,17 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-16",
     versions: [
       {
+        version: "1.35.0",
+        title: msg("문의함과 상의 넣어 입기"),
+        changes: [
+          { kind: "new", text: msg("문의하기에서 바로 문의를 남기고 답을 받을 수 있어요. 로그인하지 않아도 답받을 이메일을 적으면 문의할 수 있어요."), images: [{ src: "/release-notes/1.35.0/inquiry-form.webp", alt: msg("문의하기 화면의 문의 남기기 칸") }] },
+          { kind: "new", text: msg("관리자 문의에 답이 오면 알림으로 알려 드려요.") },
+          { kind: "new", text: msg("관리자 화면에 문의함이 생겼어요. 문의를 상태별로 보고 답하거나 처리 완료로 둘 수 있어요."), admin: true, images: [{ src: "/release-notes/1.35.0/inquiry-admin.webp", alt: msg("관리자 문의함에 모인 문의") }] },
+          { kind: "new", text: msg("꾸미기의 상의 칸에서 상의를 넣어 입을지 빼 입을지 고를 수 있어요. 고른 모습은 [저장하기]를 누르면 미니룸과 광장에 보여요."), images: [{ src: "/release-notes/1.35.0/outfit-tuck.webp", alt: msg("꾸미기 상의 칸의 넣어 입기·빼 입기 버튼") }] },
+          { kind: "improved", text: msg("광장에 처음 들어갈 때 캐릭터와 집이 더 빨리 나타나요.") },
+        ],
+      },
+      {
         version: "1.34.1",
         title: msg("따라오는 글쓰기 도구 줄"),
         changes: [
