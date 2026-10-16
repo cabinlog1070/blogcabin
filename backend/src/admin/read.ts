@@ -4,6 +4,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db";
 import { animalSpecies, attendances, blogs, comments, GIFT_MESSAGE_MAX, items, pointLedger, posts, profiles, users } from "../db/schema";
 import { startOfTodayKST } from "../game/points";
+import { waitingInquiryCount } from "../inquiries";
 import { todayKST } from "../game/rules";
 
 const postBlog = alias(blogs, "post_blog");
@@ -13,7 +14,7 @@ const likeOf = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 /** 관리자 첫 화면: 숫자 카드, 최근 가입·글, 지급·선물 대상 주민, 선물로 보낼 아이템·펫 */
 export async function adminOverview() {
-  const [[stats], recentUsers, recentPosts, residents, giftable, giftPets] = await Promise.all([
+  const [[stats], recentUsers, recentPosts, residents, giftable, giftPets, waitingInquiries] = await Promise.all([
     db.select({
       users: sql<number>`(SELECT COUNT(*)::int FROM ${users})`,
       residents: sql<number>`(SELECT COUNT(*)::int FROM ${profiles})`,
@@ -67,8 +68,10 @@ export async function adminOverview() {
       .orderBy(asc(items.type), asc(items.requiredLevel), asc(items.price), asc(items.id)),
     // 선물로 보낼 수 있는 펫 = 농장의 모든 펫 종류 (그 펫이 태어나는 알로 간다)
     db.select({ id: animalSpecies.id, name: animalSpecies.name, assetKey: animalSpecies.assetKey }).from(animalSpecies).orderBy(asc(animalSpecies.id)),
+    // 관리자 문의함에서 답을 기다리는 문의
+    waitingInquiryCount(),
   ]);
-  return { stats, recentUsers, recentPosts, residents, giftable, giftPets, giftMessageMax: GIFT_MESSAGE_MAX };
+  return { stats, recentUsers, recentPosts, residents, giftable, giftPets, giftMessageMax: GIFT_MESSAGE_MAX, waitingInquiries };
 }
 
 export const ADMIN_CONTENT_PAGE_SIZE = 30;

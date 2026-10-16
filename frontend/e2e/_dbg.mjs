@@ -1,0 +1,15 @@
+import { chromium } from "@playwright/test";
+import { config } from "dotenv";
+config({ path: "/home/claude/blogcabin/frontend/.env.local", quiet: true });
+const BASE="http://localhost:3000";
+const b = await chromium.launch(); const p = await (await b.newContext()).newPage();
+p.on("console", m => console.log("console", m.text()));
+p.on("response", r => { if (r.url().includes("inquir")) r.text().then(t=>console.log(r.status(), r.url(), t.slice(0,200))); });
+await p.goto(BASE);
+await p.getByLabel("아이디").fill(process.env.ADMIN_USERNAME);
+await p.getByLabel("비밀번호", { exact: true }).fill(process.env.ADMIN_PASSWORD);
+await p.getByRole("button", { name: "로그인", exact: true }).click();
+await p.waitForURL(/town/);
+await p.goto(`${BASE}/admin/inquiries?status=all`);
+const card = p.locator("[data-admin-inquiry]").filter({ has: p.locator("textarea") }).first();
+console.log("cards with textarea", await p.locator("[data-admin-inquiry] textarea").count());
