@@ -2,6 +2,7 @@
 
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
+import { MentionList, useMentionPicker } from "@/components/blog/mention-picker";
 import StarterKit from "@tiptap/starter-kit";
 import { postTextLength } from "@/lib/text-length";
 import Image from "@tiptap/extension-image";
@@ -255,6 +256,9 @@ export function RichEditor({
   const t = useT();
   // 붙여 넣기·끌어다 놓기는 에디터 설정(처음 한 번 만들어짐) 안에서 불리므로 최신 함수를 ref로 넘긴다
   const uploadRef = useRef<(files: File[], at?: number) => void>(() => {});
+  // @를 치면 뜨는 이웃 목록 (SOC-06): 키 처리는 에디터 설정 안에서 불리므로 ref로 넘긴다
+  const mentionKeyRef = useRef<(e: KeyboardEvent) => boolean>(() => false);
+  const editorBoxRef = useRef<HTMLDivElement>(null);
   const editor = useEditor({
     extensions: [
       PostImage.configure({ inline: false, allowBase64: false }), // 사진 (POST-07)
@@ -279,6 +283,7 @@ export function RichEditor({
         class: "prose-blog min-h-[360px] px-5 py-4 outline-none",
         "aria-label": t("본문"),
       },
+      handleKeyDown: (_view, event) => mentionKeyRef.current(event),
       // 사진·파일을 붙여 넣거나(Ctrl+V) 끌어다 놓으면 올려서 넣는다. 여러 개도 한 번에
       handlePaste: (_view, event) => {
         const files = filesFrom(event.clipboardData?.files);
@@ -308,6 +313,43 @@ export function RichEditor({
     onUpdate: ({ editor }) => onChange(editor.getHTML(), postTextLength(editor.getHTML())),
     onCreate: ({ editor }) => onChange(editor.getHTML(), postTextLength(editor.getHTML())),
   });
+
+  const mentions = useMentionPicker((slug, query) => {
+    if (!editor) return;
+    const at = editor.state.selection.from;
+    editor.chain().focus().deleteRange({ from: at - query.length - 1, to: at }).insertContent(`@${slug} `).run();
+  });
+  useEffect(() => {
+    mentionKeyRef.current = mentions.onKeyDown;
+  }, [mentions.onKeyDown]);
+  // 커서가 움직이거나 글자가 바뀔 때마다 커서 앞이 "@글자"인지 본다. 코드·링크 안에서는 띄우지 않는다
+  const updateMentions = mentions.update;
+  useEffect(() => {
+    if (!editor) return;
+    const check = () => {
+      const { selection } = editor.state;
+      const { $from } = selection;
+      const skip =
+        !selection.empty ||
+        !editor.isFocused ||
+        $from.parent.type.spec.code ||
+        $from.marks().some((m) => m.type.name === "code" || m.type.name === "link");
+      const before = skip ? null : $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
+      updateMentions(before, () => {
+        const box = editorBoxRef.current!.getBoundingClientRect();
+        const c = editor.view.coordsAtPos(selection.from);
+        return { x: c.left - box.left, y: c.bottom - box.top, width: box.width };
+      });
+    };
+    editor.on("selectionUpdate", check);
+    editor.on("update", check);
+    editor.on("blur", check);
+    return () => {
+      editor.off("selectionUpdate", check);
+      editor.off("update", check);
+      editor.off("blur", check);
+    };
+  }, [editor, updateMentions]);
 
   const { upload, progress, errors, clearErrors } = useAttachmentUpload(editor);
   useEffect(() => {
@@ -540,7 +582,10 @@ export function RichEditor({
         </div>
       )}
       {editor && state?.inTable && <TableToolbar editor={editor} enabled={state.tableActions} />}
-      <EditorContent editor={editor} />
+      <div ref={editorBoxRef} className="relative">
+        <EditorContent editor={editor} />
+        <MentionList picker={mentions} />
+      </div>
     </div>
   );
 }

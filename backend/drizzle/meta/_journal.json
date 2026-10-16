@@ -225,6 +225,13 @@
       "when": 1792110003465,
       "tag": "0031_post_tag_position",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792111261991,
+      "tag": "0032_comment_likes",
+      "breakpoints": true
     }
   ]
 }

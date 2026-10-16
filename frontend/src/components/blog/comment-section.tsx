@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { CharacterBadge } from "@/components/character";
 import { useT } from "@/components/i18n";
+import { MentionList, useTextareaMentions } from "@/components/blog/mention-picker";
 import { splitMentions } from "@backend/blog/mention-text";
 import { saveError } from "@/lib/api";
 import { blogApi } from "@/lib/blog-api";
@@ -27,6 +28,9 @@ export type CommentData =
       blogSlug: string;
       /** 내용 속 @주소 가운데 있는 블로그 (이것만 링크로) */
       mentions: string[];
+      /** 하트 수와 지금 보는 사람이 눌렀는지 */
+      likeCount: number;
+      liked: boolean;
     }
   | { id: number; parentId: null; deleted: true };
 
@@ -50,7 +54,59 @@ function CommentText({ content, mentions }: { content: string; mentions: string[
   );
 }
 
-function CommentForm({ postId, parentId, onDone }: { postId: number; parentId?: number; onDone?: () => void }) {
+/** 댓글 하트: [답글] 앞. 누르면 바로 채워 보여 주고(실패하면 되돌린다), 0개면 숫자 없이. 로그인 전에는 수만 보인다 */
+function CommentHeart({ commentId, count, liked, canLike }: { commentId: number; count: number; liked: boolean; canLike: boolean }) {
+  const t = useT();
+  const [pending, startTransition] = useTransition();
+  const [state, setState] = useState({ count, liked });
+  // 다시 그려지며 서버 값이 바뀌면(다른 사람이 누름 등) 그 값으로
+  const [server, setServer] = useState({ count, liked });
+  if (server.count !== count || server.liked !== liked) {
+    setServer({ count, liked });
+    setState({ count, liked });
+  }
+  const label = state.liked ? t("하트 취소") : t("하트");
+  const body = (
+    <>
+      <span aria-hidden className="text-[15px] leading-none">{state.liked ? "♥" : "♡"}</span>
+      {state.count > 0 && <span>{state.count}</span>}
+    </>
+  );
+  if (!canLike) {
+    if (state.count === 0) return null;
+    return (
+      <span data-comment-heart className="inline-flex items-center gap-1" title={t("로그인하면 하트를 누를 수 있어요")}>
+        {body}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      data-comment-heart
+      aria-pressed={state.liked}
+      aria-label={`${label} ${state.count}`}
+      disabled={pending}
+      onClick={() =>
+        startTransition(async () => {
+          const before = state;
+          setState({ liked: !state.liked, count: state.count + (state.liked ? -1 : 1) });
+          try {
+            await blogApi.toggleCommentLike(commentId);
+          } catch {
+            setState(before);
+          }
+        })
+      }
+      className={`inline-flex items-center gap-1 ${state.liked ? "font-bold text-berry" : "hover:text-berry"}`}
+    >
+      {body}
+    </button>
+  );
+}
+
+/** 댓글·답글 입력칸. 답글에 다는 답글은 상대 @주소를 미리 넣고(mention) 그 뒤에 커서를 둔다 */
+function CommentForm({ postId, parentId, mention, onDone }: { postId: number; parentId?: number; mention?: string; onDone?: () => void }) {
   const t = useT();
   const router = useRouter();
   const [state, action, pending] = useActionState<CommentState, FormData>(async (_prev, form) => {
@@ -63,6 +119,14 @@ function CommentForm({ postId, parentId, onDone }: { postId: number; parentId?: 
     }
   }, {});
   const ref = useRef<HTMLFormElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const { picker, textareaProps } = useTextareaMentions(textRef);
+  useEffect(() => {
+    const el = textRef.current;
+    if (!mention || !el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [mention]);
   useEffect(() => {
     if (state.ok) {
       ref.current?.reset();
@@ -72,14 +136,20 @@ function CommentForm({ postId, parentId, onDone }: { postId: number; parentId?: 
 
   return (
     <form ref={ref} action={action} className="flex flex-col gap-2">
-      <textarea
-        name="content"
-        required
-        maxLength={1000}
-        rows={parentId ? 2 : 3}
-        placeholder={parentId ? t("답글을 남겨 주세요") : t("따뜻한 댓글을 남겨 주세요 💬")}
-        className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
-      />
+      <div className="relative">
+        <textarea
+          ref={textRef}
+          name="content"
+          required
+          maxLength={1000}
+          defaultValue={mention ? `@${mention} ` : undefined}
+          rows={parentId ? 2 : 3}
+          placeholder={parentId ? t("답글을 남겨 주세요") : t("따뜻한 댓글을 남겨 주세요 💬")}
+          className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
+          {...textareaProps}
+        />
+        <MentionList picker={picker} />
+      </div>
       <div className="flex items-center justify-end gap-3">
         {state.error && <span className="text-sm text-berry">{state.error}</span>}
         <button disabled={pending} className="btn bg-ink py-1.5 text-sm text-cream">
@@ -106,19 +176,26 @@ function EditCommentForm({ commentId, content, onDone }: { commentId: number; co
   useEffect(() => {
     if (state.ok) onDone();
   }, [state.ok, onDone]);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const { picker, textareaProps } = useTextareaMentions(textRef);
 
   return (
     <form action={action} className="mt-1 flex flex-col gap-2">
-      <textarea
-        name="content"
-        required
-        maxLength={1000}
-        rows={3}
-        defaultValue={content}
-        autoFocus
-        aria-label={t("댓글 수정")}
-        className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
-      />
+      <div className="relative">
+        <textarea
+          ref={textRef}
+          name="content"
+          required
+          maxLength={1000}
+          rows={3}
+          defaultValue={content}
+          autoFocus
+          aria-label={t("댓글 수정")}
+          className="w-full resize-y rounded-xl border-2 border-line bg-paper px-3 py-2 outline-none focus:border-sun"
+          {...textareaProps}
+        />
+        <MentionList picker={picker} />
+      </div>
       <div className="flex items-center justify-end gap-3">
         {state.error && <span className="text-sm text-berry">{state.error}</span>}
         <button type="button" onClick={onDone} className="text-sm text-ink-soft hover:text-ink">
@@ -174,21 +251,23 @@ function CommentItem({
           ) : (
             <CommentText content={c.content} mentions={c.mentions} />
           )}
-          {viewerId && !editing && (
-            <div className="mt-1 flex gap-3 text-xs text-ink-soft">
-              {!isReply && (
+          {!editing && (
+            <div className="mt-1 flex items-center gap-3 text-xs text-ink-soft">
+              <CommentHeart commentId={c.id} count={c.likeCount} liked={c.liked} canLike={Boolean(viewerId)} />
+              {/* 답글에도 [답글]: 같은 원댓글 아래에 모이고, 상대 @주소가 미리 들어간다 */}
+              {viewerId && (
                 <button type="button" onClick={() => setReplying((v) => !v)} className="hover:text-ink">
                   {replying ? t("답글 취소") : t("답글")}
                 </button>
               )}
               {/* 고치기는 작성자만 */}
-              {c.authorId === viewerId && (
+              {viewerId && c.authorId === viewerId && (
                 <button type="button" onClick={() => { setEditing(true); setReplying(false); }} className="hover:text-ink">
                   {t("수정")}
                 </button>
               )}
               {/* 내 댓글, 또는 내 블로그 글의 댓글·관리자면 남의 댓글도 지울 수 있다 (spec 004) */}
-              {(c.authorId === viewerId || canModerate) && (
+              {viewerId && (c.authorId === viewerId || canModerate) && (
                 <button
                   type="button"
                   className="hover:text-berry"
@@ -206,7 +285,12 @@ function CommentItem({
           )}
           {replying && (
             <div className="mt-2">
-              <CommentForm postId={postId} parentId={c.id} onDone={() => setReplying(false)} />
+              <CommentForm
+                postId={postId}
+                parentId={c.id}
+                mention={isReply && c.authorId !== viewerId && c.blogSlug ? c.blogSlug : undefined}
+                onDone={() => setReplying(false)}
+              />
             </div>
           )}
         </div>
