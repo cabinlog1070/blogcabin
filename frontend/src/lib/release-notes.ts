@@ -50,6 +50,13 @@ export const RELEASE_NOTES: ReleaseDay[] = [
     date: "2026-10-16",
     versions: [
       {
+        version: "1.35.1",
+        title: msg("즐겨찾기 뒤로 가기 고침"),
+        changes: [
+          { kind: "fixed", text: msg("이웃 즐겨찾기를 바꾸고 뒤로 가기를 누르면 광장 이웃집 목록과 내 이웃 칸에 예전 별이 남아 있던 문제를 고쳤어요.") },
+        ],
+      },
+      {
         version: "1.35.0",
         title: msg("문의함과 상의 넣어 입기"),
         changes: [
