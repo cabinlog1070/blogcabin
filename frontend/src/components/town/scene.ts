@@ -211,9 +211,12 @@ const playerLook = (data: TownData) => data.player?.characterAsset ?? VISITOR_CH
 const propKey = (kind: PropKind) => `prop:${kind}`;
 const houseKey = (stage: HouseStage, roof: string) => `house:${stage}:${roof}`;
 
-/** 이 광장이 쓸 그림 목록. TownGame이 미리 이미지로 불러 둔다 */
+/** 이 광장이 쓸 그림 목록. TownGame이 미리 이미지로 불러 둔다.
+ * later: 첫 화면에 바로 보이지 않는 그림(이웃 주민의 걷는 모습·동작 소품, 밤 불꽃놀이)은 광장을 띄운 뒤에 그려 넣는다.
+ * 그 전에는 주민이 앞을 보고 서 있고(residents.ts), 불꽃은 터지지 않는다 */
 export function townTextures(data: TownData, t: T) {
   const list = new Map<string, string>();
+  const later = new Set<string>();
   const houses = [data.myHouse, ...data.neighbors].filter(Boolean) as TownHouse[];
   // 내 캐릭터(방문자는 방문자 캐릭터): 앞·뒤·옆 모습마다 서 있기(0)·걷기(1·2) 그림. 옆모습은 오른쪽을 본다
   const look = playerLook(data);
@@ -230,7 +233,12 @@ export function townTextures(data: TownData, t: T) {
   // 광장을 돌아다니는 이웃 주민과 그 펫 (TOWN-12). 같은 모습이면 그림을 같이 쓴다
   for (const r of data.residents) {
     for (const view of CHAR_VIEWS) {
-      for (const frame of CHAR_FRAMES) list.set(residentWalkKey(r.look, view, frame), characterViewDataUri(r.look, view, frame, PLAYER_SIZE * 2));
+      for (const frame of CHAR_FRAMES) {
+        const key = residentWalkKey(r.look, view, frame);
+        if (list.has(key)) continue; // 내 캐릭터와 같은 모습이면 이미 있다
+        list.set(key, characterViewDataUri(r.look, view, frame, PLAYER_SIZE * 2));
+        if (view !== "front" || frame !== 0) later.add(key);
+      }
     }
     if (r.pet) list.set(residentPetKey(r.pet), toAnimalDataUri(animalSvg(r.pet.assetKey, r.pet.stage, RESIDENT_PET_SIZE * 2, r.pet.accessory, r.pet.color)));
   }
@@ -277,7 +285,7 @@ export function townTextures(data: TownData, t: T) {
   list.set("soft:hedge", toDataUri(softHedge()));
   list.set("soft:flower-pink", toDataUri(softFlowerPink()));
   for (const [kind, art] of Object.entries(PROP_ART)) list.set(propKey(kind as PropKind), toDataUri(art.draw()));
-  return [...list].map(([key, uri]) => ({ key, uri }));
+  return [...list].map(([key, uri]) => ({ key, uri, later: later.has(key) || key.startsWith("act:") || key.startsWith("fw:") }));
 }
 
 function layout(data: TownData, t: T) {
@@ -427,6 +435,7 @@ export function createTownScene(
     private stuck: { x: number; y: number; since: number; retried?: boolean } = { x: 0, y: 0, since: 0 }; // 길을 가다 막혔는지 보는 용도
     private touch = false; // 손가락으로 쓰는 화면 (안내 문구를 "탭해서"로)
     private nightSky: ReturnType<typeof createNightSky> | null = null;
+    private makeNightSky: (() => ReturnType<typeof createNightSky>) | null = null;
     private fireflies: ReturnType<typeof createFireflies> | null = null; // 저녁·밤에 떠다니는 반딧불이
     private residents: ReturnType<typeof createResidents> | null = null; // 광장을 돌아다니는 이웃 주민 (TOWN-12)
     private ringFlowers: Point[] = []; // 광장 둘레 꽃 (이웃 주민이 물을 준다)
@@ -987,6 +996,7 @@ export function createTownScene(
 
       const apply = () => {
         const sky = lightAt(localHour());
+        if (sky.lamps > 0.01 && !this.nightSky) this.nightSky = this.makeNightSky?.() ?? null;
         shade = mixColor(0xffffff, sky.tint, sky.alpha);
         for (const o of this.children.list) paint(o);
         for (const l of this.glows) {
@@ -1212,7 +1222,8 @@ export function createTownScene(
       }
       this.add.image(-FOREST, -FOREST, "horizon-sky").setOrigin(0).setDepth(GROUND_DEPTH + 2);
       // 밤하늘 (별·불꽃놀이): 낮 하늘 위에 겹쳐 두고 밤에만 보인다
-      this.nightSky = createNightSky(this, Phaser, { x: -FOREST, y: -FOREST, w: W, h: HORIZON + FOREST, horizon: HORIZON, depth: GROUND_DEPTH + 3, frontDepth: GROUND_DEPTH + 6.5 });
+      // 밤하늘은 커다란 그림을 새로 굽느라 휴대폰에서 0.1~0.4초가 걸려서, 해가 지기 시작할 때 만든다 (createSky의 apply)
+      this.makeNightSky = () => createNightSky(this, Phaser, { x: -FOREST, y: -FOREST, w: W, h: HORIZON + FOREST, horizon: HORIZON, depth: GROUND_DEPTH + 3, frontDepth: GROUND_DEPTH + 6.5 });
       // 크레용 해와 파란 구름 (정지원 님 시안). 산보다 앞에 띄워 가려지지 않게 하고, 밤에는 숨긴다
       this.dayOnly.push(this.add.image(WORLD.width - 330, HORIZON - 96, "soft:sun").setDisplaySize(80, 80).setDepth(GROUND_DEPTH + 7));
       // 구름은 산 위에만 몰리지 않게 하늘 전체에 듬성듬성 흩는다 (2026-10-13 정지원 님 의견).

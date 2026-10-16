@@ -1,10 +1,11 @@
 // 관리자 (users.role = 'admin'): /api/v1/admin/…
-// 글·댓글 지우기(ADMIN), 강제 탈퇴, 비밀번호 초기화, 코인·경험치 지급, 선물 보내기. 관리자가 아니면 없는 주소(404)로 답한다.
+// 글·댓글 지우기(ADMIN), 강제 탈퇴, 비밀번호 초기화, 문의함, 코인·경험치 지급, 선물 보내기. 관리자가 아니면 없는 주소(404)로 답한다.
 // 실패 문구는 한국어 문장과 그 안에 넣을 값(vars)으로 돌려주고, 화면이 보는 사람의 언어로 바꾼다
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { deleteMember } from "../account/delete-member";
 import { makeTempPassword, setMemberPassword } from "../account/password";
+import { adminInquiries, answerInquiry, setInquiryStatus, type InquiryStatus } from "../inquiries";
 import { adminContent, adminMember, adminMembers, adminOverview } from "../admin/read";
 import { db } from "../db";
 import { animalSpecies, comments, GIFT_MESSAGE_MAX, items, notifications, pointLedger, posts, profiles, users } from "../db/schema";
@@ -46,6 +47,24 @@ export const adminRoutes = new Hono<GuardEnv>()
     const tab = c.req.query("tab") === "comments" ? "comments" : "posts";
     const q = (c.req.query("q") ?? "").trim().slice(0, 50);
     return c.json(await adminContent(tab, q, parseId(c.req.query("page")) ?? 1));
+  })
+  /** 문의함 읽기: ?status=waiting|answered|closed (없으면 전체) */
+  .get("/inquiries", async (c) => {
+    const s = c.req.query("status");
+    return c.json(await adminInquiries(s === "waiting" || s === "answered" || s === "closed" ? (s as InquiryStatus) : null));
+  })
+  /** 문의에 답한다 { answer }: 회원에게 알림이 간다 */
+  .post("/inquiries/:id/answer", async (c) => {
+    const id = parseId(c.req.param("id"));
+    if (id === null) return c.json(fail(BAD_REQUEST), 400);
+    const done = await answerInquiry(c.get("viewer").userId, id, (await readJson(c)).answer);
+    return "error" in done ? c.json(fail(done.error), done.status) : c.json({ ok: true });
+  })
+  /** 문의 상태 바꾸기 { status: closed | waiting } */
+  .post("/inquiries/:id/status", async (c) => {
+    const id = parseId(c.req.param("id"));
+    if (id === null || !(await setInquiryStatus(id, (await readJson(c)).status))) return c.json(fail(BAD_REQUEST), 400);
+    return c.json({ ok: true });
   })
   /** 회원 목록 읽기: ?q= */
   .get("/members", async (c) => c.json({ rows: await adminMembers((c.req.query("q") ?? "").trim().slice(0, 50)) }))

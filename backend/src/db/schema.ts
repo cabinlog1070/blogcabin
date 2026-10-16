@@ -112,6 +112,8 @@ export const NOTIFICATION_KINDS = [
   "gift",
   // 글·댓글에서 @블로그주소로 나를 언급함 (actor_id = 쓴 회원, post_id = 글, 댓글이면 ref_id = 댓글 ID, 2026-10-15)
   "mention",
+  // 관리자가 내 문의에 답함 (ref_id = 문의 ID, actor_id = 답한 관리자, 2026-10-16)
+  "inquiry_answer",
 ] as const;
 export const notificationKind = enumText(NOTIFICATION_KINDS);
 
@@ -326,6 +328,8 @@ export const profiles = pgTable(
     statusMessage: text("status_message"),
     // 머리 색 (2026-10-13, 무료). NULL = 입은 헤어를 그린 그대로의 색
     hairColor: text("hair_color"),
+    // 상의 빼 입기 (2026-10-16). false = 넣어 입기(상의를 하의 안에), true = 상의가 허리를 덮는다. 모습 키에서 상의 키 뒤에 @out
+    topOut: boolean("top_out").notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [
@@ -922,6 +926,40 @@ export const giftPets = pgTable(
       .references(() => animalSpecies.id),
   },
   (t) => [primaryKey({ columns: [t.giftId, t.speciesId] })],
+);
+
+// ===== 문의함 (2026-10-16) =====
+// 문의하기 화면에서 보내는 문의. 회원은 로그인한 채로(user_id), 로그인할 수 없는 사람(비밀번호를 잊음 등)은
+// 아이디·답받을 이메일을 적어 보낸다(guest_username·contact_email). 관리자가 관리자 화면 문의함에서 답하거나 처리 완료로 둔다.
+// 회원이 탈퇴하면 그 회원의 문의도 지운다 (AUTH-06). 로그인 없이 보낸 문의의 이메일에는 관리자가 직접 메일로 답한다
+export const INQUIRY_TOPICS = ["password", "account", "bug", "other"] as const;
+export const INQUIRY_STATUSES = ["waiting", "answered", "closed"] as const;
+export const INQUIRY_CONTENT_MAX = 2000;
+export const INQUIRY_ANSWER_MAX = 2000;
+export const inquiries = pgTable(
+  "inquiries",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }), // 로그인해서 보낸 회원 (로그인 없이 보내면 NULL)
+    guestUsername: text("guest_username"), // 로그인 없이 보낼 때 적은 아이디 (선택)
+    contactEmail: text("contact_email"), // 로그인 없이 보낼 때 답받을 이메일 (그때는 꼭 있다)
+    topic: enumText(INQUIRY_TOPICS)("topic").notNull(),
+    content: text("content").notNull(),
+    answer: text("answer"),
+    answeredBy: text("answered_by").references(() => users.id, { onDelete: "set null" }),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    status: enumText(INQUIRY_STATUSES)("status").notNull().default("waiting"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("inquiries_status_created_idx").on(t.status, t.createdAt.desc()),
+    index("inquiries_user_created_idx").on(t.userId, t.createdAt.desc()),
+    check("inquiries_topic_check", oneOf(t.topic, INQUIRY_TOPICS)),
+    check("inquiries_status_check", oneOf(t.status, INQUIRY_STATUSES)),
+    check("inquiries_sender_check", sql`${t.userId} IS NOT NULL OR ${t.contactEmail} IS NOT NULL`),
+    check("inquiries_content_check", sql`char_length(${t.content}) BETWEEN 1 AND ${sql.raw(String(INQUIRY_CONTENT_MAX))}`),
+    check("inquiries_answer_check", sql`${t.answer} IS NULL OR char_length(${t.answer}) BETWEEN 1 AND ${sql.raw(String(INQUIRY_ANSWER_MAX))}`),
+  ],
 );
 
 // ===== 로그인 시도 제한 (NF-10) =====

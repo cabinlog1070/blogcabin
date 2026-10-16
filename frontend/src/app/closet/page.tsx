@@ -56,6 +56,7 @@ export default async function ClosetPage({ searchParams }: { searchParams: Promi
         characterSpot={closet.characterSpot}
         petSpot={closet.petSpot}
         hairColor={closet.hairColor}
+        topOut={closet.topOut}
         initialTab={initialTab}
       />
 

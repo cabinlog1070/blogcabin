@@ -10,12 +10,13 @@ import type { TownData, TownTarget } from "./types";
 // 그린 결과를 PNG로 브라우저 캐시(Cache Storage)에 남겨 두고 다음에 광장에 올 때(새로고침 포함) 바로 쓴다.
 // 그림 주소(SVG 내용)가 같으면 같은 그림이라, 그림이 바뀌면 키도 바뀐다.
 const rasterCache = new Map<string, HTMLCanvasElement>();
-const RASTER_CACHE_MAX = 150;
+// 이웃 주민이 많으면 광장 그림이 150장을 넘는다(주민 모습마다 9장). 모자라면 광장에 다시 올 때마다 몇 장씩 새로 그렸다
+const RASTER_CACHE_MAX = 400;
 // v2 (2026-10-13): 삼성 인터넷에서 다크 모드 등으로 뿌옇게 바뀐 그림이 v1에 남아, 광장이 계속 흐리게 보였다.
 // 이름을 바꿔 예전 저장분을 모두 버리고 새로 그린다
 const STORE = "town-raster-v2";
 const OLD_STORES = ["town-raster-v1"];
-const STORE_MAX = 400;
+const STORE_MAX = 800;
 
 /** 문자열 → 짧은 해시 (FNV-1a 두 벌) */
 function hashOf(text: string): string {
@@ -64,30 +65,91 @@ async function drawToCanvas(blob: Blob): Promise<HTMLCanvasElement> {
   }
 }
 
+const rasterKey = (uri: string) => `/__town-raster/${hashOf(uri)}.png`;
+
+// 같은 그림(예: 내 캐릭터와 같은 모습의 이웃)을 동시에 두 번 그리지 않게, 그리는 중인 것은 함께 기다린다
+const drawing = new Map<string, Promise<HTMLCanvasElement>>();
+
 /** SVG data URI → 그린 캔버스 (이 탭에서 그린 적 있으면 그대로, 브라우저 캐시에 있으면 PNG로, 없으면 새로 그린다) */
 async function rasterize(uri: string, store: Cache | null): Promise<{ canvas: HTMLCanvasElement; fresh: boolean }> {
   const hit = rasterCache.get(uri);
   if (hit) return { canvas: hit, fresh: false };
-  const req = `/__town-raster/${hashOf(uri)}.png`;
+  const busy = drawing.get(uri);
+  if (busy) return { canvas: await busy, fresh: false };
+  const job = rasterizeOnce(uri, store);
+  const shared = job.then((r) => r.canvas);
+  shared.catch(() => {}); // 실패는 처음 부른 쪽이 받는다
+  drawing.set(uri, shared);
+  try {
+    return await job;
+  } finally {
+    drawing.delete(uri);
+  }
+}
+
+async function rasterizeOnce(uri: string, store: Cache | null): Promise<{ canvas: HTMLCanvasElement; fresh: boolean }> {
   let canvas: HTMLCanvasElement | null = null;
   let fresh = false;
   try {
-    const saved = await store?.match(req);
+    const saved = await store?.match(rasterKey(uri));
     if (saved) canvas = await drawToCanvas(await saved.blob());
   } catch {}
   if (!canvas) {
     canvas = await drawToCanvas(await (await fetch(uri)).blob());
     fresh = true;
-    if (store) {
-      const c = canvas;
-      c.toBlob((png) => {
-        if (png) void store.put(req, new Response(png, { headers: { "content-type": "image/png" } })).catch(() => {});
-      }, "image/png");
-    }
+    saveFresh(uri, canvas, store);
   }
   if (rasterCache.size >= RASTER_CACHE_MAX) rasterCache.delete(rasterCache.keys().next().value!);
   rasterCache.set(uri, canvas);
   return { canvas, fresh };
+}
+
+/**
+ * 여러 장을 동시에 준비한다. 저장해 둔 PNG를 푸는 일은 브라우저가 따로 해서, 한 장씩 기다리던 때보다 다시 올 때 훨씬 빠르다.
+ * 새로 그리는 SVG도 불러오기·풀기를 겹쳐서 기다리는 틈이 줄어든다
+ */
+async function rasterizeAll(
+  list: { key: string; uri: string }[],
+  store: Cache | null,
+  onEach: (key: string, canvas: HTMLCanvasElement, fresh: boolean) => void,
+  isCancelled: () => boolean,
+  workers = 4,
+) {
+  let next = 0;
+  const work = async () => {
+    while (next < list.length && !isCancelled()) {
+      const { key, uri } = list[next++];
+      const { canvas, fresh } = await rasterize(uri, store);
+      onEach(key, canvas, fresh);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(workers, list.length) }, work));
+}
+
+/**
+ * 캔버스 → PNG. 크롬의 toBlob은 브라우저가 한가할 때까지 미뤄서, 광장이 움직이기 시작하면 한참 걸렸다.
+ * 그래서 되는 브라우저에서는 OffscreenCanvas에 옮겨 바꾼다
+ */
+async function toPng(canvas: HTMLCanvasElement): Promise<Blob | null> {
+  try {
+    if (typeof OffscreenCanvas !== "undefined") {
+      const off = new OffscreenCanvas(canvas.width, canvas.height);
+      const ctx = off.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(canvas, 0, 0);
+        return await off.convertToBlob({ type: "image/png" });
+      }
+    }
+  } catch {}
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+}
+
+/** 새로 그린 그림을 PNG로 브라우저 캐시에 남긴다 (기다리지 않는다: 그동안 다음 그림을 그린다) */
+function saveFresh(uri: string, canvas: HTMLCanvasElement, store: Cache | null) {
+  if (!store) return;
+  void toPng(canvas).then((png) => {
+    if (png) return store.put(rasterKey(uri), new Response(png, { headers: { "content-type": "image/png" } }));
+  }).catch(() => {});
 }
 
 /** 옛 그림이 쌓이지 않게: 너무 많아지면 비운다 */
@@ -119,23 +181,30 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
       if (game || starting) return;
       starting = true;
       setLoading({ done: 0, total: 0 });
-      const Phaser = (await import("phaser")).default;
+      // 게임 엔진(Phaser)은 크니까 그림을 준비하는 동안 같이 받아 둔다
+      const phaserLoad = import("phaser");
       const { createTownScene, townTextures } = await import("./scene");
-      // 광장 그림(SVG)을 미리 그려 둔다. 한 장씩 그리고 사이사이 화면에 진행 상황을 보여 준다. 글꼴도 준비된 뒤에 글자를 그린다
+      // 광장 그림(SVG)을 미리 그려 둔다. 그리는 동안 진행 상황을 보여 준다. 글꼴도 준비된 뒤에 글자를 그린다
       const textures = townTextures(data, t);
+      const first = textures.filter((x) => !x.later);
+      const later = textures.filter((x) => x.later);
       const images = new Map<string, HTMLCanvasElement>();
-      setLoading({ done: 0, total: textures.length });
+      setLoading({ done: 0, total: first.length });
       const store = await openStore();
       await trimStore(store);
-      for (const [i, { key, uri }] of textures.entries()) {
-        if (cancelled) return;
-        const { canvas, fresh } = await rasterize(uri, store);
+      let lastPaint = 0;
+      await rasterizeAll(first, store, (key, canvas, isFresh) => {
         images.set(key, canvas);
-        if (fresh) {
-          setLoading({ done: i + 1, total: textures.length });
-          await new Promise((r) => setTimeout(r, 0));
+        if (!isFresh) return;
+        // 진행 표시는 0.1초마다만 바꾼다 (자주 다시 그리면 그만큼 느려진다)
+        const now = performance.now();
+        if (now - lastPaint > 100) {
+          lastPaint = now;
+          setLoading({ done: images.size, total: first.length });
         }
-      }
+      }, () => cancelled);
+      if (cancelled) return;
+      const Phaser = (await phaserLoad).default;
       await document.fonts.ready;
       starting = false;
       // 불러오는 동안 화면을 떠났으면 만들지 않는다
@@ -162,8 +231,18 @@ export function TownGame({ data, className = "" }: { data: TownData; className?:
         if (game && (game.scale.width !== nw || game.scale.height !== nh)) game.scale.resize(nw, nh);
       });
       observer.observe(el);
-      // 첫 장면을 그리면 안내를 내린다
-      game.events.once("postrender", () => setLoading(null));
+      // 첫 장면을 그리면 안내를 내리고, 뒤로 미룬 그림(주민의 걷는 모습·동작 소품·불꽃)을 그려 넣는다
+      const g = game;
+      g.events.once("postrender", () => {
+        setLoading(null);
+        void (async () => {
+          const extra = new Map<string, HTMLCanvasElement>();
+          await rasterizeAll(later, store, (key, canvas) => extra.set(key, canvas), () => cancelled, 2);
+          if (cancelled || game !== g) return;
+          // 한꺼번에 넣는다: 이웃 주민은 걷는 모습·소품이 모두 있어야 움직이기 시작한다 (residents.ts)
+          for (const [key, canvas] of extra) if (!g.textures.exists(key)) g.textures.addCanvas(key, canvas);
+        })();
+      });
     };
     const stop = () => {
       observer?.disconnect();

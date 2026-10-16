@@ -4,6 +4,7 @@ import type { getAllTags, listFeed, searchBlogs, searchPosts } from "@backend/bl
 import type { listLedger } from "@backend/game/ledger";
 import type { listNotificationRows } from "@backend/notifications";
 import type { GiftView } from "@backend/gifts/views";
+import type { adminInquiries, myInquiries } from "@backend/inquiries";
 import type { adminContent, adminMember, adminMembers, adminOverview } from "@backend/admin/read";
 import type { attendancePage } from "@backend/routes/attendance";
 import type { me } from "@backend/routes/me";
@@ -57,7 +58,9 @@ export const readApi = {
     serverApiOrNull<NonNullable<Out<typeof postPage>>>(`/blog-pages/post/${encodeURIComponent(slug)}/${postId}?${new URLSearchParams(query)}`),
   write: (postId?: number) => serverApiOrNull<NonNullable<Out<typeof writePage>>>(postId === undefined ? "/blog-pages/write" : `/blog-pages/write/${postId}`),
   blogSettings: () => serverApiOrNull<NonNullable<Out<typeof blogSettingsPage>>>("/blog-pages/settings"),
+  myInquiries: () => serverApi<{ rows: Out<typeof myInquiries> }>("/inquiries/mine"),
   admin: {
+    inquiries: (status: string) => serverApi<Out<typeof adminInquiries>>(`/admin/inquiries?${new URLSearchParams({ status })}`),
     overview: () => serverApi<Out<typeof adminOverview>>("/admin/overview"),
     content: (tab: string, q: string, page: number) =>
       serverApi<Out<typeof adminContent>>(`/admin/content?${new URLSearchParams({ tab, q, page: String(page) })}`),

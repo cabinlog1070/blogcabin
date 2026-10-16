@@ -8,7 +8,7 @@ import { getWallet } from "../game/points";
 import { readJson, requireViewer, type GuardEnv } from "../http/guard";
 import { isFurnitureColor, isHairColor, isRoofColor } from "../shop/colors";
 import { getCarriedShowcase } from "../farm/read";
-import { getEquipped, getHairColor, listItemsWithOwnership } from "../shop/inventory";
+import { getEquipped, getLookStyle, listItemsWithOwnership } from "../shop/inventory";
 import { clampCharacterSpot, clampPct, clampPetSpot, fitRoomSpot } from "../shop/room";
 
 const msg = <S extends string>(text: S): S => text;
@@ -32,6 +32,8 @@ export type ClosetDraft = {
   pet: { x: number; y: number } | null;
   /** 머리 색 (null = 헤어마다 그린 그대로) */
   hairColor: string | null;
+  /** 상의 빼 입기 (2026-10-16, 없으면 그대로) */
+  topOut?: boolean;
 };
 
 const finite = (...v: unknown[]) => v.every((n) => typeof n === "number" && Number.isFinite(n));
@@ -44,6 +46,7 @@ export async function saveCloset(userId: string, draft: ClosetDraft): Promise<Cl
   if (draft.pet !== null && !finite(draft.pet?.x, draft.pet?.y)) return bad;
   if (draft.roof !== null && !isRoofColor(draft.roof)) return fail(msg("고를 수 없는 색이에요"));
   if (draft.hairColor !== null && !isHairColor(draft.hairColor)) return fail(msg("고를 수 없는 색이에요"));
+  if (draft.topOut !== undefined && typeof draft.topOut !== "boolean") return bad;
 
   const owned = new Map(
     (
@@ -96,7 +99,10 @@ export async function saveCloset(userId: string, draft: ClosetDraft): Promise<Cl
   await db.transaction(async (tx) => {
     // 복합 외래 키가 "보유한 아이템만 장착"을 DB에서 한 번 더 막아 준다
     // DB CHECK profiles_hair_color_check가 머리 색을 한 번 더 막는다
-    await tx.update(profiles).set({ characterItemId: draft.characterItemId, hairColor: draft.hairColor }).where(eq(profiles.userId, userId));
+    await tx
+      .update(profiles)
+      .set({ characterItemId: draft.characterItemId, hairColor: draft.hairColor, ...(draft.topOut !== undefined && { topOut: draft.topOut }) })
+      .where(eq(profiles.userId, userId));
     await tx
       .update(blogs)
       .set({ backgroundItemId: draft.backgroundItemId, roofColor: draft.roof, roomCharX: spot.x, roomCharY: spot.y, roomPetX: pet?.x ?? null, roomPetY: pet?.y ?? null })
@@ -119,7 +125,7 @@ export async function saveCloset(userId: string, draft: ClosetDraft): Promise<Cl
 
 /** 꾸미기 화면: 가진 아이템, 지금 입은 것, 지갑, 미니룸(지붕 색·캐릭터·펫 자리), 데리고 다니는 펫, 머리 색 */
 export async function closetPage(userId: string) {
-  const [all, equipped, wallet, [blog], pet, hairColor] = await Promise.all([
+  const [all, equipped, wallet, [blog], pet, { hairColor, topOut }] = await Promise.all([
     listItemsWithOwnership(userId),
     getEquipped(userId),
     getWallet(userId),
@@ -128,7 +134,7 @@ export async function closetPage(userId: string) {
       .from(blogs)
       .where(eq(blogs.ownerId, userId)),
     getCarriedShowcase(userId), // 미니룸에 놓을 수 있는 펫 (데리고 다니는 펫)
-    getHairColor(userId),
+    getLookStyle(userId),
   ]);
   return {
     items: all.filter((i) => i.owned),
@@ -139,6 +145,7 @@ export async function closetPage(userId: string) {
     petSpot: blog?.roomPetX != null && blog.roomPetY != null ? { x: blog.roomPetX, y: blog.roomPetY } : null,
     pet,
     hairColor,
+    topOut,
   };
 }
 

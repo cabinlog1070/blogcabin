@@ -19,7 +19,7 @@ export default async function AdminPage() {
   const t = await getT();
   const locale = await getLocale();
 
-  const { stats, recentUsers, recentPosts, residents, giftable, giftPets, giftMessageMax } = await readApi.admin.overview();
+  const { stats, recentUsers, recentPosts, residents, giftable, giftPets, giftMessageMax, waitingInquiries } = await readApi.admin.overview();
   const members = residents.map((r) => ({
     userId: r.userId,
     label: `${r.nickname} (${r.username ?? t("소셜")}) · Lv.${levelFromExp(r.exp)} · 🪙 ${r.coins.toLocaleString()}`,
@@ -54,6 +54,14 @@ export default async function AdminPage() {
         </Link>
         <Link href="/admin/content" className="btn btn-basic" data-admin-content-link>
           <Icon name="write" size={20} /> {t("글 관리 (전체 글·댓글 보기·삭제)")}
+        </Link>
+        <Link href="/admin/inquiries" className="btn btn-basic" data-admin-inquiries-link>
+          <Icon name="mail" size={20} /> {t("문의함")}
+          {waitingInquiries > 0 && (
+            <span className="rounded-full bg-berry px-2 text-xs font-bold text-white" aria-label={t("답 기다리는 문의 {n}개", { n: waitingInquiries })}>
+              {waitingInquiries}
+            </span>
+          )}
         </Link>
       </p>
 
